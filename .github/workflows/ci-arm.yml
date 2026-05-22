@@ -1,0 +1,39 @@
+name: CI (ARM64 Docker builds)
+
+# Runs slower due to QEMU emulation — catches ARM-specific issues before Pi 5 deploy.
+# Only runs on push to main/master (not every PR) to save minutes.
+on:
+  push:
+    branches: [main, master]
+
+jobs:
+  build-arm:
+    name: Build Docker images for ARM64
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+        with:
+          platforms: arm64
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build backend (linux/arm64)
+        uses: docker/build-push-action@v6
+        with:
+          context: ./backend
+          platforms: linux/arm64
+          push: false
+          tags: kanakku/api:ci
+
+      - name: Build frontend (linux/arm64)
+        uses: docker/build-push-action@v6
+        with:
+          context: ./frontend
+          platforms: linux/arm64
+          push: false
+          tags: kanakku/frontend:ci

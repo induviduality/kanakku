@@ -1,0 +1,99 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+
+jobs:
+  backend:
+    name: Backend (lint + typecheck + test)
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: kanakku_test
+          POSTGRES_USER: kanakku
+          POSTGRES_PASSWORD: kanakku
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U kanakku -d kanakku_test"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      DATABASE_URL: postgresql+asyncpg://kanakku:kanakku@localhost:5432/kanakku_test
+      JWT_SECRET: ci-test-secret
+      LLM_BACKEND: none
+      REDIS_URL: redis://localhost:6379
+      PUBLIC_BASE_URL: http://localhost:8000
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v4
+        with:
+          version: latest
+
+      - name: Set up Python
+        run: uv python install 3.12
+
+      - name: Install dependencies
+        run: uv pip install --system -e "./backend[dev]"
+
+      - name: Ruff lint
+        run: ruff check backend/app/
+
+      - name: Mypy
+        run: mypy backend/app/
+
+      - name: Pytest
+        run: pytest backend/ --cov=app --cov-report=xml -v
+
+      - name: Upload coverage
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-backend
+          path: coverage.xml
+
+  frontend:
+    name: Frontend (lint + test + build)
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install
+        working-directory: frontend
+
+      - name: Lint
+        run: bun run lint
+        working-directory: frontend
+
+      - name: Test
+        run: bun run test
+        working-directory: frontend
+
+      - name: Build
+        run: bun run build
+        working-directory: frontend

@@ -1,22 +1,25 @@
-# Current Task: Task 0.5 — GitHub Actions CI
+# Current Task: Task 1.1 — Users + Sessions Schema
 
 ## What I'm implementing
-GitHub Actions CI: backend job (pytest + ruff + mypy) and frontend job (bun test + build) running in parallel on push/PR to main.
+SQLAlchemy models: User, Session, InviteToken. Alembic migration. Tests for model creation and migration up/down.
 
 ## Files I'm working in
-.github/workflows/
+backend/app/models/
+backend/alembic/versions/
+backend/tests/
 
 ## Key constraints to remember
-- CI runs on GitHub-hosted x86_64 runners (not ARM64)
-- Backend job needs postgres + redis service containers
-- Use `bun run test` not `bun test`
+- UUIDs use PG UUID type (not VARCHAR)
+- All timestamps use TIMESTAMPTZ
+- Soft delete: deleted_at nullable on relevant models
+- Tokens stored hashed (plain token only in URL/response, never in DB)
 
 ## Already decided (see decisions/log.md for full context)
-- ARM64 builds tested at deploy time, not in CI
+- Stack: SQLAlchemy 2 async, Alembic, asyncpg
 
 ## Tests to write first (TDD)
-- ci.yml backend job: ruff, mypy, pytest --cov
-- ci.yml frontend job: bun run test, bun run build
+- test_models_users.py: create user, email unique constraint, timestamps
+- test_migration.py: alembic upgrade head + downgrade base both clean
 
 ## Definition of done
-Both jobs pass on a dummy PR
+pytest passes including migration round-trip

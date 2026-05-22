@@ -58,9 +58,10 @@
 - [ ] (Optional) verified on actual Pi 5 hardware
 
 ### Task 0.5: GitHub Actions CI
-- [ ] ci.yml with backend + frontend jobs
-- [ ] ci-arm.yml for ARM64 docker builds (QEMU)
-- [ ] Dummy PR runs all jobs green
+- [x] ci.yml with backend + frontend jobs
+- [x] ci-arm.yml for ARM64 docker builds (QEMU)
+- [ ] TODO (you): open a PR against main and confirm both ci.yml jobs go green
+- [ ] TODO (you): confirm ci-arm.yml ARM64 builds pass on push to main
 
 ---
 

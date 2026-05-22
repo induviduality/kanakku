@@ -1,5 +1,12 @@
 # Completed Milestones
 
+## Task 0.5: GitHub Actions CI
+- .github/workflows/ci.yml: backend (ruff + mypy + pytest) and frontend (lint + test + build) jobs in parallel
+- .github/workflows/ci-arm.yml: ARM64 Docker builds via QEMU on push to main
+- Backend job has postgres:16 + redis:7 service containers
+- Uses astral-sh/setup-uv and oven-sh/setup-bun official actions
+- Not verified yet — needs a real PR against main to confirm green
+
 ## Task 0.4: Docker Compose Dev Setup
 - docker-compose.yml: postgres:16, redis:7, api, worker, frontend, ollama, caddy
 - api/worker mount source for hot reload in dev
