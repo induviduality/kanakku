@@ -1,31 +1,23 @@
-# Current Task: Task 1.6 — Frontend Auth Pages
+# Current Task: Task 2.1 — User Settings
 
 ## What I'm implementing
-Six frontend pieces: Setup page, Login page, AcceptInvite page, auth API hooks, auth storage, AuthGuard component, and routes.
+UserSettings model, auto-create on signup, GET/PATCH /settings endpoint.
 
 ## Files I'm working in
-frontend/src/pages/Setup.tsx
-frontend/src/pages/Login.tsx
-frontend/src/pages/AcceptInvite.tsx
-frontend/src/api/auth.ts
-frontend/src/lib/auth-storage.ts
-frontend/src/components/AuthGuard.tsx
-frontend/src/App.tsx (routes)
-frontend/src/test/  (MSW tests)
+backend/app/models/user_settings.py
+backend/alembic/versions/0002_user_settings.py
+backend/app/routers/settings.py
+backend/app/schemas/settings.py
+backend/tests/test_settings.py
 
 ## Key constraints to remember
-- TanStack Router for routing
-- TanStack Query for data fetching
-- Radix UI primitives for form components
-- Tailwind for styling
-- MSW for mocking in tests
-- Access token stored in memory (not localStorage) — refresh token in localStorage
-
-## Tests to write first (TDD)
-- Setup.test.tsx: renders form, submits, redirects on success, shows error on failure
-- Login.test.tsx: same pattern
-- AcceptInvite.test.tsx: pre-fills email if in invite info, handles expired/used
-- AuthGuard.test.tsx: redirects unauthenticated, renders children when authed
+- UserSettings PK = user_id (1:1 with User, not a separate UUID)
+- Auto-created when user is created (in setup + accept-invite endpoints)
+- Fields: primary_currency (str, default "INR"), timezone (str, default "Asia/Kolkata"),
+  date_format (str, default "DD/MM/YYYY"), number_format (str, default "en-IN"), updated_at TIMESTAMPTZ
+- GET /settings: requires auth, returns current user's settings
+- PATCH /settings: partial update, all fields optional
+- Tests: defaults on user create, scoping (user A can't read user B's settings)
 
 ## Definition of done
-bun run test passes, bun run build clean
+pytest passes for settings tests

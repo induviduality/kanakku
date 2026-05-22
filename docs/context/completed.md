@@ -1,5 +1,18 @@
 # Completed Milestones
 
+## Task 1.6: Frontend Auth Pages
+- lib/auth-storage.ts: access token in memory, refresh token in localStorage; storeTokens/clearAuth helpers
+- api/auth.ts: useSetup, useLogin, useAcceptInvite mutations (TanStack Query); fetchInviteInfo query fn; storeTokens on success
+- pages/Setup.tsx: email+password form → POST /auth/setup → navigate /
+- pages/Login.tsx: email+password form → POST /auth/login → navigate /
+- pages/AcceptInvite.tsx: reads token from useSearch; fetches invite info (shows 410/404 errors); pre-fills locked email; POST /auth/accept-invite → navigate /
+- components/AuthGuard.tsx: useEffect redirect to /login when not authenticated; renders children when authed
+- router.tsx: TanStack Router with /, /setup, /login, /accept-invite routes
+- App.tsx: RouterProvider; main.tsx: QueryClientProvider wrapper
+- MSW setup: test/handlers.ts, test/server.ts; setup.ts starts/resets/stops server per test
+- Tests: 15 passing (5 test files) — Setup (4), Login (3), AcceptInvite (5), AuthGuard (2), App (1)
+- bun run test passes, bun run build clean
+
 ## Task 1.5: Invite Token System
 - POST /auth/invites: auth required, generates secrets.token_urlsafe(32), stores SHA-256 hash, optional email lock, 7-day TTL
 - GET /auth/invites/{token}/info: public; 404 unknown, 410 expired/used, 200 with expires_at + email

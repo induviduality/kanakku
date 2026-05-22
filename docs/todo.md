@@ -95,14 +95,14 @@
 - [x] Tests: creation, redemption, expiry, single-use
 
 ### Task 1.6: Frontend Auth Pages
-- [ ] pages/Setup.tsx
-- [ ] pages/Login.tsx
-- [ ] pages/AcceptInvite.tsx
-- [ ] api/auth.ts hooks
-- [ ] lib/auth-storage.ts
-- [ ] components/AuthGuard.tsx
-- [ ] Routes configured
-- [ ] Tests with MSW
+- [x] pages/Setup.tsx
+- [x] pages/Login.tsx
+- [x] pages/AcceptInvite.tsx
+- [x] api/auth.ts hooks
+- [x] lib/auth-storage.ts
+- [x] components/AuthGuard.tsx
+- [x] Routes configured
+- [x] Tests with MSW
 
 ---
 
