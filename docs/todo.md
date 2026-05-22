@@ -33,7 +33,7 @@
 - [x] tests/conftest.py with fixtures
 - [x] Dockerfile (ARM64-compatible)
 - [x] Tests: /health, DB connect
-- [ ] pytest, ruff, mypy all clean (run locally to verify)
+- [x] pytest, ruff, mypy all clean
 
 ### Task 0.3: Frontend Bootstrap
 - [ ] Vite + React 19 + TS scaffolded via Bun

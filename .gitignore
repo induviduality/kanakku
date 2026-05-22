@@ -18,3 +18,6 @@ dist/
 
 # Docker volumes
 docker/volumes/
+
+# Claude Code local settings
+.claude/settings.local.json
