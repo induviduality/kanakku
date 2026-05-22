@@ -1,6 +1,6 @@
 services:
   db:
-    image: postgres:16-alpine
+    image: postgres:16
     restart: unless-stopped
     env_file: .env
     environment:
@@ -8,26 +8,94 @@ services:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     volumes:
-      - db_data:/var/lib/postgresql/data
+      - pgdata:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
       interval: 10s
       timeout: 5s
       retries: 5
+    ports:
+      - "5432:5432"
 
-  backend:
-    build: ../backend
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    ports:
+      - "6379:6379"
+
+  api:
+    build:
+      context: ../backend
+      dockerfile: Dockerfile
     restart: unless-stopped
     env_file: .env
+    environment:
+      DATABASE_URL: ${DATABASE_URL}
+      JWT_SECRET: ${JWT_SECRET}
+      LLM_BACKEND: ${LLM_BACKEND}
+      OLLAMA_HOST: ${OLLAMA_HOST}
+      LLM_MODEL: ${LLM_MODEL:-qwen2.5:1.5b}
+      REDIS_URL: ${REDIS_URL}
+      PUBLIC_BASE_URL: ${PUBLIC_BASE_URL}
     depends_on:
       db:
         condition: service_healthy
+      redis:
+        condition: service_healthy
+    ports:
+      - "8000:8000"
+    volumes:
+      - ../backend:/app
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+
+  worker:
+    build:
+      context: ../backend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      DATABASE_URL: ${DATABASE_URL}
+      JWT_SECRET: ${JWT_SECRET}
+      LLM_BACKEND: ${LLM_BACKEND}
+      OLLAMA_HOST: ${OLLAMA_HOST}
+      LLM_MODEL: ${LLM_MODEL:-qwen2.5:1.5b}
+      REDIS_URL: ${REDIS_URL}
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - ../backend:/app
+    command: python -m arq app.worker.WorkerSettings
 
   frontend:
-    build: ../frontend
+    build:
+      context: ../frontend
+      dockerfile: Dockerfile
     restart: unless-stopped
+    ports:
+      - "5173:80"
     depends_on:
-      - backend
+      - api
+
+  ollama:
+    image: ollama/ollama:latest
+    restart: unless-stopped
+    volumes:
+      - ollama:/root/.ollama
+    environment:
+      OLLAMA_MAX_LOADED_MODELS: "1"
+    ports:
+      - "11434:11434"
 
   caddy:
     image: caddy:2-alpine
@@ -40,10 +108,12 @@ services:
       - caddy_data:/data
       - caddy_config:/config
     depends_on:
+      - api
       - frontend
-      - backend
 
 volumes:
-  db_data:
+  pgdata:
+  redisdata:
+  ollama:
   caddy_data:
   caddy_config:

@@ -1,0 +1,65 @@
+.PHONY: up down restart logs build ps \
+        backend-shell worker-shell frontend-shell psql redis-shell ollama-shell \
+        migrate ollama-init
+
+# ── Compose lifecycle ──────────────────────────────────────────────────────────
+
+up:
+	docker compose up -d
+
+down:
+	docker compose down
+
+restart:
+	docker compose restart
+
+build:
+	docker compose build
+
+ps:
+	docker compose ps
+
+logs:
+	docker compose logs -f
+
+logs-api:
+	docker compose logs -f api
+
+logs-worker:
+	docker compose logs -f worker
+
+logs-frontend:
+	docker compose logs -f frontend
+
+# ── Shells ─────────────────────────────────────────────────────────────────────
+
+backend-shell:
+	docker compose exec api bash
+
+worker-shell:
+	docker compose exec worker bash
+
+frontend-shell:
+	docker compose exec frontend sh
+
+psql:
+	docker compose exec db psql -U $${POSTGRES_USER:-kanakku} -d $${POSTGRES_DB:-kanakku}
+
+redis-shell:
+	docker compose exec redis redis-cli
+
+ollama-shell:
+	docker compose exec ollama bash
+
+# ── Database ───────────────────────────────────────────────────────────────────
+
+migrate:
+	docker compose exec api alembic upgrade head
+
+migrate-down:
+	docker compose exec api alembic downgrade -1
+
+# ── Ollama ─────────────────────────────────────────────────────────────────────
+
+ollama-init:
+	bash scripts/init-ollama.sh

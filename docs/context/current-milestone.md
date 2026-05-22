@@ -1,24 +1,22 @@
-# Current Task: Task 0.4 — Docker Compose Dev Setup
+# Current Task: Task 0.5 — GitHub Actions CI
 
 ## What I'm implementing
-Single docker-compose.yml in infra/ with: postgres:16, redis:7, api (backend), worker (ARQ), frontend, ollama. Env.example with all vars. Makefile with up/down/logs/shells. init-ollama.sh to pull qwen2.5:1.5b.
+GitHub Actions CI: backend job (pytest + ruff + mypy) and frontend job (bun test + build) running in parallel on push/PR to main.
 
 ## Files I'm working in
-infra/
+.github/workflows/
 
 ## Key constraints to remember
-- Same compose file for dev AND production (NFR-1.1)
-- ARM64-compatible images (Pi 5 target)
-- Ollama: OLLAMA_MAX_LOADED_MODELS=1
+- CI runs on GitHub-hosted x86_64 runners (not ARM64)
+- Backend job needs postgres + redis service containers
+- Use `bun run test` not `bun test`
 
 ## Already decided (see decisions/log.md for full context)
-- No code changes between home server and cloud — env vars only
+- ARM64 builds tested at deploy time, not in CI
 
 ## Tests to write first (TDD)
-- `make up` → all services start
-- /health reachable at http://localhost:8000/health
-- Frontend reachable at http://localhost:5173
-- `ollama list` shows qwen2.5:1.5b after init
+- ci.yml backend job: ruff, mypy, pytest --cov
+- ci.yml frontend job: bun run test, bun run build
 
 ## Definition of done
-All services start cleanly; ollama has model loaded
+Both jobs pass on a dummy PR

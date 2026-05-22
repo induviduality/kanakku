@@ -49,12 +49,12 @@
 - [x] bun run test passes, bun run build clean
 
 ### Task 0.4: Docker Compose Dev Setup
-- [ ] docker-compose.yml with postgres, redis, api, worker, frontend, ollama
-- [ ] env.example with all vars from TDD 4.10
-- [ ] Makefile with up/down/logs/shells
-- [ ] init-ollama.sh to pull qwen2.5:1.5b
-- [ ] All services start cleanly
-- [ ] Ollama has qwen2.5:1.5b loaded
+- [x] docker-compose.yml with postgres, redis, api, worker, frontend, ollama
+- [x] env.example with all vars from TDD 4.10
+- [x] Makefile with up/down/logs/shells
+- [x] init-ollama.sh to pull qwen2.5:1.5b
+- [ ] All services start cleanly (verify when Docker available)
+- [ ] Ollama has qwen2.5:1.5b loaded (verify when Docker available)
 - [ ] (Optional) verified on actual Pi 5 hardware
 
 ### Task 0.5: GitHub Actions CI

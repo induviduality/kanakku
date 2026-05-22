@@ -1,5 +1,13 @@
 # Completed Milestones
 
+## Task 0.4: Docker Compose Dev Setup
+- docker-compose.yml: postgres:16, redis:7, api, worker, frontend, ollama, caddy
+- api/worker mount source for hot reload in dev
+- env.example: all vars from TDD 4.10 with clear comments
+- infra/Makefile: up/down/restart/build/ps/logs/logs-api/logs-worker/migrate/psql/redis-shell/ollama-shell/ollama-init
+- infra/scripts/init-ollama.sh: waits for Ollama readiness then pulls model
+- Not runtime-tested (no Docker locally); files are deployment-ready
+
 ## Task 0.3: Frontend Bootstrap
 - Vite + React 19 + TypeScript scaffolded with bun
 - Tailwind CSS v4 via @tailwindcss/vite (CSS-first, no config file)
