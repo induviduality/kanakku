@@ -1,25 +1,22 @@
-# Current Task: Task 1.1 — Users + Sessions Schema
+# Current Task: Task 1.2 — Password Hashing & JWT
 
 ## What I'm implementing
-SQLAlchemy models: User, Session, InviteToken. Alembic migration. Tests for model creation and migration up/down.
+Password hashing with argon2id and JWT token generation/validation.
 
 ## Files I'm working in
-backend/app/models/
-backend/alembic/versions/
-backend/tests/
+backend/app/security/passwords.py
+backend/app/security/tokens.py
+backend/tests/test_security.py
 
 ## Key constraints to remember
-- UUIDs use PG UUID type (not VARCHAR)
-- All timestamps use TIMESTAMPTZ
-- Soft delete: deleted_at nullable on relevant models
-- Tokens stored hashed (plain token only in URL/response, never in DB)
-
-## Already decided (see decisions/log.md for full context)
-- Stack: SQLAlchemy 2 async, Alembic, asyncpg
+- argon2id for password hashing (argon2-cffi installed)
+- JWT HS256 using python-jose
+- Access token: 24h expiry
+- Refresh token: 30d expiry
+- JWT secret from settings.jwt_secret
 
 ## Tests to write first (TDD)
-- test_models_users.py: create user, email unique constraint, timestamps
-- test_migration.py: alembic upgrade head + downgrade base both clean
+- test_security.py: hash + verify, token roundtrip, expiry check, tampering detection
 
 ## Definition of done
-pytest passes including migration round-trip
+pytest passes for security module tests

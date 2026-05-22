@@ -68,9 +68,9 @@
 ## Milestone 1: Authentication
 
 ### Task 1.1: Users + Sessions Schema
-- [ ] User, Session, InviteToken models
-- [ ] Migration generated and reviewed (UUID, TIMESTAMPTZ)
-- [ ] Tests: model creation, unique constraint, migration up/down
+- [x] User, Session, InviteToken models
+- [x] Migration generated and reviewed (UUID, TIMESTAMPTZ)
+- [x] Tests: model creation, unique constraint, migration up/down
 
 ### Task 1.2: Password Hashing & JWT
 - [ ] security/passwords.py (argon2id)

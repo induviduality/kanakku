@@ -1,5 +1,15 @@
 # Completed Milestones
 
+## Task 1.1: Users + Sessions Schema
+- app/models/user.py: User (id UUID, email UNIQUE, password_hash, created_at TIMESTAMPTZ, deleted_at nullable)
+- app/models/session.py: Session (id UUID, user_id FK→users CASCADE, token_hash UNIQUE, expires_at, created_at)
+- app/models/invite_token.py: InviteToken (id UUID, created_by_user_id FK→users CASCADE, token_hash UNIQUE, email nullable, expires_at, used_at nullable, created_at)
+- alembic/versions/0001_users_sessions_invite_tokens.py: migration with full upgrade/downgrade
+- tests/test_models_users.py: create user, email unique constraint, timestamps, session/invite_token creation
+- tests/test_migration.py: synchronous round-trip test (upgrade head + downgrade base)
+- conftest.py: added db_tables + db_session fixtures using async_sessionmaker
+- Note: tests require a running Postgres; ruff + mypy clean
+
 ## Task 0.5: GitHub Actions CI
 - .github/workflows/ci.yml: backend (ruff + mypy + pytest) and frontend (lint + test + build) jobs in parallel
 - .github/workflows/ci-arm.yml: ARM64 Docker builds via QEMU on push to main
