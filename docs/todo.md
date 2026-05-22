@@ -25,15 +25,15 @@
 - [x] Non-Commercial LICENSE
 
 ### Task 0.2: Backend Bootstrap
-- [ ] pyproject.toml with deps + dev deps
-- [ ] app/main.py with /health
-- [ ] app/config.py with pydantic-settings
-- [ ] app/db/session.py + app/db/base.py
-- [ ] Alembic initialized
-- [ ] tests/conftest.py with fixtures
-- [ ] Dockerfile (ARM64-compatible)
-- [ ] Tests: /health, DB connect
-- [ ] pytest, ruff, mypy all clean
+- [x] pyproject.toml with deps + dev deps
+- [x] app/main.py with /health
+- [x] app/config.py with pydantic-settings
+- [x] app/db/session.py + app/db/base.py
+- [x] Alembic initialized
+- [x] tests/conftest.py with fixtures
+- [x] Dockerfile (ARM64-compatible)
+- [x] Tests: /health, DB connect
+- [ ] pytest, ruff, mypy all clean (run locally to verify)
 
 ### Task 0.3: Frontend Bootstrap
 - [ ] Vite + React 19 + TS scaffolded via Bun
