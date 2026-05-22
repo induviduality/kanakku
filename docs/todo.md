@@ -36,17 +36,17 @@
 - [x] pytest, ruff, mypy all clean
 
 ### Task 0.3: Frontend Bootstrap
-- [ ] Vite + React 19 + TS scaffolded via Bun
-- [ ] Tailwind + PostCSS configured
-- [ ] Radix UI primitives installed (dialog, dropdown, tabs, toast)
-- [ ] TanStack Query + Router installed
-- [ ] Recharts installed
-- [ ] vite-plugin-pwa installed (disabled initially)
-- [ ] Vitest + RTL configured
-- [ ] Standard directory structure
-- [ ] Dockerfile (ARM64-compatible)
-- [ ] App renders "Kanakku" + Radix dialog demo
-- [ ] bun test passes, bun run build clean
+- [x] Vite + React 19 + TS scaffolded via Bun
+- [x] Tailwind v4 configured (CSS-first via @tailwindcss/vite)
+- [x] Radix UI primitives installed (dialog, dropdown, tabs, toast)
+- [x] TanStack Query + Router installed
+- [x] Recharts installed
+- [x] vite-plugin-pwa installed (disabled initially)
+- [x] Vitest + RTL configured
+- [x] Standard directory structure
+- [x] Dockerfile (ARM64-compatible)
+- [x] App renders "Kanakku" + Radix dialog demo
+- [x] bun run test passes, bun run build clean
 
 ### Task 0.4: Docker Compose Dev Setup
 - [ ] docker-compose.yml with postgres, redis, api, worker, frontend, ollama
