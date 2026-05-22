@@ -1,27 +1,30 @@
-# Current Task: Task 1.4 — Login, Logout, Me, Refresh
+# Current Task: Task 1.5 — Invite Token System
 
 ## What I'm implementing
-Four auth endpoints: POST /auth/login, POST /auth/logout, GET /auth/me, POST /auth/refresh.
-Plus the get_current_user dependency used by all protected endpoints.
+Three endpoints for the invite token flow:
+- POST /auth/invites — create an invite token (auth required)
+- GET /auth/invites/{token}/info — get invite metadata (public)
+- POST /auth/accept-invite — redeem invite, create new user, return token pair
 
 ## Files I'm working in
-backend/app/routers/auth.py  (extend existing)
-backend/app/dependencies.py  (get_current_user)
-backend/app/schemas/auth.py  (LoginRequest, MeResponse)
-backend/tests/test_auth_endpoints.py
+backend/app/routers/auth.py  (extend)
+backend/app/schemas/auth.py  (InviteCreateRequest, InviteInfoResponse, AcceptInviteRequest)
+backend/tests/test_auth_invite.py
 
 ## Key constraints to remember
-- Login: verify email + password, create Session row (token_hash = SHA-256 of opaque token), return token pair
-- Logout: delete Session row for current session
-- Me: return current user info (id, email, created_at)
-- Refresh: verify refresh token JWT, issue new access token (sliding refresh)
-- get_current_user: decode Bearer JWT, load User from DB, 401 if invalid/expired/deleted
+- Tokens stored hashed (SHA-256), plain token only in response URL / body
+- Token is a URL-safe random string (secrets.token_urlsafe)
+- expires_at: default 7 days from creation
+- Single-use: used_at set on redemption, subsequent redemption → 410 Gone
+- Email field optional on creation; if set, AcceptInvite must match it
+- Info endpoint returns: expires_at, email (if set), already_used bool
+- No public signup — only via valid, unexpired, unused invite token
 
 ## Tests to write first (TDD)
-- Login happy path, wrong password 401, unknown email 401
-- Logout removes session
-- Me returns correct user
-- Refresh issues new access token, invalid refresh token 401
+- Create invite (auth required), unauthenticated → 401
+- Info: valid token, expired token → 410, used token → 410, unknown → 404
+- Accept: success creates user + session + tokens, duplicate email 409,
+  wrong email 400, expired → 410, already used → 410
 
 ## Definition of done
-pytest passes for all auth endpoint tests
+pytest passes for all invite tests

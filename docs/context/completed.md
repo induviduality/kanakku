@@ -1,5 +1,14 @@
 # Completed Milestones
 
+## Task 1.4: Login, Logout, Me, Refresh
+- app/dependencies.py: get_current_user — decodes Bearer access JWT, loads User from DB, 401 on invalid/expired/deleted
+- POST /auth/login: verifies email+password, creates Session row (token_hash=SHA-256 of refresh token), returns token pair
+- POST /auth/logout: requires auth, deletes Session by refresh token hash; 204
+- GET /auth/me: returns id, email, created_at for current user
+- POST /auth/refresh: verifies refresh JWT + Session row, rotates token (delete old session, issue new), returns new pair
+- schemas/auth.py: added LoginRequest, LogoutRequest, RefreshRequest, MeResponse
+- tests/test_auth_endpoints.py: 13 integration tests covering all paths (need Postgres)
+
 ## Task 1.3: First-Run Setup
 - app/routers/auth.py: POST /api/v1/auth/setup — creates first user, returns token pair; 404 once any user exists
 - _assert_no_users_exist dependency: counts users via SELECT COUNT(*), raises 404 if > 0

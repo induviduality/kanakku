@@ -83,9 +83,9 @@
 - [x] Tests: first succeeds, subsequent 404, validation
 
 ### Task 1.4: Login, Logout, Me, Refresh
-- [ ] All four endpoints
-- [ ] get_current_user dependency
-- [ ] Tests for each path
+- [x] All four endpoints
+- [x] get_current_user dependency
+- [x] Tests for each path
 
 ### Task 1.5: Invite Token System
 - [ ] POST /auth/invites
