@@ -1,5 +1,18 @@
 # Completed Milestones
 
+## Task 1.3: First-Run Setup
+- app/routers/auth.py: POST /api/v1/auth/setup — creates first user, returns token pair; 404 once any user exists
+- _assert_no_users_exist dependency: counts users via SELECT COUNT(*), raises 404 if > 0
+- app/schemas/auth.py: SetupRequest (EmailStr + password), TokenResponse
+- app/main.py: auth router included at /api/v1 prefix
+- pyproject.toml: pydantic[email] dependency added (needed for EmailStr)
+- tests/test_auth_setup.py: 6 integration tests (success, token validity, 404 on repeat, validation errors)
+
+## Task 1.2: Password Hashing & JWT
+- app/security/passwords.py: argon2id hash + verify (argon2-cffi)
+- app/security/tokens.py: create_access_token (24h), create_refresh_token (30d), decode_token — all HS256 via python-jose; accept optional expires_delta for test overrides
+- tests/test_security.py: 9 unit tests (no DB) — hash, verify, roundtrip, expiry, tampering, wrong-secret; all passing
+
 ## Task 1.1: Users + Sessions Schema
 - app/models/user.py: User (id UUID, email UNIQUE, password_hash, created_at TIMESTAMPTZ, deleted_at nullable)
 - app/models/session.py: Session (id UUID, user_id FK→users CASCADE, token_hash UNIQUE, expires_at, created_at)

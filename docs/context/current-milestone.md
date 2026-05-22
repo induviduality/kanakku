@@ -1,22 +1,27 @@
-# Current Task: Task 1.2 — Password Hashing & JWT
+# Current Task: Task 1.4 — Login, Logout, Me, Refresh
 
 ## What I'm implementing
-Password hashing with argon2id and JWT token generation/validation.
+Four auth endpoints: POST /auth/login, POST /auth/logout, GET /auth/me, POST /auth/refresh.
+Plus the get_current_user dependency used by all protected endpoints.
 
 ## Files I'm working in
-backend/app/security/passwords.py
-backend/app/security/tokens.py
-backend/tests/test_security.py
+backend/app/routers/auth.py  (extend existing)
+backend/app/dependencies.py  (get_current_user)
+backend/app/schemas/auth.py  (LoginRequest, MeResponse)
+backend/tests/test_auth_endpoints.py
 
 ## Key constraints to remember
-- argon2id for password hashing (argon2-cffi installed)
-- JWT HS256 using python-jose
-- Access token: 24h expiry
-- Refresh token: 30d expiry
-- JWT secret from settings.jwt_secret
+- Login: verify email + password, create Session row (token_hash = SHA-256 of opaque token), return token pair
+- Logout: delete Session row for current session
+- Me: return current user info (id, email, created_at)
+- Refresh: verify refresh token JWT, issue new access token (sliding refresh)
+- get_current_user: decode Bearer JWT, load User from DB, 401 if invalid/expired/deleted
 
 ## Tests to write first (TDD)
-- test_security.py: hash + verify, token roundtrip, expiry check, tampering detection
+- Login happy path, wrong password 401, unknown email 401
+- Logout removes session
+- Me returns correct user
+- Refresh issues new access token, invalid refresh token 401
 
 ## Definition of done
-pytest passes for security module tests
+pytest passes for all auth endpoint tests

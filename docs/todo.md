@@ -73,14 +73,14 @@
 - [x] Tests: model creation, unique constraint, migration up/down
 
 ### Task 1.2: Password Hashing & JWT
-- [ ] security/passwords.py (argon2id)
-- [ ] security/tokens.py (JWT HS256, 24h/30d)
-- [ ] Tests: hashing, token roundtrip, expiry, tampering
+- [x] security/passwords.py (argon2id)
+- [x] security/tokens.py (JWT HS256, 24h/30d)
+- [x] Tests: hashing, token roundtrip, expiry, tampering
 
 ### Task 1.3: First-Run Setup
-- [ ] POST /auth/setup endpoint
-- [ ] assert_no_users_exist dependency
-- [ ] Tests: first succeeds, subsequent 404, validation
+- [x] POST /auth/setup endpoint
+- [x] assert_no_users_exist dependency
+- [x] Tests: first succeeds, subsequent 404, validation
 
 ### Task 1.4: Login, Logout, Me, Refresh
 - [ ] All four endpoints
