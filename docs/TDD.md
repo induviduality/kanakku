@@ -1,5 +1,6 @@
-# Personal Finance Tracker — Technical Design Document
+# Kanakku — Personal Finance Tracker Technical Design Document
 
+**Status:** v3
 **Author:** Induja
 **Last updated:** 2026-05-22
 
@@ -26,44 +27,48 @@ Existing personal finance tools (Firefly III, YNAB, Splitwise, GnuCash, plain-te
 2. **Low-friction entry** — typing every transaction into a form is unsustainable; the dropoff in tracking discipline kills the value of the tool.
 3. **Comfortable interaction surface** — text-based ledgers are powerful but unfriendly to read and use day-to-day; web-based tools often have rigid input flows.
 
-Bank statements in India are almost universally distributed as password-protected PDFs, not CSVs or API feeds. Real-world transactions are often split among friends (especially via UPI), with no system-of-record linking the split context to the underlying bank debit. Payment apps like Google Pay provide richer merchant context than the bank statement does, but offer no clean reconciliation path to the bank.
+Bank statements in India are almost universally distributed as password-protected PDFs, not CSVs or API feeds. Fortunately, those PDFs have selectable text and follow predictable per-bank layouts, which makes deterministic parsing viable.
 
-The result: most people either give up tracking, or settle for a tool that captures a fraction of their financial reality.
+Real-world transactions are often split among friends (especially via UPI), with no system-of-record linking the split context to the underlying bank debit. Payment apps like Google Pay provide richer merchant context than the bank statement does, but offer no clean reconciliation path to the bank.
+
+The result: most people either give up tracking, or settle for a tool that captures a fraction of their financial reality. **Kanakku** is built to close that gap.
 
 ## 1.2 Goals
 
 - **Own your data.** A relational data model with full read/write access, queryable via SQL.
-- **Two equally-supported entry paths.** Manual entry (for transactions as they happen) and PDF statement import (for catching what was missed) are both first-class. Realistic usage: weekly check-in mixing both.
+- **Two equally-supported entry paths.** Manual entry and PDF statement import are both first-class. Realistic usage: weekly check-in mixing both.
 - **Support retroactive backfilling.** Historical bank statements can be imported to build up past data; manual entry allows filling specific known gaps.
-- **Model real life accurately.** Splits with friends (including retroactive bundling of existing transactions), partial settlement, forgiven shares, recurring and ad-hoc budgets, goal-based savings, and subscriptions are first-class concepts, not workarounds.
-- **Be platform-agnostic.** The same codebase runs on a personal home server and on a cloud VPS without code changes — configuration only.
+- **Model real life accurately.** Splits with friends (including retroactive bundling), partial settlement, forgiven shares, recurring and ad-hoc budgets, goal-based savings, and subscriptions are first-class concepts.
+- **Be platform-agnostic.** The same codebase runs on a personal home server and on a cloud VPS without code changes — configuration only. The v1 deployment target is a Raspberry Pi 5 on the user's home network.
 - **Be device-agnostic.** The interface works as well on mobile browsers as on desktop, and is installable as a PWA.
-- **Be privacy-first.** A fully local mode exists where no data leaves the host. Any cloud integration is opt-in and explicit, with transparency about what data is sent.
+- **Be privacy-first.** All data lives on the user's hardware. The LLM runs locally on the same device. No data leaves the host in v1.
 
 ## 1.3 Non-Goals
 
-- **Not a multi-tenant SaaS.** Single-user (or small-household) personal use. No marketing site, no public signup funnel, no billing.
-- **Not double-entry accounting.** Liability accounts are modeled, but we are not building a general-ledger system suitable for business accounting.
-- **Not investment portfolio management.** Stocks, mutual funds, and crypto holdings are out of scope. Transactions involving them can be recorded, but cost-basis tracking, capital gains, and price history are not built in.
-- **Not currency conversion.** Multi-currency entries are stored faithfully, but no FX-rate-aware reporting is implemented in v1. The user's bank handles conversion; we record what the bank records.
-- **Not a budgeting envelope system.** Budgets in this system are spending limits and analytical groupings, not pre-allocated cash envelopes.
-- **Not a bill-pay or payment-initiation tool.** The system only records transactions; it never moves money.
-- **No notifications in v1.** Subscription renewal reminders, budget overrun alerts, etc. are deferred.
-- **No transaction attachments in v1.** No receipt scanning, no invoice file storage.
-- **No LLM-assisted manual entry.** Manual entry is structured form input. LLMs are used only for PDF extraction and (optionally) merchant categorization suggestions.
+- **Not a multi-tenant SaaS.** Single-user (or small-household) personal use.
+- **Not double-entry accounting.** Liability accounts are modeled, but we are not building a general ledger.
+- **Not investment portfolio management.** Stocks, mutual funds, and crypto holdings are out of scope.
+- **Not currency conversion.** Multi-currency entries are stored faithfully, but no FX-aware reporting.
+- **Not a budgeting envelope system.** Budgets are spending limits and analytical groupings.
+- **Not a bill-pay tool.** The system only records transactions.
+- **No notifications in v1.** Deferred.
+- **No transaction attachments in v1.**
+- **No LLM-assisted manual entry.** Manual entry is structured form input only.
+- **No vision-model PDF extraction in v1.** All target bank statements have selectable text — deterministic parsing is sufficient.
+- **No cloud-LLM deployment in v1.** The LLMClient abstraction supports cloud backends (Anthropic, OpenAI) but only Ollama is exercised in v1.
 
 ## 1.4 Glossary
 
 - **Account** — a place money lives (bank account, cash, credit card, loan).
 - **Payment Method** — a specific way money moves out of an account (debit card, credit card, netbanking, UPI app).
 - **Payee** — an entity money is paid to or received from. Includes merchants, businesses, and people.
-- **Category** — what kind of spending or income a transaction represents (food, rent, salary, etc.). Many-to-many with transactions.
-- **Tag** — a free-form label on a transaction for cross-cutting concerns (e.g. `work-reimbursable`). Many-to-many.
+- **Category** — what kind of spending or income a transaction represents. Many-to-many with transactions.
+- **Tag** — a free-form label on a transaction. Many-to-many.
 - **Transaction** — a single financial event. Types: expense, income, transfer.
-- **Split** — a single entity representing a shared expense. It wraps one expense transaction and has one or more **shares** distributed among the user and others.
-- **Split Share** — one share within a split. May belong to the user or to another payee. Has a status: pending, settled, or forgiven.
-- **Budget** — a spending limit, scoped to a time period and/or categories, used for tracking and analysis.
-- **Subscription** — a recurring known expense (Netflix, gym, etc.) with a billing cycle.
+- **Split** — a distinct entity wrapping one expense transaction and partitioning its cost into shares.
+- **Split Share** — one share within a split. May belong to the user or to another payee. Status: pending, settled, or forgiven.
+- **Budget** — a spending limit, scoped to a time period and/or categories.
+- **Subscription** — a recurring known expense with a billing cycle.
 - **Piggy Bank** — a savings goal with a target amount, target date, and tracked contributions.
 - **Import Batch** — a single ingestion event (e.g. one uploaded PDF) producing raw records that may become transactions.
 
@@ -74,395 +79,295 @@ The result: most people either give up tracking, or settle for a tool that captu
 ## 2.1 Functional Requirements
 
 ### 2.1.1 Authentication & Setup
-- **FR-1.1** The system supports user accounts with email + password authentication.
-- **FR-1.2** Sessions persist across browser restarts via secure tokens.
-- **FR-1.3** On first run (no users in the database), the system displays a one-time setup screen to create the initial user.
-- **FR-1.4** After the initial user exists, public signup is disabled. Additional users (e.g. household members) may be created only via signed invite tokens generated by an existing user.
-- **FR-1.5** The data model supports multi-user from day one; v1 surface is single-user, but the schema does not preclude future multi-user.
+- **FR-1.1** Users authenticate via email + password.
+- **FR-1.2** Sessions persist via secure tokens.
+- **FR-1.3** First-run setup screen creates the initial user when no users exist.
+- **FR-1.4** Public signup disabled after first user; additional users via signed invite tokens.
+- **FR-1.5** Schema supports multi-user from day one.
 
 ### 2.1.2 User Settings
 - **FR-2.1** Each user has a settings profile.
-- **FR-2.2** Settings include: primary currency (used as default for new accounts and transactions), display preferences (date format, number format), and timezone.
-- **FR-2.3** Primary currency can be changed; existing records are not converted.
+- **FR-2.2** Settings: primary currency, timezone, date format, number format.
+- **FR-2.3** Primary currency can be changed; existing records unaffected.
 
 ### 2.1.3 Accounts & Payment Methods
-- **FR-3.1** Users can create accounts of types: bank, cash, credit card, loan.
-- **FR-3.2** Each account holds a current balance and a currency code (defaulting to the user's primary currency).
-- **FR-3.3** Each account may have zero or more associated payment methods: debit card, credit card, netbanking, UPI.
-- **FR-3.4** UPI payment methods may optionally specify which app (GPay, PhonePe, Paytm, etc.).
-- **FR-3.5** Accounts and payment methods can be marked inactive without being deleted.
+- **FR-3.1** Accounts of types: bank, cash, credit card, loan.
+- **FR-3.2** Each account has currency and current balance.
+- **FR-3.3** Payment methods attached to accounts: debit card, credit card, netbanking, UPI.
+- **FR-3.4** UPI methods may optionally specify the app (GPay, PhonePe, Paytm, etc.).
+- **FR-3.5** Accounts and payment methods can be marked inactive.
 
 ### 2.1.4 Payees
-- **FR-4.1** Users can create payees with a name, type (merchant, person, business, other), and optional default categories.
-- **FR-4.2** When a transaction is created against a payee with default categories, the transaction's categories are pre-populated (overrideable by the user).
+- **FR-4.1** Payees with name, type (merchant/person/business/other), optional default categories.
+- **FR-4.2** Default categories pre-populate on new transactions (overrideable).
 - **FR-4.3** Payees of any type can participate in splits.
 
 ### 2.1.5 Categories & Tags
-- **FR-5.1** Users can create categories with name, icon, and color. Applicability (expense/income/both) is optional metadata.
-- **FR-5.2** A transaction can belong to multiple categories simultaneously.
-- **FR-5.3** Users can create tags with a name and color. Tags are free-form labels, many-to-many with transactions.
+- **FR-5.1** Categories with name, icon, color. Applicability (expense/income/both) optional.
+- **FR-5.2** Transactions can belong to multiple categories.
+- **FR-5.3** Tags with name and color, free-form, many-to-many with transactions.
 
 ### 2.1.6 Transactions
-- **FR-6.1** Three transaction types: expense, income, transfer.
-- **FR-6.2** Every transaction has a transacted-at timestamp (date and time), amount, currency, account, optional payment method, optional payee, optional description and notes.
-- **FR-6.3** Transacted-at time is independent of created-at and updated-at; the user can backfill or edit it.
-- **FR-6.4** Transaction currency defaults to the user's primary currency. The user can override it when entering the transaction.
-- **FR-6.5** Transfer transactions specify a source and destination account.
-- **FR-6.6** Transactions can be linked to one or more budgets.
-- **FR-6.7** Transactions can be linked to a subscription (when applicable).
-- **FR-6.8** Transactions can be linked to a piggy bank contribution.
+- **FR-6.1** Three types: expense, income, transfer.
+- **FR-6.2** Fields: transacted-at timestamp, amount, currency, account, optional payment method, payee, description, notes.
+- **FR-6.3** Transacted-at independent of created-at/updated-at.
+- **FR-6.4** Currency defaults to user primary; overrideable per transaction.
+- **FR-6.5** Transfers specify source and destination accounts.
+- **FR-6.6** Transactions can link to budgets, subscriptions, piggy banks.
 
 ### 2.1.7 Splits
-- **FR-7.1** A split is a distinct entity that references exactly one expense transaction.
-- **FR-7.2** A split contains one or more shares. Each share has an amount, a status (pending/settled/forgiven), and optionally a payee (null payee = user's own share).
-- **FR-7.3** The sum of all shares within a split must equal the parent expense's amount (system-enforced invariant).
-- **FR-7.4** A split can be created upfront when entering a new expense (user adds co-payers and amounts in the same form).
-- **FR-7.5** A split can be created retroactively by selecting one existing expense plus zero or more existing income transactions and bundling them. Each selected income transaction becomes the settlement of one share.
-- **FR-7.6** Retroactive bundling validation: `sum(income legs) + sum(forgiven amounts) ≤ expense amount`. The user's own share is computed as the remainder.
-- **FR-7.7** Settling a pending share links a real income transaction (existing or newly created) to that share.
-- **FR-7.8** Forgiving a pending share absorbs that amount into the user's net expense; no income transaction is needed.
-- **FR-7.9** Reports compute net expense as: `user's own share + sum(forgiven shares)`. Settled and pending shares (to other payees) are excluded from net expense.
-- **FR-7.10** Income transactions that serve as split settlements do not count as "income" in income reports — they are reimbursements.
+- **FR-7.1** A split wraps exactly one expense transaction.
+- **FR-7.2** Each split has one or more shares with status (pending/settled/forgiven), amount, optional payee (null = user's own share).
+- **FR-7.3** Invariant: sum of shares = parent expense amount.
+- **FR-7.4** Upfront split creation when entering an expense.
+- **FR-7.5** Retroactive bundling of existing transactions into a split.
+- **FR-7.6** Bundling validation: `sum(income legs) + sum(forgiven) ≤ expense amount`.
+- **FR-7.7** Settling a share links it to an income transaction.
+- **FR-7.8** Forgiving a share absorbs it into user's net expense.
+- **FR-7.9** Net expense = `user own share + sum(forgiven shares)`.
+- **FR-7.10** Settlement income transactions are not counted as "income" in reports.
 
 ### 2.1.8 Budgets
-- **FR-8.1** Budgets have an amount, currency, and optionally a time period (week, month, quarter, year, or custom date range).
-- **FR-8.2** Budgets without a time period are open-ended and use an explicit active/inactive toggle.
-- **FR-8.3** Budgets with a time period derive their active status from whether the current date falls within the period.
-- **FR-8.4** Budget type: recurring or ad-hoc.
-- **FR-8.5** Recurring budgets repeat according to a recurrence rule (weekly, monthly, etc.). Instances are generated on the fly.
-- **FR-8.6** Editing a recurring budget affects future periods by default. The user is prompted with a checkbox: "also affect the current period?"
-- **FR-8.7** Deleting a recurring budget prompts the user to choose: delete only this instance, delete this and all future periods, or delete only future periods.
-- **FR-8.8** A single instance of a recurring budget can be edited to override its amount or scope without affecting the recurring template.
-- **FR-8.9** Ad-hoc budgets have optional start and end dates. Without dates, they remain active until manually deactivated.
-- **FR-8.10** Budgets can optionally be scoped to specific categories.
-- **FR-8.11** A transaction may be linked to one or more budgets.
+- **FR-8.1** Amount, currency, optional time period (week/month/quarter/year/custom).
+- **FR-8.2** Open-ended budgets use explicit active/inactive toggle.
+- **FR-8.3** Time-bounded budgets derive active status from current date.
+- **FR-8.4** Type: recurring or ad-hoc.
+- **FR-8.5** Recurring budgets repeat via recurrence rule; instances generated on the fly.
+- **FR-8.6** Editing a recurring budget affects future periods by default; checkbox to include current period.
+- **FR-8.7** Deleting a recurring budget prompts: this instance / this and future / future only.
+- **FR-8.8** Single-instance overrides without affecting the recurring template.
+- **FR-8.9** Ad-hoc budgets: optional start/end dates; without dates use is_active.
+- **FR-8.10** Budgets optionally scoped to specific categories.
+- **FR-8.11** Transactions linkable to one or more budgets.
 
 ### 2.1.9 Subscriptions
-- **FR-9.1** Subscriptions have a name, amount, currency, billing cycle (weekly/monthly/quarterly/yearly), and a billing-date input (the day the subscription is charged).
-- **FR-9.2** The next billing date is computed on the fly from the billing-date input and the cycle.
-- **FR-9.3** Subscriptions have default account, payment method, and category for the resulting transactions.
-- **FR-9.4** Past transactions can be linked to a subscription to build history.
-- **FR-9.5** Subscriptions can be marked active/inactive (e.g. cancelled).
-- **FR-9.6** Active subscriptions appear on the home dashboard with their next billing date and status.
+- **FR-9.1** Subscription has name, amount, currency, billing cycle, billing day.
+- **FR-9.2** Next billing date computed on the fly from cycle + billing day.
+- **FR-9.3** Default account, payment method, category.
+- **FR-9.4** Past transactions can be linked to a subscription.
+- **FR-9.5** Active/inactive toggle.
+- **FR-9.6** Active subscriptions surface on the home dashboard with status.
 
 ### 2.1.10 Piggy Banks
-- **FR-10.1** Piggy banks have a name, target amount, target date, and tracked current amount.
-- **FR-10.2** Contributions to a piggy bank may be of type transfer (between user accounts) or expense (counts toward goal directly).
-- **FR-10.3** A piggy bank's current amount is the sum of all linked contributions.
+- **FR-10.1** Name, target amount, target date, current amount.
+- **FR-10.2** Contributions: transfer (between user accounts) or expense (counts toward goal).
+- **FR-10.3** Current amount = sum of contributions.
 
 ### 2.1.11 Statement Import
-- **FR-11.1** The system accepts PDF bank statement uploads, including password-protected PDFs.
-- **FR-11.2** The system extracts transactions using a hybrid pipeline: deterministic text/table extraction first, then LLM/vision fallback if needed.
-- **FR-11.3** Extracted transactions are presented for user review before being committed.
-- **FR-11.4** The system detects duplicates against existing transactions on the same account.
-- **FR-11.5** Each import batch is auditable: filename, source, parsed/confirmed/rejected counts, per-row confidence.
-- **FR-11.6** Balance verification (opening + credits − debits = closing) flags suspicious extractions for manual review.
+- **FR-11.1** Accepts PDF bank statement uploads, including password-protected.
+- **FR-11.2** Extraction is fully deterministic: pikepdf unlock + pdfplumber text extraction + bank-specific parser.
+- **FR-11.3** Extracted transactions presented for user review before commit.
+- **FR-11.4** Duplicates detected against existing transactions.
+- **FR-11.5** Each batch auditable: filename, parsed/confirmed/rejected counts.
+- **FR-11.6** Balance verification (opening + credits − debits = closing) flags suspect extractions.
 
 ### 2.1.12 GPay Takeout Enrichment
-- **FR-12.1** The system accepts Google Takeout exports of GPay transaction history.
-- **FR-12.2** The system matches GPay records to existing bank transactions by amount and date proximity (±1 day).
-- **FR-12.3** Matched GPay records enrich the bank transaction with a clean merchant name.
-- **FR-12.4** Ambiguous matches (multiple bank candidates for one GPay record) are presented for manual resolution.
+- **FR-12.1** Accepts Google Takeout exports of GPay transaction history.
+- **FR-12.2** Matches GPay records to existing bank transactions by amount + date proximity.
+- **FR-12.3** Enriches bank transactions with clean merchant names.
+- **FR-12.4** Ambiguous matches presented for manual resolution.
 
 ### 2.1.13 Manual Entry
-- **FR-13.1** Users enter transactions via a structured web form.
-- **FR-13.2** The form captures every field of the transaction model: type, account(s), amount, currency, transacted-at date/time, payee, payment method, categories, tags, description, notes, optional links (budget, subscription, piggy bank).
-- **FR-13.3** No compact-syntax parser. No LLM assistance for entry.
-- **FR-13.4** The form provides standard usability conveniences: defaults from settings, autocomplete on payees, recent-account first, etc.
+- **FR-13.1** Structured web form.
+- **FR-13.2** Form captures every field on the transaction model.
+- **FR-13.3** No compact-syntax parser, no LLM assistance for entry.
+- **FR-13.4** Defaults from settings + autocomplete on payees + recent-account-first conveniences.
 
 ### 2.1.14 Home Dashboard
-- **FR-14.1** A default home dashboard shows: current-month spending vs. relevant budgets, category breakdown, recent transactions, pending splits, piggy bank progress, account balances, and active subscriptions with status and next billing date.
-- **FR-14.2** The dashboard is not configurable; it is opinionated for the daily-check use case.
+- **FR-14.1** Default dashboard shows current month spending vs budgets, category breakdown, recent transactions, pending splits, piggy bank progress, account balances, active subscriptions.
+- **FR-14.2** Dashboard is not configurable.
 
 ### 2.1.15 Reports & Custom Dashboards
-- **FR-15.1** A separate Reports section allows users to create custom dashboards.
-- **FR-15.2** Each report dashboard is a named collection of widgets in a configurable grid layout.
-- **FR-15.3** Widgets are backed by raw SQL queries written by the user.
-- **FR-15.4** Widget visualization types: bar, line, pie, KPI card, table.
-- **FR-15.5** The Reports section provides a schema reference panel (tables, columns, relationships) and a starter library of common query patterns.
+- **FR-15.1** Reports section allows custom dashboards.
+- **FR-15.2** Each dashboard is a named collection of widgets in a configurable grid.
+- **FR-15.3** Widgets backed by user-written SQL.
+- **FR-15.4** Visualizations: bar, line, pie, KPI card, table.
+- **FR-15.5** Schema reference panel + starter library of common queries.
 
 ### 2.1.16 Data Migration & Portability
-- **FR-16.1** All user data is exportable to a self-contained archive that preserves every relationship.
-- **FR-16.2** The archive can be re-imported into a fresh instance of the system, restoring all relationships intact.
-- **FR-16.3** Both a portable JSON archive format and a native database dump format are supported.
+- **FR-16.1** All user data exportable to a self-contained archive preserving every relationship.
+- **FR-16.2** Archive can be re-imported into a fresh instance.
+- **FR-16.3** Both portable JSON archive and native database dump formats supported.
 
 ## 2.2 Non-Functional Requirements
 
 ### 2.2.1 Portability
-- **NFR-1.1** The system runs identically on a self-hosted home server and on a public cloud VPS with no code changes.
-- **NFR-1.2** All deployment-specific configuration is supplied via environment variables.
-- **NFR-1.3** The system is packaged as containers and orchestrated via a single declarative config file.
+- **NFR-1.1** Identical code on self-hosted (Raspberry Pi 5 default) and cloud VPS.
+- **NFR-1.2** All deployment config via environment variables.
+- **NFR-1.3** Packaged as containers, orchestrated via a single declarative config.
 
 ### 2.2.2 Privacy
-- **NFR-2.1** A fully local mode exists where no data leaves the host. Statement parsing and LLM assistance run against a local model.
-- **NFR-2.2** Any cloud-LLM mode is opt-in via configuration, with documentation that explicitly lists what data is sent and to which provider.
-- **NFR-2.3** No telemetry, analytics, or external calls occur without explicit user configuration.
-- **NFR-2.4** When a cloud LLM is used, the system uses zero-retention APIs and headers where the provider supports them (e.g. Anthropic's zero-retention API endpoints).
+- **NFR-2.1** v1 is fully local. No data leaves the host.
+- **NFR-2.2** LLM runs on the same device (Ollama with qwen2.5:1.5b).
+- **NFR-2.3** The LLMClient interface supports cloud backends, but no cloud client is wired up in v1.
+- **NFR-2.4** No telemetry, analytics, or external calls.
 
 ### 2.2.3 Responsiveness
-- **NFR-3.1** The UI is fully usable on mobile browsers down to 360px viewport width.
-- **NFR-3.2** The UI is installable as a Progressive Web App.
-- **NFR-3.3** Common interactions (recording a transaction, viewing the dashboard) complete in under 1 second on typical broadband.
+- **NFR-3.1** UI fully usable down to 360px viewport.
+- **NFR-3.2** UI installable as a PWA.
+- **NFR-3.3** Common interactions complete in under 1 second.
 
 ### 2.2.4 Reliability
-- **NFR-4.1** No transaction is silently dropped during import.
-- **NFR-4.2** All destructive actions are confirmed and recoverable for at least 30 days (soft delete).
-- **NFR-4.3** The schema enforces referential integrity for all foreign keys.
+- **NFR-4.1** No transaction silently dropped during import.
+- **NFR-4.2** Destructive actions confirmed and recoverable for 30 days (soft delete).
+- **NFR-4.3** Schema enforces referential integrity.
 
 ### 2.2.5 Maintainability & Extensibility
-- **NFR-5.1** Clean separation between API and frontend.
-- **NFR-5.2** New transaction sources (other importers, banks) can be added without altering the core transaction model.
-- **NFR-5.3** Schema migrations are versioned and reversible.
+- **NFR-5.1** Clean API/frontend separation.
+- **NFR-5.2** New bank parsers addable without core changes.
+- **NFR-5.3** Schema migrations versioned and reversible.
 
 ### 2.2.6 Security
-- **NFR-6.1** Passwords are stored using argon2id.
-- **NFR-6.2** Sessions use cryptographically signed, time-limited tokens.
-- **NFR-6.3** All API endpoints require authentication except login, health, and first-run-setup endpoints.
-- **NFR-6.4** HTTPS termination via reverse proxy is supported when deployed.
+- **NFR-6.1** Passwords hashed with argon2id.
+- **NFR-6.2** Sessions use signed, time-limited tokens.
+- **NFR-6.3** All API endpoints require auth except login, setup, invite-accept, health.
+- **NFR-6.4** HTTPS via reverse proxy when deployed.
 
 ### 2.2.7 Performance
-- **NFR-7.1** Common dashboard queries return in under 500ms on a dataset of 100,000 transactions.
-- **NFR-7.2** PDF import of a typical 50-transaction monthly statement completes in under 60 seconds end-to-end (excluding LLM cold-start).
+- **NFR-7.1** Dashboard queries under 500ms on 100K transactions.
+- **NFR-7.2** PDF import of a 50-transaction monthly statement completes in under 30 seconds (no vision step in v1).
 
 ### 2.2.8 Backup & Data Portability
-- **NFR-8.1** All data is exportable to a portable, human-readable format.
-- **NFR-8.2** Database backups can be triggered via CLI or scheduled job.
+- **NFR-8.1** All data exportable to portable, human-readable format.
+- **NFR-8.2** DB backups triggerable via CLI or scheduled job.
+
+### 2.2.9 Resource Footprint
+- **NFR-9.1** The entire stack (Postgres, Redis, API, worker, frontend, Ollama with model loaded) must run on a Raspberry Pi 5 with 8GB RAM with at least 2GB headroom for OS and other processes.
 
 ---
 
 # 3. Functional Specification
 
-This section describes the system's externally visible behavior. No technology choices.
-
 ## 3.1 System Overview
 
 Three primary surfaces:
 
-1. **Daily View** — the home dashboard, opinionated and fixed.
-2. **Entry Surfaces** — manual form entry, statement import, GPay enrichment. All equal-weight; usage mixes them.
+1. **Daily View** — opinionated home dashboard.
+2. **Entry Surfaces** — manual form entry, PDF statement import, GPay enrichment.
 3. **Analysis Surface** — custom report dashboards backed by user-written SQL.
 
 ## 3.2 Entity Model (Conceptual)
 
 The transaction is central. Around it:
-
-- **Accounts** hold money. **Payment methods** are interfaces to accounts.
+- **Accounts** hold money; **payment methods** are interfaces to accounts.
 - **Payees** are entities money flows to/from.
 - **Categories** and **tags** classify transactions.
-- **Budgets**, **subscriptions**, and **piggy banks** group transactions across time per user intent.
-- A **split** is a distinct entity that wraps one expense transaction and partitions its cost into **shares**. Each share is either the user's own, a payee's pending share, a settled share (linked to an income transaction), or a forgiven share.
+- **Budgets**, **subscriptions**, and **piggy banks** group transactions across time.
+- A **split** wraps one expense transaction and partitions its cost into **shares**.
 - **Import batches** trace where transactions came from.
 
-The transaction itself is type-pure: expense, income, or transfer. "Being a split" is a property of being referenced by a split entity, not a transaction type.
+Transactions are type-pure: expense, income, transfer. "Being a split" is a property of being referenced by a split entity, not a transaction type.
 
 ## 3.3 Feature Specifications
 
 ### 3.3.1 Authentication & First-Run Setup
 
-On the very first visit to a fresh deployment:
-- The system detects there are no users.
-- A **setup screen** appears, asking for an email and password to create the first user.
-- After creation, the user is logged in.
+On fresh install, the system detects no users and shows a setup screen. After the first user, only the login screen is shown.
 
-On subsequent visits, only the login screen is shown. Public signup is unavailable.
-
-**Adding additional users (e.g. a partner):**
-- An existing user goes to Settings → Users → "Invite user".
-- The system generates a signed invite token (a URL) valid for 7 days.
-- The invitee opens the URL, sets their password, and is added.
-
-This avoids exposing a public signup form while supporting household use.
+Additional users (e.g. a partner) added via invite tokens: an existing user generates a signed token (URL), the invitee opens it and sets their password. No public signup.
 
 ### 3.3.2 User Settings
 
-The user profile includes:
-- **Primary currency** — used as default for new accounts and transactions.
-- **Timezone** — used for date displays and the "now" used for transacted-at defaults.
-- **Date format** and **number format** preferences.
-- **LLM backend preference** (for advanced users; default chosen by deployment env).
+Settings include primary currency, timezone, date/number format. Defaults apply to new accounts and transactions; existing records unchanged.
 
-Changes apply going forward; existing records are not modified.
+### 3.3.3 Accounts & Payment Methods
 
-### 3.3.3 Accounts and Payment Methods
-
-Standard CRUD with type, currency, opening balance. Inactive accounts are hidden from new-transaction flows but remain queryable historically.
+Standard CRUD with type, currency, opening balance. Inactive accounts hidden from new-transaction flows.
 
 ### 3.3.4 Payees
 
-A unified entity for any party the user transacts with. Type is metadata, not behavioral. Default categories on a payee auto-fill (and are overrideable) when a transaction selects that payee.
+Unified entity for any transacting party. Default categories auto-fill (overrideable) when a transaction selects the payee.
 
-### 3.3.5 Categories and Tags
+### 3.3.5 Categories & Tags
 
-Categories: name, icon, color, optional applicability. Many per transaction.
+Categories: name, icon, color, optional applicability. Tags: name, color. Both many-to-many with transactions.
 
-Tags: name, color. Many per transaction. Lighter than categories — for cross-cutting concerns.
+### 3.3.6 Transactions
 
-### 3.3.6 Transactions — Behavior
+Form-based entry. Defaults from settings (currency, timezone) and recent usage (account). Transacted-at defaults to now, fully editable. Soft delete with 30-day recovery.
 
-**Creating:** the form captures the full transaction model. Defaults come from settings (currency) and recent usage (account, payment method). Currency is overrideable per transaction. Transacted-at defaults to "now" but is editable to any past or future timestamp.
+Transfers specify source and destination. If currencies differ, both source and destination amounts can be entered separately (no automatic FX).
 
-**Editing:** any field is editable post-creation. The system tracks created-at, updated-at, and transacted-at independently.
+### 3.3.7 Splits
 
-**Deleting:** soft delete with 30-day recovery window.
+A split is a separate entity wrapping one expense transaction.
 
-**Transfer transactions:** specify both source and destination accounts. The amount represents what leaves the source. If currencies differ, both source amount and destination amount can be specified separately (no automatic FX conversion).
+**Upfront:** when entering an expense, toggle "this is a split", add co-payers with amounts. User's share is the remainder.
 
-### 3.3.7 Splits — Behavior
+**Retroactive bundling:** select one expense + zero or more income transactions from the list. System computes user share as remainder. Forgiven shares can be added.
 
-A split is a separate entity (not a transaction type) that wraps one expense transaction.
+**Share states:** pending, settled, forgiven.
 
-**Upfront creation flow:**
-1. User enters a new expense.
-2. User toggles "this is a split."
-3. User adds co-payers with amounts. The user's own share is computed as the remainder.
-4. The system creates the expense transaction and, alongside it, a split entity with the appropriate shares.
+**Net expense in reports:** `user own share + sum(forgiven shares)`. Settled and pending shares to others are excluded from net expense. Settlement income transactions don't count as "income".
 
-**Retroactive bundling flow:**
-1. User selects from the transaction list: exactly one expense and zero or more income transactions.
-2. User initiates "bundle as split."
-3. The system validates `sum(income legs) + sum(forgiven amounts) ≤ expense amount`.
-4. The user can add forgiven shares (e.g. "Arun was supposed to pay ₹500 but I forgave it").
-5. The user's own share is computed as the remainder.
-6. The system creates a split entity referencing the expense, with shares mapping to each income transaction (settled), each forgiven amount (forgiven), and the user's remainder (own share).
+### 3.3.8 Budgets
 
-**Share states:**
-- **Pending** — owed but not paid.
-- **Settled** — paid back; linked to an income transaction.
-- **Forgiven** — absorbed by the user; counts toward net expense.
+**Active status:** time-bounded budgets derive from current date; open-ended use explicit toggle.
 
-**Net expense in reports:**
+**Edit recurring budget:** changes apply to future by default; checkbox "also apply to current period?" (checked by default). Past periods never touched.
 
-```
-net_expense_for_split = user_own_share + sum(forgiven_shares)
-```
+**Delete recurring budget:** three options — instance only / current and future / future only.
 
-The gross expense is still visible in transaction listings (it's the actual amount that left the user's account), but all aggregate spending calculations use net.
+**Single-instance override:** edit one instance without changing the template.
 
-**Reimbursement income exclusion:**
+**Ad-hoc budgets:** explicit dates or use is_active flag.
 
-Income transactions linked as split settlements do not appear in "total income" calculations — they are reimbursements, not real income.
+### 3.3.9 Subscriptions
 
-### 3.3.8 Budgets — Behavior
+User enters billing day + cycle. Next billing date computed on the fly. Dashboard surfaces active subscriptions with status (upcoming / due soon / overdue). Past transactions can be linked.
 
-**Active status:**
-- Budgets with a time period: active when current date is within `[start_date, end_date]`.
-- Budgets without a time period: explicit `is_active` toggle.
-- Only active budgets appear on the home dashboard.
+### 3.3.10 Piggy Banks
 
-**Editing a recurring budget:**
-- Default: changes apply to future periods.
-- A checkbox asks: "Also apply to the current period?" Default checked.
-- Edits never affect past periods (those are historical).
-
-**Editing a single instance of a recurring budget:**
-- A separate flow available from an instance view.
-- Creates a modified instance, leaving the recurring template untouched.
-
-**Deleting a recurring budget:**
-- The user is prompted with three options:
-  - Delete only this instance.
-  - Delete this and all future instances.
-  - Delete only future instances (keep current).
-- Past instances are never deleted; they are part of history.
-
-**Ad-hoc budgets:**
-- Have a name, amount, optional start/end date, optional category scope.
-- If no dates: explicit active toggle.
-- Used for one-off events (a Goa trip budget, a wedding budget).
-
-### 3.3.9 Subscriptions — Behavior
-
-The user records:
-- Name, amount, currency, billing cycle.
-- The **billing day** or last known billing date.
-- Default account, payment method, category.
-
-The system **computes** the next billing date on the fly from the billing day + cycle. If a billing date is missed (no transaction was recorded), the dashboard still shows the next expected date.
-
-**On the dashboard:**
-- Active subscriptions are listed with their next billing date and a status indicator (e.g. "due in 3 days," "overdue — was due 2 days ago").
-- A historical transaction can be linked to a subscription from the transaction's detail view, building a history.
-
-### 3.3.10 Piggy Banks — Behavior
-
-Goal-tracking entity. Contributions of type transfer or expense are linked transactions whose amounts roll into the piggy bank's current total.
+Goal-tracking entity. Contributions of type transfer (between user accounts) or expense (purchase counts toward goal). Current amount = sum of contributions.
 
 ### 3.3.11 Statement Import Pipeline
 
-1. **Upload.** User selects a PDF and supplies the password if needed.
-2. **Unlock.** System unlocks the PDF.
-3. **Extract.** Deterministic text/table extraction first; LLM/vision fallback if quality is poor.
-4. **Parse.** Each row becomes a structured candidate (date, description, amount, type).
+1. **Upload.** User selects PDF, supplies password if needed.
+2. **Unlock.** pikepdf decrypts.
+3. **Extract.** pdfplumber pulls text and tables.
+4. **Parse.** Bank-specific parser converts to structured candidates.
 5. **Verify.** Balance equation checked against statement headers.
-6. **Deduplicate.** Candidates compared to existing transactions on the same account.
-7. **Review.** Candidates presented to user, grouped by status (new / suspected duplicate / low confidence).
-8. **Confirm.** User reviews, edits, links to payees/categories, confirms. Confirmed candidates become transactions. Rejected ones stay in the audit log.
+6. **Deduplicate.** Candidates compared to existing transactions.
+7. **Review.** Candidates presented grouped by status (new / suspected duplicate / low confidence).
+8. **Confirm.** User reviews, edits, links to payees/categories, confirms. Confirmed become transactions.
 
-Each batch is fully auditable.
+Every batch fully auditable.
 
 ### 3.3.12 GPay Takeout Enrichment
 
-The user uploads a Takeout JSON. The system matches GPay records to bank transactions by amount + date proximity. Exact matches auto-link. Ambiguous matches are manually resolved. Unmatched GPay records are flagged but not converted to transactions (the bank statement remains the source of truth for the actual debit).
+User uploads Takeout JSON. System matches by amount + date proximity. Exact matches auto-link. Ambiguous matches resolved manually. Bank statement remains source of truth; GPay only enriches merchant names.
 
 ### 3.3.13 Manual Entry
 
-A structured form on a dedicated page. Captures every field on the transaction model. Form-only — no compact text syntax, no LLM assistance.
-
-Conveniences:
-- Defaults pulled from settings (currency) and recent usage (account, payment method).
-- Type-ahead autocomplete on payees and categories.
-- Quick toggles for type (expense / income / transfer).
-- Inline creation of new payees/categories without leaving the form.
+Structured form on a dedicated page. Captures every transaction field. No compact text syntax, no LLM assistance. Conveniences: defaults from settings, type-ahead on payees and categories, inline creation.
 
 ### 3.3.14 Home Dashboard
 
-Fixed layout summarizing current month:
-- Total spent vs. relevant budgets.
-- Spending by category.
-- Recent transactions.
-- Pending splits (who owes the user).
-- Piggy bank progress.
-- Account balances.
-- Active subscriptions with status and next billing date.
+Fixed layout summarizing current month: total spent vs budgets, spending by category, recent transactions, pending splits, piggy bank progress, account balances, active subscriptions with status.
 
 ### 3.3.15 Reports & Custom Dashboards
 
-The Reports section is where custom analysis happens:
-- Create a report dashboard (named).
-- Add widgets backed by SQL queries.
-- Choose visualization per widget.
-- Arrange widgets on a grid.
-- Save and revisit.
+Create named dashboards with widgets backed by SQL queries. Visualizations: bar, line, pie, KPI, table. Drag-and-drop grid layout.
 
-A **schema reference panel** lists all tables, columns, and foreign keys. Clickable to insert. A **starter library** provides common query templates.
-
-Queries run against a read-only DB projection — no INSERT/UPDATE/DELETE.
+Schema reference panel (tables, columns, FKs) plus starter query library. Queries run against a read-only DB projection.
 
 ## 3.4 Cross-Cutting Behaviors
 
 ### 3.4.1 Soft Delete
 
-All user-owned entities are soft-deleted with 30-day recovery via "Recently Deleted" view.
+All user-owned entities soft-deleted with 30-day recovery via "Recently Deleted" view.
 
 ### 3.4.2 Audit Trail
 
-Transactions record:
-- `created_at` — when first entered into the system.
-- `updated_at` — last modified time.
-- `transacted_at` — when the transaction actually happened (user-supplied; defaults to now).
-- Import batch and raw record reference (when applicable).
+Transactions track created_at, updated_at, transacted_at, and (when applicable) the import batch and raw record they originated from.
 
 ### 3.4.3 Multi-Currency
 
-Each account has a currency. Transactions inherit the account's currency by default, with per-transaction override. No automatic FX conversion. Reports aggregate per-currency.
-
-The user's primary currency in settings is the system default but does not affect data — only the UI defaults.
+Each account has a currency. Transactions inherit account currency, overrideable per-transaction. No automatic FX. Reports aggregate per-currency.
 
 ---
 
 # 4. Technical Specification
-
-Implementation choices follow. Substitutions are possible without violating the functional spec.
 
 ## 4.1 Architecture Overview
 
@@ -475,60 +380,49 @@ Implementation choices follow. Substitutions are possible without violating the 
 │  API Server (stateless)                     │
 │  - Auth, business logic, query execution    │
 │  - Import pipeline orchestration            │
-│  - LLM client (local Ollama or cloud API)   │
+│  - LLM client (Ollama)                      │
 └───┬───────────────────────────┬─────────────┘
     │                           │
 ┌───▼─────────────┐   ┌─────────▼──────────────┐
-│ PostgreSQL DB   │   │ LLM Service             │
-│                 │   │ (Ollama local OR cloud) │
-└─────────────────┘   └──────────────────────────┘
+│ PostgreSQL DB   │   │ Ollama (local)         │
+│                 │   │ qwen2.5:1.5b           │
+└─────────────────┘   └────────────────────────┘
 ```
 
-All components run in containers, orchestrated via a single `docker-compose.yml`. The LLM backend is selected by env var — code is identical between local and cloud deployments.
+All components run in containers on a Raspberry Pi 5, orchestrated via a single `docker-compose.yml`. The same compose file works on a cloud VPS; only env vars change.
 
 ## 4.2 Technology Stack
 
 ### Backend
 - **Python 3.12+** — strongest ecosystem for PDF parsing and LLM SDKs.
-- **FastAPI** — async, native pydantic, automatic OpenAPI schema.
-- **SQLAlchemy 2.0 (async)** + **Alembic** for migrations.
-- **PyJWT** + **argon2-cffi** for auth.
-- **ARQ** for background tasks (Redis-backed; simpler than Celery for our scale).
+- **FastAPI** — async, pydantic-native.
+- **SQLAlchemy 2.0 (async)** + **Alembic**.
+- **PyJWT** + **argon2-cffi**.
+- **ARQ** for background tasks (Redis-backed).
 
 ### Frontend
-- **Bun** — fast installs, native TypeScript.
-- **React 19** — current stable. Use of new features (server components, useOptimistic) is optional and selective; this is a pure SPA, so most server-component machinery is irrelevant.
-- **Vite** — bundler.
-- **Tailwind CSS** — utility-first styling.
-- **Radix UI** — headless accessible primitives, styled with Tailwind for full design control.
-- **Recharts** — charting.
-- **TanStack Query** — server state.
-- **TanStack Router** — type-safe routing.
-- **vite-plugin-pwa** — PWA support.
+- **Bun** runtime/package manager.
+- **React 19** (pure SPA — no SSR, no Next.js).
+- **Vite** bundler.
+- **Tailwind CSS** + **Radix UI** headless primitives.
+- **Recharts** for visualization.
+- **TanStack Query** + **TanStack Router**.
+- **vite-plugin-pwa** for PWA support.
 
 ### On Next.js — explicit rejection
 
-Next.js does not add value for this project. The reasons it exists — SEO via SSR, marketing-page SSG, edge deployment, file-based routing for large teams — do not apply to an authenticated single-user finance app.
-
-Drawbacks if adopted:
-- **Self-hosting complexity.** Next requires a Node server (or static export with feature loss). docker-composing it alongside the rest is workable but more brittle than a static SPA served by Caddy.
-- **Server/client component split.** Adds cognitive overhead for features that have no SSR benefit.
-- **Tighter coupling to the Vercel deployment shape.** The "happy path" assumes Vercel; running elsewhere is doable but consistently second-class.
-- **Slower iteration.** App Router builds and reloads slower than Vite.
-
-Stay with Vite + React 19 + TanStack Router. If you ever need an SSR'd marketing page, that's a separate static site.
+Next.js does not add value here. SEO/SSR irrelevant for an authed personal app, self-hosting complexity higher, App Router slower to iterate than Vite. Stay with Vite + React 19.
 
 ### Database
-- **PostgreSQL 16+** — relational, JSONB for flexible fields, mature constraints.
+- **PostgreSQL 16+**.
 
 ### Cache / Queue
-- **Redis 7** — session cache (optional; JWT is stateless), background queue.
+- **Redis 7**.
 
 ### PDF Processing
-- **pikepdf** — password-protected PDF unlocking.
-- **pdfplumber** — text and table extraction from digital PDFs.
-- **Bank-specific parsers** — Python modules implementing a common interface, one per supported bank.
-- **Vision LLM fallback** — only when deterministic parsing fails.
+- **pikepdf** for password-protected PDF unlocking.
+- **pdfplumber** for text and table extraction (all target statements have selectable text — no vision needed).
+- **Bank-specific parsers** as Python modules implementing a common interface.
 
 ### LLM Integration
 
@@ -536,72 +430,48 @@ A single `LLMClient` interface with multiple implementations:
 
 ```python
 class LLMClient:
-    def extract_transactions_from_pdf_page(image_bytes) -> list[Transaction]
-    def suggest_category(payee: str, description: str) -> str | None
-    def match_gpay_to_bank(...) -> list[Match]
+    async def suggest_category(self, payee_name: str, description: str, available_categories: list[str]) -> str | None
+    async def match_gpay_to_bank(self, gpay_records: list, bank_candidates: list) -> list[Match]
 ```
 
-Implementations: `OllamaClient`, `AnthropicClient`, `OpenAIClient`. Selected via `LLM_BACKEND` env var.
+The interface is intentionally text-only — no vision method in v1.
 
-## 4.3 Privacy & LLM Hosting Options
+Implementations:
+- `OllamaClient` (v1 default, runs against local Ollama)
+- `NullClient` (for testing / when LLM disabled)
 
-This section is critical to the user's stated goal of complete privacy. Options, ranked from most-private to least:
+Future implementations (not built in v1): `AnthropicClient`, `OpenAIClient`. The interface is small enough that adding these later is straightforward.
 
-### Option A — Fully local on Raspberry Pi 5
+## 4.3 Deployment Target & Resource Budget
 
-**Feasibility:**
-- Pi 5 with 8GB RAM can run small text models (Phi-3 mini 3.8B, Llama 3.2 3B, Qwen 2.5 3B) at 5–10 tokens/sec via Ollama.
-- Text-only tasks (category suggestion, GPay matching heuristics) work fine.
-- **Vision models for PDF extraction:** moondream2 (1.6B) works on Pi 5 but slowly (~30s per page). Larger vision models (minicpm-v 8B, llava 7B) will run but cause memory pressure and may OOM under concurrent load.
+**Primary v1 target: Raspberry Pi 5 (8GB RAM).**
 
-**Verdict:** Viable as a *fallback* environment with deterministic-only parsing as the primary path. If a PDF fails deterministic extraction, the user has the option to (a) wait for slow vision processing on the Pi or (b) defer to a more powerful machine.
+### Model choice
 
-### Option B — Fully local on a beefier home server
+**`qwen2.5:1.5b`** — ~1.5GB RAM, ~10-15 tokens/sec on Pi 5. Sufficient for short structured prompts (category suggestion, GPay matching). Chosen over the 3B variant to preserve RAM headroom.
 
-A small home server (Intel N100 mini PC with 16GB RAM, or a used desktop with a GPU) handles everything:
-- Llama 3.1 8B Instruct for text tasks (excellent quality).
-- minicpm-v 2.6 or llava-next for vision (PDF extraction).
-- Runs Postgres, Redis, API, frontend, and Ollama all on one box.
+### Resource budget on Pi 5
 
-**Verdict:** Best balance of privacy and capability. Cost: ~$150–300 one-time.
+```
+OS + system processes   ~500MB
+Docker daemon           ~200MB
+Postgres                ~200MB
+Redis                   ~50MB
+FastAPI app             ~150MB
+ARQ worker              ~100MB
+Ollama + qwen2.5:1.5b  ~1.5GB
+──────────────────────────────
+Total                   ~2.7GB
+Headroom                ~5.3GB  (plenty)
+```
 
-### Option C — Self-hosted on a private VPS (Ollama there)
+### Cloud VPS as future option
 
-Cloud VPS with Ollama installed (e.g., Hetzner CCX with enough RAM, or a GPU droplet on RunPod/Lambda):
-- Your data only ever touches your VPS.
-- No third-party LLM provider involved.
-- Cost: $30–100/month for adequate specs.
+Same container stack works on any Docker host. To switch:
+- Change `OLLAMA_HOST` to a remote URL, or
+- Add a cloud LLM backend (when implemented post-v1) by setting `LLM_BACKEND=anthropic` etc.
 
-**Verdict:** Privacy is between Options A/B and D. You trust the VPS provider (Hetzner, DigitalOcean) but no LLM-specific third party.
-
-### Option D — Cloud LLM API with privacy controls
-
-Use Anthropic Claude API or OpenAI API with:
-- **Zero-retention headers** where supported (Anthropic supports this).
-- **No-training-on-data** policies (both Anthropic and OpenAI default to this for API).
-- Explicit logging of what's sent.
-
-**Verdict:** Best price-performance, requires trusting the provider's privacy claims. Data is processed by the provider's infrastructure but not retained or used for training.
-
-### Recommended configuration matrix
-
-| Scenario | Recommendation |
-|---|---|
-| Home server with 16GB+ RAM | Option B (local everything) |
-| Raspberry Pi 5 only | Option A + Option D as opt-in fallback for vision-heavy PDFs |
-| VPS deployment with privacy priority | Option C |
-| VPS deployment with cost priority | Option D with zero-retention Anthropic |
-
-The system supports all four via env-var configuration; no code change required to switch.
-
-### What the system sends to the LLM (transparency)
-
-For each LLM-mediated operation, the system logs **exactly** what is sent:
-- **PDF extraction:** an image of each PDF page (no account holder info redaction in v1; future improvement).
-- **Category suggestion:** payee name and transaction description only — no amounts, no account info.
-- **GPay matching:** merchant names and amounts only — no full transaction context.
-
-This transparency is visible in a "LLM Activity Log" page in settings.
+No code changes required — only env vars.
 
 ## 4.4 Database Schema
 
@@ -614,8 +484,7 @@ users (
 
 user_settings (
   user_id PK FK→users, primary_currency, timezone,
-  date_format, number_format, llm_backend_preference,
-  updated_at
+  date_format, number_format, updated_at
 )
 
 sessions (
@@ -624,27 +493,26 @@ sessions (
 
 invite_tokens (
   id, created_by_user_id FK→users, token_hash,
-  email (optional), expires_at, used_at, created_at
+  email NULL, expires_at, used_at, created_at
 )
 
 accounts (
-  id, user_id FK→users, name, type (enum),
+  id, user_id FK→users, name, type enum,
   currency, opening_balance, current_balance,
-  is_active, created_at, updated_at, deleted_at
+  is_active, timestamps, deleted_at
 )
 
 payment_methods (
   id, account_id FK→accounts,
-  type (enum: debit_card/credit_card/netbanking/upi),
-  label, upi_app (nullable), is_active,
-  created_at, updated_at, deleted_at
+  type enum(debit_card/credit_card/netbanking/upi),
+  label, upi_app NULL, is_active,
+  timestamps, deleted_at
 )
 
 payees (
   id, user_id FK→users, name,
-  type (enum: merchant/person/business/other),
-  notes, is_active,
-  created_at, updated_at, deleted_at
+  type enum(merchant/person/business/other),
+  notes, is_active, timestamps, deleted_at
 )
 
 payee_default_categories (
@@ -654,30 +522,30 @@ payee_default_categories (
 
 categories (
   id, user_id FK→users, name, icon, color,
-  applicability (enum: expense/income/both, NULLABLE),
-  created_at, updated_at, deleted_at
+  applicability enum NULL,
+  timestamps, deleted_at
 )
 
 tags (
   id, user_id FK→users, name, color,
-  created_at, updated_at, deleted_at
+  timestamps, deleted_at,
+  UNIQUE (user_id, name) WHERE deleted_at IS NULL
 )
 
 transactions (
   id, user_id FK→users,
-  type (enum: expense/income/transfer),
+  type enum(expense/income/transfer),
   transacted_at TIMESTAMPTZ NOT NULL,
-  amount, currency,
+  amount Numeric(15, 2), currency,
   description, notes,
   account_id FK→accounts,
-  payment_method_id FK→payment_methods (nullable),
-  payee_id FK→payees (nullable),
-  to_account_id FK→accounts (nullable, transfers only),
-  to_amount (nullable, transfers with currency mismatch),
-  to_currency (nullable),
-  subscription_id FK→subscriptions (nullable),
-  import_record_id FK→raw_import_records (nullable),
-  created_at, updated_at, deleted_at
+  payment_method_id FK→payment_methods NULL,
+  payee_id FK→payees NULL,
+  to_account_id FK→accounts NULL,
+  to_amount NULL, to_currency NULL,
+  subscription_id FK→subscriptions NULL,
+  import_record_id FK→raw_import_records NULL,
+  timestamps, deleted_at
 )
 
 transaction_categories (
@@ -698,37 +566,32 @@ transaction_budgets (
 splits (
   id, user_id FK→users,
   expense_transaction_id FK→transactions UNIQUE,
-  notes,
-  created_at, updated_at, deleted_at
+  notes, timestamps, deleted_at
 )
 
 split_shares (
   id, split_id FK→splits,
-  payee_id FK→payees (nullable — null = user's own share),
+  payee_id FK→payees NULL,
   amount,
-  status (enum: pending/settled/forgiven),
-  settled_at (nullable),
-  settlement_transaction_id FK→transactions (nullable),
-  forgiven_at (nullable),
-  notes,
-  created_at, updated_at
+  status enum(pending/settled/forgiven),
+  settled_at NULL,
+  settlement_transaction_id FK→transactions NULL,
+  forgiven_at NULL, notes, timestamps
 )
 
--- INVARIANT (enforced by application + CHECK):
--- SUM(split_shares.amount WHERE split_id = X) == transactions.amount
---   WHERE transactions.id = splits.expense_transaction_id
+-- INVARIANT (enforced by trigger + application):
+-- SUM(split_shares.amount WHERE split_id = X) == 
+--   (SELECT amount FROM transactions WHERE id = splits.expense_transaction_id)
 
 budgets (
   id, user_id FK→users, name, amount, currency,
-  period (enum: week/month/quarter/year/custom, NULLABLE),
-  start_date (nullable), end_date (nullable),
-  type (enum: recurring/adhoc),
-  recurrence_rule (text, nullable — RRULE string),
-  parent_budget_id FK→budgets (nullable),
-  is_modified_instance (bool),
-  is_active (used when no time period set),
-  notes,
-  created_at, updated_at, deleted_at
+  period enum NULL, start_date NULL, end_date NULL,
+  type enum(recurring/adhoc),
+  recurrence_rule TEXT NULL,
+  parent_budget_id FK→budgets NULL,
+  is_modified_instance BOOL DEFAULT false,
+  is_active BOOL DEFAULT true,
+  notes, timestamps, deleted_at
 )
 
 budget_categories (
@@ -738,170 +601,124 @@ budget_categories (
 
 subscriptions (
   id, user_id FK→users, name, amount, currency,
-  billing_cycle (enum: weekly/monthly/quarterly/yearly),
-  billing_day (int — day of month/week, depending on cycle),
-  last_billed_at (nullable — for next-date computation),
+  billing_cycle enum, billing_day INT,
+  last_billed_at TIMESTAMPTZ NULL,
   account_id FK→accounts,
-  payment_method_id FK→payment_methods (nullable),
-  category_id FK→categories (nullable),
-  is_active, url, notes,
-  created_at, updated_at, deleted_at
+  payment_method_id FK→payment_methods NULL,
+  category_id FK→categories NULL,
+  is_active, url, notes, timestamps, deleted_at
 )
 
 piggy_banks (
   id, user_id FK→users, name,
   target_amount, currency, current_amount,
   target_date, notes, is_completed,
-  created_at, updated_at, deleted_at
+  timestamps, deleted_at
 )
 
 piggy_bank_contributions (
   id, piggy_bank_id FK→piggy_banks,
   transaction_id FK→transactions,
-  contribution_type (enum: transfer/expense),
-  amount, date, notes,
-  created_at
+  contribution_type enum(transfer/expense),
+  amount, date, notes, created_at
 )
 
 import_batches (
   id, user_id FK→users,
-  source (enum: pdf/gpay_takeout/manual),
-  filename, account_id FK→accounts (nullable),
-  status (enum: pending/processed/cancelled),
-  total_parsed, total_confirmed, total_rejected,
-  imported_at, completed_at
+  source enum(pdf/gpay_takeout/manual),
+  filename, account_id FK→accounts NULL,
+  status enum, total_parsed, total_confirmed, total_rejected,
+  imported_at, completed_at NULL
 )
 
 raw_import_records (
   id, batch_id FK→import_batches,
-  raw_text, parsed_json (JSONB),
-  status (enum: pending/confirmed/rejected/duplicate),
-  transaction_id FK→transactions (nullable),
-  confidence (enum: high/medium/low),
-  match_type (enum: exact/fuzzy/manual/none),
-  created_at
+  raw_text, parsed_json JSONB,
+  status enum, transaction_id FK→transactions NULL,
+  confidence enum(high/medium/low),
+  match_type enum, created_at
 )
 
 report_dashboards (
   id, user_id FK→users, name, description,
-  created_at, updated_at, deleted_at
+  timestamps, deleted_at
 )
 
 report_widgets (
   id, dashboard_id FK→report_dashboards, title,
-  query (text), viz_type (enum: bar/line/pie/kpi/table),
-  viz_config (JSONB), position (JSONB),
-  created_at, updated_at
+  query TEXT, viz_type enum,
+  viz_config JSONB, position JSONB,
+  timestamps
 )
 
 llm_activity_log (
   id, user_id FK→users, operation,
-  payload_summary (JSONB — what was sent),
+  payload_summary JSONB,
   backend, model, duration_ms, succeeded,
   created_at
 )
 ```
 
-**Notes:**
-- The `splits` and `split_shares` model means a transaction is "split" iff it appears in `splits.expense_transaction_id`. No type field needed on transactions.
-- `next_billing_at` for subscriptions is computed from `billing_cycle` + `billing_day` + `last_billed_at` (or fallback rule). Not stored.
-- `applicability` on categories is nullable — when null, the category is allowed on any transaction type.
-- The split invariant is enforced both in application logic and via a deferred CHECK constraint (or trigger) in Postgres.
+**Indexes:** composite on `(user_id, transacted_at DESC)`, `(user_id, account_id, transacted_at DESC)`, `(user_id, deleted_at)`.
 
 ## 4.5 API Design
 
-REST over JSON. All endpoints require auth except `/auth/login`, `/auth/setup` (first-run only), `/auth/accept-invite`, and `/health`.
+REST over JSON. All endpoints require auth except `/auth/login`, `/auth/setup` (first-run), `/auth/accept-invite`, `/health`.
 
+Standard CRUD endpoints for: accounts, payment-methods, payees, categories, tags, budgets, subscriptions, piggy-banks.
+
+Key non-CRUD endpoints:
 ```
-POST   /api/v1/auth/setup            # first-run only; 404 if user exists
+POST   /api/v1/auth/setup            # first-run only
 POST   /api/v1/auth/login
-POST   /api/v1/auth/logout
-GET    /api/v1/auth/me
-POST   /api/v1/auth/invites          # create invite
-POST   /api/v1/auth/accept-invite    # invitee accepts
+POST   /api/v1/auth/refresh
+POST   /api/v1/auth/invites
+POST   /api/v1/auth/accept-invite
 
 GET    /api/v1/settings
 PATCH  /api/v1/settings
 
-(CRUD for: accounts, payment-methods, payees, categories, tags,
- budgets, subscriptions, piggy-banks)
-
-GET    /api/v1/transactions?from=&to=&account=&category=&...
+GET    /api/v1/transactions          # rich filtering + cursor pagination
 POST   /api/v1/transactions
-GET    /api/v1/transactions/{id}
 PATCH  /api/v1/transactions/{id}
-DELETE /api/v1/transactions/{id}
 
-GET    /api/v1/splits
-POST   /api/v1/splits                # upfront creation
-POST   /api/v1/splits/bundle         # retroactive bundling
-GET    /api/v1/splits/{id}
-PATCH  /api/v1/splits/{id}
-DELETE /api/v1/splits/{id}
+POST   /api/v1/splits                # upfront
+POST   /api/v1/splits/bundle         # retroactive
 PATCH  /api/v1/split-shares/{id}/settle
 PATCH  /api/v1/split-shares/{id}/forgive
 
 POST   /api/v1/imports/pdf
 GET    /api/v1/imports/{batch_id}/records
-PATCH  /api/v1/imports/{batch_id}/records/{id}
 POST   /api/v1/imports/{batch_id}/confirm
 
 POST   /api/v1/imports/gpay-takeout
 
 GET    /api/v1/dashboard/home
 
-GET    /api/v1/reports/dashboards
-POST   /api/v1/reports/dashboards
-(... CRUD for dashboards and widgets)
+POST   /api/v1/reports/query         # read-only SQL
+GET    /api/v1/reports/schema
 
-POST   /api/v1/reports/query         # ad-hoc SQL (read-only)
-GET    /api/v1/reports/schema        # schema metadata
-
-POST   /api/v1/export                # full data export
-POST   /api/v1/import-archive        # full data import
+POST   /api/v1/export
+POST   /api/v1/import-archive
 ```
 
-Response envelope:
-```json
-{ "data": ..., "meta": { ... }, "error": null }
-```
-
-Pagination via cursor: `?cursor=&limit=`.
+Response envelope: `{ "data": ..., "meta": {...}, "error": null }`. Pagination cursor: `?cursor=&limit=`.
 
 ## 4.6 Frontend Architecture
 
 ```
-/frontend
-  /src
-    /api          — TanStack Query hooks per endpoint
-    /components   — Radix + Tailwind components
-    /pages        — route-level views
-      /Setup            (first-run wizard)
-      /Login
-      /Dashboard
-      /Transactions
-      /TransactionForm
-      /Accounts
-      /Payees
-      /Categories
-      /Budgets
-      /Subscriptions
-      /PiggyBanks
-      /Imports
-      /Reports
-      /Settings
-    /lib          — date math, currency formatting, etc.
-    /styles       — Tailwind config + globals
-    /pwa          — service worker, manifest
-  vite.config.ts
-  tailwind.config.ts
+/frontend/src
+  /api          — TanStack Query hooks
+  /components   — Radix + Tailwind components
+  /pages        — route-level views
+  /lib          — utilities
+  /styles       — Tailwind config + globals
+  /pwa          — service worker, manifest
 ```
 
-**Responsiveness:** Mobile-first. Every page designed at 360px first. Navigation collapses to bottom tab bar on mobile. Tables become cards. Modals become full-screen sheets.
+**Mobile-first:** every page designed at 360px first; tables become cards, navigation collapses to bottom tab bar.
 
-**Design system:** Custom built on Radix primitives + Tailwind. A small set of foundational components (Button, Input, Select, Dialog, Sheet, Card, Tabs, Toast, DataTable) styled once and reused.
-
-**PWA:** Manifest, service worker, install prompt. Offline shell shows "you're offline" state; no offline writes in v1.
+**Design system:** custom on Radix primitives + Tailwind. Small set of foundational components (Button, Input, Select, Dialog, Sheet, Card, Tabs, Toast, DataTable).
 
 ## 4.7 PDF Processing Pipeline
 
@@ -920,81 +737,74 @@ Pagination via cursor: `?cursor=&limit=`.
         ▼
 [Worker: dispatch to bank-specific parser]
         │
-        ├── high confidence ──▶ [Balance verify]
-        │                              │
-        └── low confidence ──▶ [Vision LLM fallback] ──┐
-                                                       ▼
-                                              [Balance verify]
-                                                       │
-                                                       ▼
-                                            [Dedup vs existing]
-                                                       │
-                                                       ▼
-                                       [Create raw_import_records]
-                                                       │
-                                                       ▼
-                                                [Notify user]
+        ▼
+[Balance verification]
+        │
+        ▼
+[Dedup vs existing]
+        │
+        ▼
+[Create raw_import_records]
+        │
+        ▼
+[Notify user — ready for review]
 ```
 
-Bank-specific parsers live in `parsers/` as plug-in modules implementing a common interface, selected by matching identifying text in the first page. New banks added by writing a new parser.
+Parsers in `parsers/banks/` plug into a common interface, selected by matching identifying text on the first page. New banks added by writing a new parser.
 
-## 4.8 Data Migration & Portability
+If extraction quality is poor (low row count, balance mismatch), the batch is flagged as needing manual review — the user can correct rows in the UI. There is no LLM vision fallback in v1 since target statements have selectable text.
+
+## 4.8 LLM Integration
+
+Single abstraction:
+
+```python
+class LLMClient(ABC):
+    async def suggest_category(payee_name, description, available_categories) -> str | None
+    async def match_gpay_to_bank(gpay, bank_candidates) -> list[Match]
+```
+
+Implementations: `OllamaClient`, `NullClient`. Selected via `LLM_BACKEND` env var.
+
+**Prompt design for `suggest_category`:** short structured prompt with available categories listed; expects single category name as output. Robust JSON parsing with one retry on malformed response.
+
+**LLM activity transparency:** every call logged to `llm_activity_log` with operation, payload summary, backend, model, duration, success. Visible to user via Settings → LLM Activity.
+
+## 4.9 Data Migration & Portability
 
 Two complementary mechanisms:
 
 ### Native Postgres dump
-- `pg_dump` produces a complete, perfectly-faithful backup.
-- Restore via `pg_restore` into a fresh Postgres of compatible version.
-- **Pros:** preserves everything including constraints, indexes, sequences. Fast.
-- **Cons:** version-specific; not human-readable; tied to Postgres.
+- `pg_dump` for complete fidelity backup; `pg_restore` to recover.
+- Routine backups via cron.
 
 ### Portable JSON archive
-- A tar.gz file containing:
-  - `manifest.json` — schema version, exported_at, table list, user info.
-  - One JSON file per table — array of records, UUIDs as-is.
-  - Optional binary blobs directory (none in v1).
-- **Pros:** human-readable, version-portable, cross-system. UUIDs preserve all relationships natively without ID remapping.
-- **Cons:** larger than dumps; slower to restore.
+- tar.gz containing `manifest.json` + one JSON file per table.
+- UUIDs preserved, so all relationships survive export/import.
+- Human-readable; cross-system portable.
 
-Both formats preserve **every** relationship because the UUIDs are stable across export/import. A transaction that references budget X via `transaction_budgets` will, on restore, still reference budget X — no FK remapping needed.
+Both formats preserve every FK relationship — no ID remapping needed.
 
-### Migration workflow
+## 4.10 Deployment
 
-To move between deployments (e.g. home server → VPS, or between machines):
-
-1. On the source: `POST /api/v1/export` → download archive.
-2. On the destination (fresh install, first-run setup completed): `POST /api/v1/import-archive` → upload archive.
-3. The system loads each table in dependency order. Transactionally. On conflict (e.g. existing user with same email), fails clearly.
-
-### Why this approach over alternatives
-
-- **Vs. CSV per table:** CSVs lose nested structures (JSONB columns) and require explicit FK relinking. JSON keeps everything.
-- **Vs. raw SQL INSERT scripts:** SQL is brittle across Postgres versions and bloated for human review.
-- **Vs. proprietary binary format:** opaque, harder to debug, harder to recover from.
-
-**Recommendation:** ship both `pg_dump` (for routine backups) and JSON archive (for migrations and human-readable archive). They complement each other.
-
-## 4.9 Deployment
-
-**Single `docker-compose.yml`:**
+**Single `docker-compose.yml` on `/infra`:**
 
 ```yaml
 services:
   api:
-    image: financetracker/api:latest
+    image: kanakku/api:latest
     environment:
       DATABASE_URL: postgresql+asyncpg://...
       JWT_SECRET: ${JWT_SECRET}
-      LLM_BACKEND: ${LLM_BACKEND}
+      LLM_BACKEND: ollama
       OLLAMA_HOST: ${OLLAMA_HOST}
-      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
-      ANTHROPIC_ZERO_RETENTION: "true"
+      LLM_MODEL: qwen2.5:1.5b
     depends_on: [postgres, redis]
   worker:
-    image: financetracker/api:latest
+    image: kanakku/api:latest
     command: arq worker.WorkerSettings
   frontend:
-    image: financetracker/frontend:latest
+    image: kanakku/frontend:latest
   caddy:
     image: caddy:2
     ports: ["80:80", "443:443"]
@@ -1005,74 +815,74 @@ services:
     image: redis:7
   ollama:
     image: ollama/ollama:latest
-    profiles: [local-llm]
     volumes: [ollama:/root/.ollama]
+    environment:
+      OLLAMA_MAX_LOADED_MODELS: 1
+volumes: { pgdata: {}, ollama: {} }
 ```
 
-**Two environments, identical config:**
-- **Home / Pi 5 / mini PC:** `docker compose --profile local-llm up`. Caddy stays on the local network.
-- **Cloud VPS:** `docker compose up` (no Ollama profile; cloud LLM via env vars). Caddy obtains Let's Encrypt cert.
-
-**Env vars:**
+**Env vars (v1):**
 ```
 DATABASE_URL              required
 JWT_SECRET                required
-LLM_BACKEND               required (ollama|anthropic|openai|none)
+LLM_BACKEND               required (ollama|none)
 OLLAMA_HOST               required if LLM_BACKEND=ollama
-ANTHROPIC_API_KEY         required if LLM_BACKEND=anthropic
-ANTHROPIC_ZERO_RETENTION  recommended (true) if using anthropic
-OPENAI_API_KEY            required if LLM_BACKEND=openai
-LLM_MODEL                 required
-LLM_VISION_MODEL          required if vision fallback enabled
+LLM_MODEL                 default: qwen2.5:1.5b
 REDIS_URL                 optional
 PUBLIC_BASE_URL           required
 ```
 
-## 4.10 Security
+### Pi 5 vs Cloud VPS
 
-- **Passwords:** argon2id, tunable cost.
-- **Sessions:** JWT (HS256), 24h access tokens, 30d refresh tokens with rotation.
-- **First-run:** the setup endpoint is open until the first user exists, then returns 404. The auth dependency for other endpoints checks user existence on every request.
-- **Invites:** signed tokens, time-limited, single-use.
-- **Query endpoint security:** runs against a dedicated read-only Postgres role. Statement timeout 10 seconds. User_id filtering enforced via parameter binding and (in v1.1) row-level security policies.
-- **Rate limiting:** per-IP on auth; per-user on imports.
-- **Secrets:** never logged. Always from env.
+Same compose file, same images. Only env values differ. On a cloud VPS, `OLLAMA_HOST` can point to the same docker-compose Ollama service or a remote Ollama instance.
 
-## 4.11 Observability
+## 4.11 Security
 
-- **Structured JSON logs** with request correlation IDs.
-- **`/health`** (liveness), **`/ready`** (DB + Redis reachable).
-- **Prometheus metrics** at `/metrics`.
-- **LLM Activity Log** (`llm_activity_log` table) — every LLM call records what was sent (summary) and which backend.
+- argon2id passwords with tunable cost.
+- JWT (HS256), 24h access tokens, 30d refresh tokens with rotation.
+- First-run setup endpoint returns 404 once a user exists.
+- Invite tokens: signed, time-limited, single-use, stored hashed.
+- Query endpoint: dedicated read-only Postgres role, statement timeout 10s, user-id filter enforced via sqlglot AST check, row limit 10K.
+- Rate limiting on auth and imports.
+- Secrets only from env vars; never logged.
 
-## 4.12 Testing
+## 4.12 Observability
 
-- **Unit:** parsers, matchers, validators (pure functions).
-- **Integration:** API + DB via fixtures.
-- **End-to-end:** Playwright against the running stack.
-- **PDF parser corpus:** anonymized real statements per bank checked into the repo; CI verifies parsers remain correct.
-- **LLM:** mocked at the `LLMClient` interface; real-API tests behind an env-var flag.
+- Structured JSON logs with request correlation IDs.
+- `/health` (liveness), `/ready` (DB + Redis reachable).
+- Prometheus metrics at `/metrics`.
+- LLM Activity Log table for transparency.
 
-## 4.13 Performance
+## 4.13 Testing
 
-- Composite indexes on `(user_id, transacted_at)`, `(user_id, account_id, transacted_at)`, `(user_id, deleted_at)` everywhere relevant.
+- **Unit** — parsers, matchers, validators.
+- **Integration** — API + DB via fixtures.
+- **End-to-end** — Playwright against the running stack.
+- **PDF parser corpus** — anonymized real statements per bank in `tests/fixtures/parsers/`.
+- **LLM** — mocked at `LLMClient` interface; opt-in real-Ollama tests gated by env var.
+
+## 4.14 Performance
+
+- Composite indexes on hot paths.
 - Cursor pagination by `(transacted_at DESC, id DESC)`.
-- `current_balance` denormalized on accounts; updated transactionally; nightly reconciliation job.
-- Home dashboard queries parallelized server-side.
-- Heavy operations (PDF parse, GPay match) run in the worker.
+- `current_balance` denormalized on accounts, updated transactionally.
+- Dashboard queries parallelized server-side.
+- Heavy operations (PDF parse, GPay match) run in ARQ worker.
 
 ---
 
 # 5. Open Questions / Future Work
 
-- **Notifications.** Out of v1. Schema already supports the data needed.
-- **Attachments.** Deferred. Easy to add later via `transaction_attachments` table + object storage abstraction.
-- **Native mobile app.** PWA is sufficient. API + schema are mobile-ready.
-- **Investments.** A separate `holdings` + `prices` model alongside, when needed.
-- **Multi-user households.** Schema already scopes by `user_id`; add a `households` table and update filters when needed.
-- **Row-Level Security for query endpoint.** v1.1 upgrade: enforce data scoping via Postgres RLS policies rather than via query parameters.
-- **LLM prompt evaluation.** Build a test harness that scores LLM extractions against gold-standard PDF corpus; pick the best model per task.
-- **Automatic GPay-bank reconciliation.** Currently semi-manual; could be fully automatic with better matching heuristics and UPI ref ID regex extraction.
+- **Notifications.** Subscription renewals, budget overruns. Data model already supports this.
+- **Attachments.** Receipts, invoice photos. Add `transaction_attachments` table + object storage abstraction.
+- **Native mobile app.** PWA is sufficient for v1.
+- **Investments.** Separate `holdings` + `prices` model.
+- **Multi-user households.** Add `households` table + group filtering.
+- **Row-Level Security for query endpoint.** Postgres RLS policies as a hardening upgrade.
+- **Cloud LLM backends.** AnthropicClient / OpenAIClient implementations — interface already supports this.
+- **Vision-model PDF fallback.** Add if a future bank emits scanned/image-only PDFs.
+- **Additional bank parsers.** ICICI, SBI, Axis, Kotak, etc.
+- **Auto-categorization from history.** Once user has enough labeled transactions, train a local classifier instead of (or in addition to) LLM-based category suggestion.
 
 ---
 
@@ -1080,21 +890,24 @@ PUBLIC_BASE_URL           required
 
 | Decision | Choice | Rationale |
 |---|---|---|
-| Storage model | Relational (Postgres) | Financial data is inherently relational; SQL access aligns with user's reporting needs. |
-| Backend language | Python | Best-in-class PDF parsing and LLM SDK ecosystem. |
-| Frontend stack | React 19 + Vite + Tailwind + Radix + Bun | Full design control with accessibility; PWA-ready; pure SPA fits use case. |
-| Next.js | Explicitly rejected | None of Next's value props (SEO, SSR, edge) apply to an authed personal app. Adds complexity without benefit. |
-| LLM integration | Pluggable interface, default Ollama | Privacy-first; cloud opt-in. |
-| Preferred LLM hosting | Local on dedicated home server (Option B) | Best privacy + capability. Pi 5 works (Option A) but vision is slow. |
-| Deployment | docker-compose, env-driven | Identical artifact, identical orchestration, on home or cloud. |
-| Auth | JWT + argon2; first-run setup wizard; invite-only for additional users | Simplest viable; avoids exposed public signup. |
+| App name | Kanakku (கணக்கு) | Tamil for accounts/reckoning — fits exactly, culturally rooted. |
+| Storage model | Relational (Postgres) | Inherently relational; SQL access aligns with user's reporting needs. |
+| Backend language | Python | Best ecosystem for PDF parsing and LLM SDKs. |
+| Frontend stack | React 19 + Vite + Tailwind + Radix + Bun | Full design control, PWA-ready, pure SPA fits use case. |
+| Next.js | Explicitly rejected | SEO/SSR irrelevant; adds complexity without benefit. |
+| Primary deployment | Raspberry Pi 5 (8GB) | Sufficient resources, fully private, low cost. |
+| LLM model | qwen2.5:1.5b via Ollama | Fits Pi 5 RAM comfortably (~1.5GB), fast enough (~10-15 tok/s), strong quality on short structured prompts. |
+| Vision model | None in v1 | All target bank PDFs have selectable text — deterministic parsing is sufficient. |
+| Cloud LLM | Deferred | Architecture supports it via LLMClient interface; not built in v1. |
+| Deployment | docker-compose, env-driven | Same artifact on home or cloud. |
+| Auth | JWT + argon2; first-run setup wizard; invite-only for additional users | Simplest viable; no exposed public signup. |
 | Query interface | Raw SQL on read-only DB role | Maximum flexibility; user is sole consumer. |
-| Splits model | Separate `splits` entity with `split_shares`; transactions stay type-pure | Cleaner mental model; transactions don't carry split metadata. |
-| Manual entry | Structured form only; no compact syntax; no LLM assist | Simpler to build, easier to use, no parsing ambiguity. |
-| Budget edit semantics | Future-default with current-period checkbox; delete prompts for scope | Matches user mental model of recurring schedules. |
+| Splits model | Separate `splits` entity wrapping an expense; transactions stay type-pure | Cleaner mental model. |
+| Manual entry | Structured form only; no compact syntax; no LLM | Simpler, easier to use, no parsing ambiguity. |
+| Budget edit semantics | Future-default with current-period checkbox; delete prompts for scope | Matches user mental model. |
 | Subscription next-date | Computed on the fly from billing day + cycle | Avoids stale stored dates. |
-| Transaction timing | `transacted_at` timestamp distinct from `created_at`/`updated_at` | Allows backfilling and editing without losing audit info. |
-| Multi-currency | Per-transaction override of primary currency; no FX conversion | Keeps system simple; bank handles real conversion. |
+| Transaction timing | `transacted_at` timestamp distinct from created/updated | Allows backfilling without losing audit. |
+| Multi-currency | Per-transaction override of primary; no FX conversion | Keeps simple; bank handles real conversion. |
 | Data migration | JSON archive + pg_dump, both supported | JSON for portability, dump for fidelity. UUIDs preserve relationships. |
 
 ---
