@@ -88,11 +88,11 @@
 - [x] Tests for each path
 
 ### Task 1.5: Invite Token System
-- [ ] POST /auth/invites
-- [ ] POST /auth/accept-invite
-- [ ] GET /auth/invites/{token}/info
-- [ ] Tokens stored hashed
-- [ ] Tests: creation, redemption, expiry, single-use
+- [x] POST /auth/invites
+- [x] POST /auth/accept-invite
+- [x] GET /auth/invites/{token}/info
+- [x] Tokens stored hashed
+- [x] Tests: creation, redemption, expiry, single-use
 
 ### Task 1.6: Frontend Auth Pages
 - [ ] pages/Setup.tsx

@@ -1,5 +1,11 @@
 # Completed Milestones
 
+## Task 1.5: Invite Token System
+- POST /auth/invites: auth required, generates secrets.token_urlsafe(32), stores SHA-256 hash, optional email lock, 7-day TTL
+- GET /auth/invites/{token}/info: public; 404 unknown, 410 expired/used, 200 with expires_at + email
+- POST /auth/accept-invite: validates token (404/410), email match check (400), duplicate email (409), creates user + session, marks used_at
+- tests/test_auth_invite.py: 13 integration tests covering all paths
+
 ## Task 1.4: Login, Logout, Me, Refresh
 - app/dependencies.py: get_current_user — decodes Bearer access JWT, loads User from DB, 401 on invalid/expired/deleted
 - POST /auth/login: verifies email+password, creates Session row (token_hash=SHA-256 of refresh token), returns token pair

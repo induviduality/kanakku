@@ -32,3 +32,23 @@ class MeResponse(BaseModel):
     id: uuid.UUID
     email: str
     created_at: datetime
+
+
+class InviteCreateRequest(BaseModel):
+    email: EmailStr | None = None
+
+
+class InviteCreateResponse(BaseModel):
+    token: str
+    expires_at: datetime
+
+
+class InviteInfoResponse(BaseModel):
+    expires_at: datetime
+    email: str | None
+
+
+class AcceptInviteRequest(BaseModel):
+    token: str
+    email: EmailStr
+    password: str
