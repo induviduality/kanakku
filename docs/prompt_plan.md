@@ -23,14 +23,12 @@ Initialize a monorepo for Kanakku with the following layout:
 │   ├── Caddyfile
 │   └── env.example
 ├── docs/
-│   └── tdd.md
+│   └── TDD.md
 ├── CLAUDE.md
 ├── .github/workflows/
 ├── .gitignore
 ├── README.md
 └── LICENSE (MIT)
-
-Place the TDD at docs/tdd.md and the CLAUDE.md at the root with project context.
 
 Add .gitignore entries for Python (.venv, __pycache__, *.pyc, .pytest_cache), Node (node_modules, dist, .vite), env files (.env, .env.local), OS (.DS_Store), and Docker volumes.
 
