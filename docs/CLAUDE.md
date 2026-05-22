@@ -48,6 +48,8 @@ After completing any task:
    if milestone is done).
 4. Check docs/todo.md and cross off the completed items, if applicable.
 
+When asked to commit, do not include yourself as a co-author.
+
 Definition of non-trivial decision (log it):
 - Chose between two valid architectural approaches
 - Deviated from prompt_plan.md or tdd.md

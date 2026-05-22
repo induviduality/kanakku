@@ -19,10 +19,10 @@
 ## Milestone 0: Foundation
 
 ### Task 0.1: Monorepo Structure
-- [ ] Directory tree (backend, frontend, infra, docs, .github/workflows)
-- [ ] Root README with project stub
-- [ ] Comprehensive .gitignore
-- [ ] MIT LICENSE
+- [x] Directory tree (backend, frontend, infra, docs, .github/workflows)
+- [x] Root README with project stub
+- [x] Comprehensive .gitignore
+- [x] Non-Commercial LICENSE
 
 ### Task 0.2: Backend Bootstrap
 - [ ] pyproject.toml with deps + dev deps
