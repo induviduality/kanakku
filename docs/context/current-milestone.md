@@ -38,3 +38,11 @@
 - 12.4 Frontend — Export/Import UI (SettingsDataExport.tsx, SettingsDataImport.tsx, 12 tests) — DONE
 
 ## Milestone 12: Data Portability — COMPLETE
+
+# Milestone 13: PWA & Polish — In Progress
+
+## Completed Tasks
+- 13.1 PWA Setup (vite-plugin-pwa configured, manifest.webmanifest, sw.js + workbox, icons 192/512) — DONE
+
+## Next Task
+- 13.2 Mobile Audit (360px verification, tap targets, MobileNav bottom tab bar, Playwright snapshots)

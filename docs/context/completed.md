@@ -64,6 +64,14 @@
 
 ## Milestone 12: Data Portability — COMPLETE
 
+## Milestone 13: PWA & Polish — In Progress
+
+### Task 13.1: PWA Setup
+- frontend/vite.config.ts: VitePWA configured with manifest (name=Kanakku, theme_color=#863bff, display=standalone, icons 192/512), workbox precache + NetworkFirst for /api/ GETs (10s timeout, 5min cache, skip /download paths)
+- frontend/public/icons/icon-192x192.png + icon-512x512.png: generated PNG icons (purple #863bff brand color with K lettermark, rounded rectangle)
+- frontend/index.html: title="Kanakku", theme-color meta, apple-mobile-web-app-* tags, apple-touch-icon link
+- Build output: dist/manifest.webmanifest, dist/sw.js, dist/workbox-*.js generated; 12 assets precached; 249 tests passing
+
 ### Task 11.2: Schema Reference Endpoint
 - backend/app/routers/reports.py: GET /reports/schema — hand-curated 19-table schema with column types, descriptions, FK metadata
 - backend/app/schemas/reports.py: ColumnInfo, TableInfo, SchemaResponse schemas

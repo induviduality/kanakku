@@ -464,9 +464,9 @@
 ## Milestone 13: PWA & Polish
 
 ### Task 13.1: PWA Setup
-- [ ] vite-plugin-pwa configured
-- [ ] Manifest with icons (192, 512)
-- [ ] Service worker
+- [x] vite-plugin-pwa configured
+- [x] Manifest with icons (192, 512)
+- [x] Service worker
 - [ ] Installable verified
 - [ ] Lighthouse PWA ≥ 90
 
