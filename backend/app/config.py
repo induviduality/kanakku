@@ -12,6 +12,7 @@ class Settings(BaseSettings):
     redis_url: str = "redis://localhost:6379"
     public_base_url: str = "http://localhost:8000"
     debug: bool = False
+    dev_mode: bool = False
 
 
 settings = Settings()

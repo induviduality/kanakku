@@ -1,23 +1,22 @@
-# Current Task: Task 2.1 — User Settings
+# Current Task: Task 2.2 — Accounts CRUD
 
 ## What I'm implementing
-UserSettings model, auto-create on signup, GET/PATCH /settings endpoint.
+Account model, full CRUD + soft delete + restore, currency defaults from user settings.
 
-## Files I'm working in
-backend/app/models/user_settings.py
-backend/alembic/versions/0002_user_settings.py
-backend/app/routers/settings.py
-backend/app/schemas/settings.py
-backend/tests/test_settings.py
+## Files I'll work in
+backend/app/models/account.py
+backend/alembic/versions/0003_accounts.py
+backend/app/routers/accounts.py
+backend/app/schemas/account.py
+backend/tests/test_accounts.py
 
 ## Key constraints to remember
-- UserSettings PK = user_id (1:1 with User, not a separate UUID)
-- Auto-created when user is created (in setup + accept-invite endpoints)
-- Fields: primary_currency (str, default "INR"), timezone (str, default "Asia/Kolkata"),
-  date_format (str, default "DD/MM/YYYY"), number_format (str, default "en-IN"), updated_at TIMESTAMPTZ
-- GET /settings: requires auth, returns current user's settings
-- PATCH /settings: partial update, all fields optional
-- Tests: defaults on user create, scoping (user A can't read user B's settings)
+- Account types: bank, cash, credit_card, loan
+- Fields: id (UUID), user_id (FK→users CASCADE), name, type (enum), currency (str, defaults from user settings primary_currency), current_balance (Numeric, default 0), is_active (bool, default true), created_at, updated_at, deleted_at (nullable — soft delete)
+- Soft delete: PATCH /{id}/delete sets deleted_at; restore: PATCH /{id}/restore clears it
+- Deleted accounts excluded from list by default; 30-day purge rule (no endpoint yet, just enforce in model/test)
+- Currency: if not provided at creation, pull from user's UserSettings.primary_currency
+- All endpoints scoped to current_user.id — never cross-user
 
 ## Definition of done
-pytest passes for settings tests
+pytest passes for accounts tests

@@ -13,6 +13,7 @@ from app.dependencies import get_current_user
 from app.models.invite_token import InviteToken
 from app.models.session import Session as SessionModel
 from app.models.user import User
+from app.models.user_settings import UserSettings
 from app.schemas.auth import (
     AcceptInviteRequest,
     InviteCreateRequest,
@@ -58,6 +59,8 @@ async def setup(
         password_hash=hash_password(body.password),
     )
     session.add(user)
+    await session.flush()
+    session.add(UserSettings(user_id=user.id))
     await session.commit()
     await session.refresh(user)
     return TokenResponse(
@@ -228,6 +231,7 @@ async def accept_invite(
     )
     session.add(user)
     await session.flush()
+    session.add(UserSettings(user_id=user.id))
 
     access_token = create_access_token(user.id)
     refresh_token = create_refresh_token(user.id)

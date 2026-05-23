@@ -1,5 +1,17 @@
 # Completed Milestones
 
+## Task 2.1: User Settings
+- app/models/user_settings.py: UserSettings (PK=user_id FK→users CASCADE), fields: primary_currency/timezone/date_format/number_format/updated_at, all with INR/Asia/Kolkata/DD/MM/YYYY/en-IN defaults
+- alembic/versions/0002_user_settings.py: migration with upgrade/downgrade
+- app/schemas/settings.py: SettingsResponse, SettingsPatch (all fields optional)
+- app/routers/settings.py: GET /settings + PATCH /settings (auth required, scoped to current user)
+- app/main.py: settings router added; dev_mode + lifespan restored (lost in earlier git restore)
+- app/config.py: dev_mode field restored
+- app/routers/auth.py: UserSettings auto-created on setup and accept-invite via session.flush() + add
+- app/models/__init__.py: UserSettings registered for Base.metadata
+- tests/test_settings.py: 7 tests — defaults on setup, defaults on invite, PATCH partial, PATCH empty noop, auth guards, scoping (user A ≠ user B)
+- ruff clean, mypy clean; tests require Postgres
+
 ## Dev mode unified toggle
 - `.dev-config.yml`: single file with `preset: all | be_only | fe_only | infra_only` options
 - `infra/load-dev-config.py`: reads the YAML, prints `export DEV_MODE_BACKEND/FRONTEND/INFRA` + `DEV_MODE` (backward compat)
