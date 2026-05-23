@@ -256,12 +256,12 @@
 - [x] Tests
 
 ### Task 5.5: Frontend — Budgets
-- [ ] pages/Budgets.tsx with progress bars
-- [ ] pages/BudgetDetail.tsx
-- [ ] pages/BudgetForm.tsx
-- [ ] Edit dialog (recurring): "also current period?" checkbox
-- [ ] Delete dialog (recurring): three radio options
-- [ ] Tests
+- [x] pages/Budgets.tsx with progress bars
+- [x] pages/BudgetDetail.tsx
+- [x] pages/BudgetForm.tsx
+- [x] Edit dialog (recurring): "also current period?" checkbox
+- [x] Delete dialog (recurring): three radio options
+- [x] Tests
 
 ---
 

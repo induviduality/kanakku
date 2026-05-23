@@ -140,6 +140,47 @@ export const SPLIT_RESPONSE = {
   deleted_at: null,
 }
 
+export const BUDGETS_RESPONSE: object[] = [
+  {
+    id: 'budget-1',
+    user_id: 'user-1',
+    name: 'Monthly Groceries',
+    amount: '5000.00',
+    currency: 'INR',
+    period: 'monthly',
+    start_date: '2026-01-01',
+    end_date: null,
+    type: 'recurring',
+    recurrence_rule: 'FREQ=MONTHLY',
+    parent_budget_id: null,
+    is_modified_instance: false,
+    is_active: true,
+    notes: null,
+    category_ids: ['cat-1'],
+    created_at: '2026-01-01T00:00:00Z',
+    updated_at: '2026-01-01T00:00:00Z',
+    deleted_at: null,
+  },
+]
+
+export const BUDGET_TRANSACTIONS_RESPONSE = {
+  items: [
+    {
+      id: 'txn-1',
+      type: 'expense',
+      transacted_at: '2026-01-15T10:00:00Z',
+      amount: '500.00',
+      currency: 'INR',
+      description: 'Groceries run',
+      account_id: 'acc-1',
+      payee_id: null,
+      category_ids: ['cat-1'],
+      link_type: 'explicit',
+    },
+  ],
+  total_spent: '500.00',
+}
+
 export const TAGS_RESPONSE = [
   {
     id: 'tag-1',
@@ -301,6 +342,30 @@ export const handlers = [
       settled_at: null,
       settlement_transaction_id: null,
     }),
+  ),
+
+  // Budgets
+  http.get('/api/v1/budgets', () => HttpResponse.json(BUDGETS_RESPONSE)),
+  http.post('/api/v1/budgets', async ({ request }) => {
+    const body = await request.json() as Record<string, unknown>
+    return HttpResponse.json(
+      { ...BUDGETS_RESPONSE[0], id: 'budget-new', name: body.name, type: body.type },
+      { status: 201 },
+    )
+  }),
+  http.get('/api/v1/budgets/:budgetId', ({ params }) => {
+    if (params.budgetId === 'not-found') {
+      return HttpResponse.json({ detail: 'Budget not found' }, { status: 404 })
+    }
+    return HttpResponse.json({ ...BUDGETS_RESPONSE[0], id: params.budgetId })
+  }),
+  http.patch('/api/v1/budgets/:budgetId', async ({ request, params }) => {
+    const body = await request.json() as Record<string, unknown>
+    return HttpResponse.json({ ...BUDGETS_RESPONSE[0], id: params.budgetId, ...body })
+  }),
+  http.delete('/api/v1/budgets/:budgetId', () => new HttpResponse(null, { status: 204 })),
+  http.get('/api/v1/budgets/:budgetId/transactions', () =>
+    HttpResponse.json(BUDGET_TRANSACTIONS_RESPONSE),
   ),
 
   // Tags

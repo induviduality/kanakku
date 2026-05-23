@@ -10,6 +10,9 @@ import Tags from './pages/Tags'
 import Transactions from './pages/Transactions'
 import TransactionFormPage from './pages/TransactionForm'
 import SplitDetail from './pages/SplitDetail'
+import Budgets from './pages/Budgets'
+import BudgetDetail from './pages/BudgetDetail'
+import BudgetFormPage from './pages/BudgetForm'
 
 const rootRoute = createRootRoute({ component: Outlet })
 
@@ -85,6 +88,30 @@ const splitDetailRoute = createRoute({
   component: SplitDetail,
 })
 
+const budgetsRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/budgets',
+  component: Budgets,
+})
+
+const budgetNewRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/budgets/new',
+  component: BudgetFormPage,
+})
+
+const budgetDetailRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/budgets/$budgetId',
+  component: BudgetDetail,
+})
+
+const budgetEditRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/budgets/$budgetId/edit',
+  component: BudgetFormPage,
+})
+
 const routeTree = rootRoute.addChildren([
   indexRoute,
   setupRoute,
@@ -98,6 +125,10 @@ const routeTree = rootRoute.addChildren([
   transactionsRoute,
   transactionNewRoute,
   splitDetailRoute,
+  budgetsRoute,
+  budgetNewRoute,
+  budgetDetailRoute,
+  budgetEditRoute,
 ])
 
 export const router = createRouter({ routeTree })

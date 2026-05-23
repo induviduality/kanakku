@@ -2,6 +2,15 @@
 
 ## Milestone 5: Budgets (in progress)
 
+### Task 5.5: Frontend — Budgets
+- frontend/src/api/budgets.ts: Budget, BudgetCreate, BudgetPatch, BudgetTransactionItem, BudgetTransactionsResponse types; useGetBudgets, useGetBudget, useCreateBudget, usePatchBudget (with EditScope param), useDeleteBudget (with DeleteScope param), useGetBudgetTransactions hooks
+- frontend/src/pages/Budgets.tsx: list with progress bars, ProgressBar component, DeleteScopeDialog (recurring: 3 radio options; adhoc: simple confirm), create modal with type toggle (adhoc/recurring), recurrence rule field, date range, category multi-select chips
+- frontend/src/pages/BudgetDetail.tsx: budget info + spending progress bar, transactions list with link_type badge (explicit=indigo, category_match=gray), total_spent display
+- frontend/src/pages/BudgetForm.tsx: create/edit form, ScopeDialog for recurring edits (checkbox "Also affect the current period?", default checked → current_and_future, unchecked → future_only)
+- frontend/src/router.tsx: /budgets, /budgets/new, /budgets/$budgetId, /budgets/$budgetId/edit routes added
+- frontend/src/test/handlers.ts: BUDGETS_RESPONSE, BUDGET_TRANSACTIONS_RESPONSE fixtures + MSW handlers for all budget endpoints
+- Tests: Budgets (8), BudgetDetail (5), BudgetForm (4) = 17 tests
+
 ### Task 5.4: Transaction-Budget Linking
 - app/routers/budgets.py: added GET /budgets/{id}/transactions — returns explicit links (transaction_budgets) and category-match links (transaction_categories overlapping budget_categories), deduplicates so explicit wins; total_spent sums expense amounts; BudgetTransactionItem includes link_type field; supports ?from and ?to date filters; transaction_budgets linking already wired in transactions router (M3)
 - tests/test_budget_linking.py: 11 integration tests — create with budget_ids, patch to link, explicit link appears, category match appears, no duplication when both explicit+category, total_spent sum, date filter narrows, auth guard, cross-user 404, unlink removes

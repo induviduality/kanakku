@@ -1,13 +1,15 @@
-# Milestone 5: Budgets — IN PROGRESS
+# Milestone 5: Budgets — COMPLETE
 
 ## Completed Tasks
 - 5.1 Budgets Schema
 - 5.2 Recurrence Expansion
 - 5.3 Budgets CRUD with Scope Semantics
 - 5.4 Transaction-Budget Linking
-
-## Remaining Tasks
 - 5.5 Frontend — Budgets
+
+## Next Milestone: Milestone 6 — Subscriptions & Piggy Banks
+
+See docs/todo.md for task list starting at Task 6.1.
 
 ## Next Task: 5.5 — Frontend Budgets
 
