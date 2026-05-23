@@ -1,0 +1,15 @@
+# Dev mode configuration — edit this ONE file to toggle dev mode across the stack
+#
+# Presets:
+#   all       — dev mode for backend, frontend, infra
+#   be_only   — dev mode for backend only
+#   fe_only   — dev mode for frontend only
+#   infra_only — dev mode for infra/docker-compose only
+#
+
+preset: all
+
+# Or use fine-grained control:
+# dev_mode_backend: true
+# dev_mode_frontend: true
+# dev_mode_infra: true
