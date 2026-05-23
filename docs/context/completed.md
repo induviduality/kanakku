@@ -9,6 +9,15 @@
 - backend/pyproject.toml: added ollama>=0.4 dependency
 - backend/tests/test_llm_interface.py: 8 tests — factory dispatch (none/unknown/ollama), NullClient safety (suggest/match/empty)
 
+### Task 9.3: LLM Activity Log
+- backend/app/models/llm_activity_log.py: LLMActivityLog model (id, user_id, operation, payload_summary JSONB, backend, model, duration_ms, succeeded, created_at)
+- backend/alembic/versions/0015_llm_activity_log.py: migration creating llm_activity_log table with user_id index
+- backend/app/llm/logging.py: LoggingLLMClient wrapper — records every suggest_category and match_gpay_to_bank call with timing and payload summary; logs succeeded=False on exceptions
+- backend/app/schemas/settings.py: LLMActivityLogResponse pydantic schema
+- backend/app/routers/settings.py: GET /settings/llm-activity?limit&operation&backend — returns recent LLM calls scoped to current user
+- backend/app/models/__init__.py: LLMActivityLog registered
+- backend/tests/test_llm_activity_log.py: 7 integration tests (suggest logged, match logged, failure logged with succeeded=false, empty list, auth guard, filter by operation, filter by backend)
+
 ### Task 9.2: Ollama Implementation
 - backend/app/llm/ollama_client.py: OllamaClient using ollama.AsyncClient; suggest_category with retry on bad output + fence stripping; match_gpay_to_bank per-record with int parsing from prose
 - backend/tests/test_ollama_client.py: 9 tests — clean match, fence stripping, retry on bad output, two-fail returns None, empty categories, match returns index, no candidates, index from prose, out-of-range index

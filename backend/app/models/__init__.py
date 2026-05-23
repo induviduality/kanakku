@@ -1,4 +1,5 @@
 from app.models.account import Account
+from app.models.llm_activity_log import LLMActivityLog
 from app.models.budget import Budget, BudgetPeriod, BudgetType, budget_categories
 from app.models.category import Category, payee_default_categories
 from app.models.import_batch import (
@@ -39,4 +40,5 @@ __all__ = [
     "PiggyBank", "PiggyBankContribution", "ContributionType",
     "ImportBatch", "ImportBatchStatus", "ImportSource", "VerificationStatus",
     "RawImportRecord", "RecordStatus", "RecordConfidence", "RecordMatchType",
+    "LLMActivityLog",
 ]

@@ -368,10 +368,10 @@
 - [x] Tests (mocked)
 
 ### Task 9.3: LLM Activity Log
-- [ ] LLMActivityLog model
-- [ ] Logging via decorator/middleware
-- [ ] GET /settings/llm-activity endpoint
-- [ ] Tests: every call logged
+- [x] LLMActivityLog model
+- [x] Logging via decorator/middleware
+- [x] GET /settings/llm-activity endpoint
+- [x] Tests: every call logged
 
 ### Task 9.4: Frontend — LLM Activity Page
 - [ ] pages/SettingsLLMActivity.tsx

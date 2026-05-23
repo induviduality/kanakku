@@ -1,7 +1,22 @@
 import uuid
 from datetime import datetime
+from typing import Any
 
 from pydantic import BaseModel
+
+
+class LLMActivityLogResponse(BaseModel):
+    id: uuid.UUID
+    user_id: uuid.UUID
+    operation: str
+    payload_summary: dict[str, Any]
+    backend: str
+    model: str
+    duration_ms: int
+    succeeded: bool
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
 
 
 class SettingsResponse(BaseModel):
