@@ -9,6 +9,7 @@ import Categories from './pages/Categories'
 import Tags from './pages/Tags'
 import Transactions from './pages/Transactions'
 import TransactionFormPage from './pages/TransactionForm'
+import SplitDetail from './pages/SplitDetail'
 
 const rootRoute = createRootRoute({ component: Outlet })
 
@@ -78,6 +79,12 @@ const transactionNewRoute = createRoute({
   component: TransactionFormPage,
 })
 
+const splitDetailRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/splits/$splitId',
+  component: SplitDetail,
+})
+
 const routeTree = rootRoute.addChildren([
   indexRoute,
   setupRoute,
@@ -90,6 +97,7 @@ const routeTree = rootRoute.addChildren([
   tagsRoute,
   transactionsRoute,
   transactionNewRoute,
+  splitDetailRoute,
 ])
 
 export const router = createRouter({ routeTree })

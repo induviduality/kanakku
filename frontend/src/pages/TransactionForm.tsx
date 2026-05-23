@@ -20,11 +20,14 @@ export default function TransactionFormPage() {
 
   const isEditing = !!editId
 
-  async function handleSubmit(data: TransactionCreate | TransactionPatch) {
+  async function handleSubmit(data: TransactionCreate | TransactionPatch): Promise<{ id: string } | void> {
     if (isEditing) {
       await patchTxn.mutateAsync({ id: editId!, patch: data as TransactionPatch })
     } else {
-      await createTxn.mutateAsync(data as TransactionCreate)
+      const txn = await createTxn.mutateAsync(data as TransactionCreate)
+      setDone(true)
+      navigate({ to: '/transactions' })
+      return { id: txn.id }
     }
     setDone(true)
     navigate({ to: '/transactions' })

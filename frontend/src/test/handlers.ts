@@ -102,6 +102,44 @@ export const TRANSACTIONS_RESPONSE = {
   next_cursor: null,
 }
 
+export const SPLIT_RESPONSE = {
+  id: 'split-1',
+  user_id: 'user-1',
+  expense_transaction_id: 'txn-1',
+  notes: 'dinner split',
+  shares: [
+    {
+      id: 'share-1',
+      split_id: 'split-1',
+      payee_id: null,
+      amount: '300.00',
+      status: 'pending',
+      settled_at: null,
+      settlement_transaction_id: null,
+      forgiven_at: null,
+      notes: null,
+      created_at: '2026-01-15T10:00:00Z',
+      updated_at: '2026-01-15T10:00:00Z',
+    },
+    {
+      id: 'share-2',
+      split_id: 'split-1',
+      payee_id: 'payee-1',
+      amount: '200.00',
+      status: 'pending',
+      settled_at: null,
+      settlement_transaction_id: null,
+      forgiven_at: null,
+      notes: null,
+      created_at: '2026-01-15T10:00:00Z',
+      updated_at: '2026-01-15T10:00:00Z',
+    },
+  ],
+  created_at: '2026-01-15T10:00:00Z',
+  updated_at: '2026-01-15T10:00:00Z',
+  deleted_at: null,
+}
+
 export const TAGS_RESPONSE = [
   {
     id: 'tag-1',
@@ -212,6 +250,58 @@ export const handlers = [
     return HttpResponse.json({ ...TRANSACTIONS_RESPONSE.items[0], ...body })
   }),
   http.delete('/api/v1/transactions/:id', () => new HttpResponse(null, { status: 204 })),
+
+  // Splits
+  http.post('/api/v1/splits', async ({ request }) => {
+    const body = await request.json() as Record<string, unknown>
+    return HttpResponse.json(
+      { ...SPLIT_RESPONSE, expense_transaction_id: body.expense_transaction_id },
+      { status: 201 },
+    )
+  }),
+  http.post('/api/v1/splits/bundle', async ({ request }) => {
+    const body = await request.json() as Record<string, unknown>
+    return HttpResponse.json(
+      { ...SPLIT_RESPONSE, expense_transaction_id: body.expense_transaction_id },
+      { status: 201 },
+    )
+  }),
+  http.get('/api/v1/splits/:splitId', ({ params }) => {
+    if (params.splitId === 'not-found') {
+      return HttpResponse.json({ detail: 'Split not found' }, { status: 404 })
+    }
+    return HttpResponse.json({ ...SPLIT_RESPONSE, id: params.splitId })
+  }),
+  http.post('/api/v1/splits/:splitId/shares/:shareId/settle', async ({ request, params }) => {
+    const body = await request.json() as Record<string, unknown>
+    return HttpResponse.json({
+      ...SPLIT_RESPONSE.shares[0],
+      id: params.shareId,
+      split_id: params.splitId,
+      status: 'settled',
+      settled_at: '2026-01-16T10:00:00Z',
+      settlement_transaction_id: body.settlement_transaction_id,
+    })
+  }),
+  http.post('/api/v1/splits/:splitId/shares/:shareId/forgive', ({ params }) =>
+    HttpResponse.json({
+      ...SPLIT_RESPONSE.shares[0],
+      id: params.shareId,
+      split_id: params.splitId,
+      status: 'forgiven',
+      forgiven_at: '2026-01-16T10:00:00Z',
+    }),
+  ),
+  http.post('/api/v1/splits/:splitId/shares/:shareId/unsettle', ({ params }) =>
+    HttpResponse.json({
+      ...SPLIT_RESPONSE.shares[0],
+      id: params.shareId,
+      split_id: params.splitId,
+      status: 'pending',
+      settled_at: null,
+      settlement_transaction_id: null,
+    }),
+  ),
 
   // Tags
   http.get('/api/v1/tags', () => HttpResponse.json(TAGS_RESPONSE)),

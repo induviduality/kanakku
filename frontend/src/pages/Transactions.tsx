@@ -12,6 +12,7 @@ import { usePayees } from '../api/payees'
 import { useCategories } from '../api/categories'
 import { useTags } from '../api/tags'
 import ConfirmDialog from '../components/ConfirmDialog'
+import BundleAsSplitModal from '../components/BundleAsSplitModal'
 
 function formatAmount(t: Transaction): string {
   const sign = t.type === 'expense' ? '-' : t.type === 'income' ? '+' : '⇄'
@@ -61,6 +62,7 @@ export default function Transactions() {
   const [deleteTarget, setDeleteTarget] = useState<Transaction | null>(null)
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [showFilters, setShowFilters] = useState(false)
+  const [bundleTarget, setBundleTarget] = useState<Transaction | null>(null)
 
   const { data: accounts = [] } = useAccounts()
   const { data: payees = [] } = usePayees()
@@ -253,6 +255,35 @@ export default function Transactions() {
         </div>
       )}
 
+      {/* Bulk action bar */}
+      {selectedIds.size > 0 && (() => {
+        const selectedItems = allItems.filter((t) => selectedIds.has(t.id))
+        const singleExpense =
+          selectedItems.length === 1 && selectedItems[0].type === 'expense'
+            ? selectedItems[0]
+            : null
+        return (
+          <div className="mb-3 flex items-center gap-3 rounded-md bg-indigo-50 border border-indigo-200 px-4 py-2">
+            <span className="text-sm text-indigo-700 font-medium">{selectedIds.size} selected</span>
+            {singleExpense && (
+              <button
+                onClick={() => setBundleTarget(singleExpense)}
+                className="text-sm text-indigo-600 hover:underline font-medium"
+                aria-label="Bundle as split"
+              >
+                Bundle as Split
+              </button>
+            )}
+            <button
+              onClick={() => setSelectedIds(new Set())}
+              className="ml-auto text-xs text-gray-500 hover:text-gray-700"
+            >
+              Clear selection
+            </button>
+          </div>
+        )
+      })()}
+
       {/* Loading */}
       {isLoading ? (
         <p className="text-gray-500 py-8 text-center">Loading transactions…</p>
@@ -399,6 +430,16 @@ export default function Transactions() {
         }}
         onCancel={() => setDeleteTarget(null)}
       />
+
+      {bundleTarget && (
+        <BundleAsSplitModal
+          expenseTransactionId={bundleTarget.id}
+          expenseAmount={bundleTarget.amount}
+          open={!!bundleTarget}
+          onClose={() => setBundleTarget(null)}
+          onSuccess={() => setSelectedIds(new Set())}
+        />
+      )}
     </main>
   )
 }

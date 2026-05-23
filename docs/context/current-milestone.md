@@ -1,6 +1,16 @@
-# Milestone 4: Splits (in progress)
+# Milestone 4: Splits — COMPLETE
 
-## Next Task: Task 4.6 — Frontend Split UIs
+## Next Milestone: Milestone 5 — Budgets
+
+See docs/todo.md for task list starting at Task 5.1.
+
+## Completed Tasks
+- 4.1 Splits Schema + Invariant
+- 4.2 Upfront Split Creation
+- 4.3 Retroactive Bundling
+- 4.4 Settle / Forgive Endpoints
+- 4.5 Net Expense Calculation
+- 4.6 Frontend Split UIs
 
 ### What to implement
 

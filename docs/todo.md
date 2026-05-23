@@ -221,13 +221,13 @@
 - [x] Tests: all split combinations
 
 ### Task 4.6: Frontend — Split UIs
-- [ ] components/SplitSharesEditor.tsx (upfront)
-- [ ] Split toggle in TransactionForm
-- [ ] components/BundleAsSplitModal.tsx (retroactive)
-- [ ] "Bundle as Split" bulk action in transaction list
-- [ ] pages/SplitDetail.tsx
-- [ ] Settle modal, Forgive confirm
-- [ ] Tests per component
+- [x] components/SplitSharesEditor.tsx (upfront)
+- [x] Split toggle in TransactionForm
+- [x] components/BundleAsSplitModal.tsx (retroactive)
+- [x] "Bundle as Split" bulk action in transaction list
+- [x] pages/SplitDetail.tsx
+- [x] Settle modal, Forgive confirm
+- [x] Tests per component
 
 ---
 

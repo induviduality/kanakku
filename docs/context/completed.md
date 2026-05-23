@@ -1,6 +1,17 @@
 # Completed Milestones
 
-## Milestone 4: Splits (in progress)
+## Milestone 4: Splits (complete)
+
+### Task 4.6: Frontend — Split UIs
+- frontend/src/api/splits.ts: TypeScript types + TanStack Query hooks (useGetSplit, useCreateSplit, useBundleSplit, useSettleShare, useForgiveShare, useUnsettleShare)
+- components/SplitSharesEditor.tsx: per-share rows (payee, amount, Fill button, remove), live balance display, role="alert" when imbalanced
+- components/BundleAsSplitModal.tsx: Radix Dialog for retroactive bundle — income txn picker, forgiven shares, real-time user share calc
+- pages/SplitDetail.tsx: shares table with status badges (pending=amber, settled=green, forgiven=gray), settle modal, forgive confirm, unsettle
+- pages/TransactionForm.tsx: split toggle for expense type, integrates SplitSharesEditor, validates sum before submit
+- pages/Transactions.tsx: "Bundle as Split" bulk action wired (active when exactly one expense selected)
+- router.tsx: /splits/$splitId route added
+- test/handlers.ts: MSW handlers for all split endpoints
+- Tests: SplitSharesEditor (6), BundleAsSplitModal (5), SplitDetail (3)
 
 ### Task 4.5: Net Expense Calculation
 - app/services/expense_calculator.py: net_expense(session, transaction_id) — returns transaction.amount for non-split; for split returns SUM(shares WHERE payee_id IS NULL OR status='forgiven') per FR-7.9
