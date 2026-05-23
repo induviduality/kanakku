@@ -1,5 +1,6 @@
 from app.models.account import Account
 from app.models.gpay_match import GPayMatch, GPayMatchStatus
+from app.models.report_dashboard import ReportDashboard, ReportWidget, VizType
 from app.models.llm_activity_log import LLMActivityLog
 from app.models.budget import Budget, BudgetPeriod, BudgetType, budget_categories
 from app.models.category import Category, payee_default_categories
@@ -43,4 +44,5 @@ __all__ = [
     "RawImportRecord", "RecordStatus", "RecordConfidence", "RecordMatchType",
     "LLMActivityLog",
     "GPayMatch", "GPayMatchStatus",
+    "ReportDashboard", "ReportWidget", "VizType",
 ]
