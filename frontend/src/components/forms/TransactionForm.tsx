@@ -132,7 +132,7 @@ export default function TransactionForm({
     .map((pm) => ({ id: pm.id, label: pm.name }))
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
+    <form onSubmit={handleSubmit} noValidate className="space-y-4">
       {/* Type toggle */}
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-1">Type</label>
