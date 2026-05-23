@@ -20,6 +20,10 @@ dependencies = [
     "redis>=5.0",
     "httpx>=0.27",
     "python-dateutil>=2.9",
+    "pikepdf>=9.0",
+    "pdfplumber>=0.11",
+    "python-multipart>=0.0.9",
+    "rapidfuzz>=3.0",
 ]
 
 [project.optional-dependencies]
