@@ -1,5 +1,36 @@
 # Completed Milestones
 
+## Milestone 3: Transactions (Tasks 3.1–3.4)
+
+### Task 3.1: Transactions Schema
+- app/models/transaction.py: Transaction model (type: expense/income/transfer only, amount Numeric 15,2, soft delete, all FK columns)
+- Join tables in model file: transaction_categories, transaction_tags, transaction_budgets (budget_id has no FK yet — added in M5)
+- app/models/category.py: added payee_default_categories Table reference (needed by payees router in M3.3)
+- alembic/versions/0008_transactions.py: migration with indexes on (user_id, transacted_at DESC), (user_id, account_id, transacted_at DESC), (user_id, deleted_at); CHECK constraints for transfer/to_account_id and amount > 0
+- tests/test_transactions_schema.py: 9 model-level tests covering all transaction types, constraint violations, join tables, soft delete
+
+### Task 3.2: Transactions CRUD
+- app/schemas/transaction.py: TransactionCreate, TransactionPatch, TransactionResponse (with category_ids, tag_ids), TransactionListResponse
+- app/routers/transactions.py: POST/GET/GET{id}/PATCH/DELETE/restore — cursor pagination (transacted_at DESC, id DESC, base64), balance recompute on create/patch/delete/restore, all filters (?type, ?account_id, ?payee_id, ?category_id, ?tag_id, ?from, ?to, ?budget_id, ?cursor, ?limit)
+- app/main.py: transactions_router registered
+- app/schemas/payee.py: added default_category_ids field to PayeeResponse
+- app/routers/payees.py: all endpoints now return default_category_ids from payee_default_categories join table
+- tests/test_transactions.py: 22 tests — create all types, constraint enforcement, balance correctness (expense/income/transfer/delete/restore), list/filters, date range, cursor pagination, get/patch, categories+tags, soft delete, restore
+
+### Task 3.3: Frontend — Transaction Form
+- frontend/src/api/transactions.ts: Transaction types, useTransactions, useInfiniteTransactions, useCreateTransaction, usePatchTransaction, useDeleteTransaction
+- frontend/src/api/payees.ts: Payee type updated with default_category_ids field
+- frontend/src/components/Autocomplete.tsx: reusable combobox with inline-create (onInlineCreate prop)
+- frontend/src/components/forms/TransactionForm.tsx: full form with type toggle (expense/income/transfer), date/time, amount+currency, account select, to_account (transfer only), payment method autocomplete, payee autocomplete with inline-create, category multi-select (auto-populated from payee.default_category_ids), tag multi-select, description, notes
+- frontend/src/pages/TransactionForm.tsx: page wrapper with create/edit mode (editId search param)
+- frontend/src/test/handlers.ts: TRANSACTIONS_RESPONSE fixture + MSW handlers for GET/POST/PATCH/DELETE /transactions; PAYEES_RESPONSE updated with default_category_ids
+- frontend/src/pages/TransactionForm.test.tsx: 7 tests — field rendering, type toggle visibility, transfer to_account, category auto-populate, validation, onSubmit payload
+
+### Task 3.4: Frontend — Transaction List
+- frontend/src/pages/Transactions.tsx: infinite scroll (IntersectionObserver + useInfiniteTransactions), filter panel (type/account/payee/category/tag/date range), desktop table + mobile cards, bulk select checkboxes (UI ready), delete with ConfirmDialog
+- frontend/src/router.tsx: /transactions and /transactions/new routes added
+- frontend/src/pages/Transactions.test.tsx: 7 tests — loading state, list render, empty state, filter panel toggle, bulk select, delete confirm dialog, delete flow
+
 ## Task 2.8: Frontend — Entity Pages
 - lib/api-client.ts: shared authenticated fetch helpers (apiGet/apiPost/apiPatch/apiDelete)
 - components/DataTable.tsx: responsive table — desktop HTML table, mobile card list

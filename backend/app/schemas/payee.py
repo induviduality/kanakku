@@ -27,6 +27,7 @@ class PayeeResponse(BaseModel):
     type: PayeeType
     notes: str | None
     is_active: bool
+    default_category_ids: list[uuid.UUID] = []
     created_at: datetime
     updated_at: datetime
     deleted_at: datetime | None

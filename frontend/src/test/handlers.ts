@@ -52,6 +52,7 @@ export const PAYEES_RESPONSE = [
     type: 'merchant',
     notes: null,
     is_active: true,
+    default_category_ids: ['cat-1'],
     created_at: '2026-01-01T00:00:00Z',
     updated_at: '2026-01-01T00:00:00Z',
     deleted_at: null,
@@ -71,6 +72,35 @@ export const CATEGORIES_RESPONSE = [
     deleted_at: null,
   },
 ]
+
+export const TRANSACTIONS_RESPONSE = {
+  items: [
+    {
+      id: 'txn-1',
+      user_id: 'user-1',
+      type: 'expense',
+      transacted_at: '2026-01-15T10:00:00Z',
+      amount: '500.00',
+      currency: 'INR',
+      description: 'Coffee',
+      notes: null,
+      account_id: 'acc-1',
+      payment_method_id: null,
+      payee_id: 'payee-1',
+      to_account_id: null,
+      to_amount: null,
+      to_currency: null,
+      subscription_id: null,
+      import_record_id: null,
+      category_ids: ['cat-1'],
+      tag_ids: ['tag-1'],
+      created_at: '2026-01-15T10:00:00Z',
+      updated_at: '2026-01-15T10:00:00Z',
+      deleted_at: null,
+    },
+  ],
+  next_cursor: null,
+}
 
 export const TAGS_RESPONSE = [
   {
@@ -167,6 +197,21 @@ export const handlers = [
     const body = await request.json() as Record<string, unknown>
     return HttpResponse.json({ ...CATEGORIES_RESPONSE[0], ...body })
   }),
+
+  // Transactions
+  http.get('/api/v1/transactions', () => HttpResponse.json(TRANSACTIONS_RESPONSE)),
+  http.post('/api/v1/transactions', async ({ request }) => {
+    const body = await request.json() as Record<string, unknown>
+    return HttpResponse.json(
+      { ...TRANSACTIONS_RESPONSE.items[0], id: 'txn-new', type: body.type, amount: body.amount },
+      { status: 201 },
+    )
+  }),
+  http.patch('/api/v1/transactions/:id', async ({ request }) => {
+    const body = await request.json() as Record<string, unknown>
+    return HttpResponse.json({ ...TRANSACTIONS_RESPONSE.items[0], ...body })
+  }),
+  http.delete('/api/v1/transactions/:id', () => new HttpResponse(null, { status: 204 })),
 
   // Tags
   http.get('/api/v1/tags', () => HttpResponse.json(TAGS_RESPONSE)),

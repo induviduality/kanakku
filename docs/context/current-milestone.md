@@ -1,26 +1,19 @@
-# Milestone 2 Complete
+# Milestone 3 Complete
 
-All tasks 2.1–2.8 are done. The next milestone is Milestone 3: Transactions.
+All tasks 3.1–3.4 are done. The next milestone is Milestone 4: Splits.
 
-## Next Task: Task 3.1 — Transactions Schema
+## Next Task: Task 4.1 — Splits Schema + Invariant
 
 ### What to implement
-- Transaction model with all fields
-- Join tables (transaction_categories, transaction_tags)
-- Indexes
-- Constraints (transfer requires to_account_id, type enum: expense/income/transfer only)
-- Tests
+- Split model (id, user_id, expense_transaction_id FK UNIQUE, notes, timestamps, deleted_at)
+- SplitShare model (id, split_id FK, payee_id NULL FK, amount, status enum: pending/settled/forgiven, settled_at, settlement_transaction_id, forgiven_at, notes, timestamps)
+- Application-level invariant validator: services/split_service.py validate_invariant(split_id)
+- DB trigger: check_split_invariant() fired AFTER INSERT/UPDATE/DELETE on split_shares
+- Migration: 0009_splits.py
+- Tests: sum matches OK, sum mismatch raises, update breaking sum raises, delete breaking sum raises
 
 ### Files to create
-backend/app/models/transaction.py
-backend/alembic/versions/0008_transactions.py
-backend/tests/test_transactions_schema.py (model-level tests)
-
-### Key constraints
-- type: expense | income | transfer (NOT split_parent)
-- transfer requires to_account_id
-- amount: Numeric(15,2), must be positive
-- currency: str, defaults to account's currency
-- transaction_categories: (transaction_id, category_id)
-- transaction_tags: (transaction_id, tag_id)
-- Soft delete + 30-day restore
+backend/app/models/split.py
+backend/app/services/split_service.py
+backend/alembic/versions/0009_splits.py
+backend/tests/test_splits_schema.py

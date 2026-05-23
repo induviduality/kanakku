@@ -1,0 +1,410 @@
+import base64
+import uuid
+from datetime import UTC, datetime, timedelta
+from decimal import Decimal
+
+from fastapi import APIRouter, Depends, HTTPException, Query
+from sqlalchemy import delete, select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.db.session import get_session
+from app.dependencies import get_current_user
+from app.models.account import Account
+from app.models.transaction import (
+    Transaction,
+    TransactionType,
+    transaction_budgets,
+    transaction_categories,
+    transaction_tags,
+)
+from app.models.user import User
+from app.models.user_settings import UserSettings
+from app.schemas.transaction import (
+    TransactionCreate,
+    TransactionListResponse,
+    TransactionPatch,
+    TransactionResponse,
+)
+
+router = APIRouter(prefix="/transactions", tags=["transactions"])
+
+_SOFT_DELETE_WINDOW = timedelta(days=30)
+
+
+# ── Helpers ──────────────────────────────────────────────────────────────────
+
+async def _get_txn_or_404(
+    txn_id: uuid.UUID,
+    user: User,
+    session: AsyncSession,
+    include_deleted: bool = False,
+) -> Transaction:
+    stmt = select(Transaction).where(
+        Transaction.id == txn_id, Transaction.user_id == user.id
+    )
+    if not include_deleted:
+        stmt = stmt.where(Transaction.deleted_at.is_(None))
+    result = await session.execute(stmt)
+    txn = result.scalar_one_or_none()
+    if txn is None:
+        raise HTTPException(status_code=404, detail="Transaction not found")
+    return txn
+
+
+async def _get_account_or_404(
+    account_id: uuid.UUID, user_id: uuid.UUID, session: AsyncSession
+) -> Account:
+    result = await session.execute(
+        select(Account).where(
+            Account.id == account_id,
+            Account.user_id == user_id,
+            Account.deleted_at.is_(None),
+        )
+    )
+    acc = result.scalar_one_or_none()
+    if acc is None:
+        raise HTTPException(status_code=404, detail="Account not found")
+    return acc
+
+
+async def _fetch_category_ids(txn_id: uuid.UUID, session: AsyncSession) -> list[uuid.UUID]:
+    rows = (
+        await session.execute(
+            select(transaction_categories.c.category_id).where(
+                transaction_categories.c.transaction_id == txn_id
+            )
+        )
+    ).fetchall()
+    return [r.category_id for r in rows]
+
+
+async def _fetch_tag_ids(txn_id: uuid.UUID, session: AsyncSession) -> list[uuid.UUID]:
+    rows = (
+        await session.execute(
+            select(transaction_tags.c.tag_id).where(
+                transaction_tags.c.transaction_id == txn_id
+            )
+        )
+    ).fetchall()
+    return [r.tag_id for r in rows]
+
+
+async def _to_response(txn: Transaction, session: AsyncSession) -> TransactionResponse:
+    category_ids = await _fetch_category_ids(txn.id, session)
+    tag_ids = await _fetch_tag_ids(txn.id, session)
+    data = {c.key: getattr(txn, c.key) for c in txn.__table__.columns}
+    data["category_ids"] = category_ids
+    data["tag_ids"] = tag_ids
+    return TransactionResponse.model_validate(data)
+
+
+def _apply_balance_delta(account: Account, txn: Transaction, sign: int) -> None:
+    """Adjust account.current_balance. sign=+1 to apply, -1 to reverse."""
+    amount = txn.amount * sign
+    if txn.type == TransactionType.expense:
+        account.current_balance -= amount
+    elif txn.type == TransactionType.income:
+        account.current_balance += amount
+    # transfer handled separately via _apply_transfer_balances
+
+
+async def _apply_transfer_balances(
+    txn: Transaction,
+    session: AsyncSession,
+    user_id: uuid.UUID,
+    sign: int,
+) -> None:
+    src = await _get_account_or_404(txn.account_id, user_id, session)
+    dst = await _get_account_or_404(txn.to_account_id, user_id, session)  # type: ignore[arg-type]
+    debit = txn.amount * sign
+    credit = (txn.to_amount or txn.amount) * sign
+    src.current_balance -= debit
+    dst.current_balance += credit
+
+
+async def _apply_balance(
+    txn: Transaction, session: AsyncSession, user_id: uuid.UUID, sign: int
+) -> None:
+    if txn.type == TransactionType.transfer:
+        await _apply_transfer_balances(txn, session, user_id, sign)
+    else:
+        acc = await _get_account_or_404(txn.account_id, user_id, session)
+        _apply_balance_delta(acc, txn, sign)
+
+
+async def _set_joins(
+    txn_id: uuid.UUID,
+    category_ids: list[uuid.UUID],
+    tag_ids: list[uuid.UUID],
+    budget_ids: list[uuid.UUID],
+    session: AsyncSession,
+) -> None:
+    await session.execute(
+        delete(transaction_categories).where(transaction_categories.c.transaction_id == txn_id)
+    )
+    await session.execute(
+        delete(transaction_tags).where(transaction_tags.c.transaction_id == txn_id)
+    )
+    await session.execute(
+        delete(transaction_budgets).where(transaction_budgets.c.transaction_id == txn_id)
+    )
+    if category_ids:
+        await session.execute(
+            transaction_categories.insert(),
+            [{"transaction_id": txn_id, "category_id": cid} for cid in category_ids],
+        )
+    if tag_ids:
+        await session.execute(
+            transaction_tags.insert(),
+            [{"transaction_id": txn_id, "tag_id": tid} for tid in tag_ids],
+        )
+    if budget_ids:
+        await session.execute(
+            transaction_budgets.insert(),
+            [{"transaction_id": txn_id, "budget_id": bid} for bid in budget_ids],
+        )
+
+
+def _encode_cursor(transacted_at: datetime, txn_id: uuid.UUID) -> str:
+    raw = f"{transacted_at.isoformat()}|{txn_id}"
+    return base64.urlsafe_b64encode(raw.encode()).decode()
+
+
+def _decode_cursor(cursor: str) -> tuple[datetime, uuid.UUID]:
+    try:
+        raw = base64.urlsafe_b64decode(cursor.encode()).decode()
+        ts_str, id_str = raw.split("|", 1)
+        return datetime.fromisoformat(ts_str), uuid.UUID(id_str)
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid cursor")
+
+
+# ── Endpoints ─────────────────────────────────────────────────────────────────
+
+@router.post("", status_code=201, response_model=TransactionResponse)
+async def create_transaction(
+    body: TransactionCreate,
+    current_user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+) -> TransactionResponse:
+    # Validate transfer constraint
+    if body.type == TransactionType.transfer and body.to_account_id is None:
+        raise HTTPException(status_code=422, detail="transfer requires to_account_id")
+    if body.type != TransactionType.transfer and body.to_account_id is not None:
+        raise HTTPException(status_code=422, detail="to_account_id only allowed for transfer")
+
+    # Resolve currency
+    currency = body.currency
+    if currency is None:
+        acc = await _get_account_or_404(body.account_id, current_user.id, session)
+        currency = acc.currency
+    else:
+        await _get_account_or_404(body.account_id, current_user.id, session)
+
+    if body.to_account_id:
+        await _get_account_or_404(body.to_account_id, current_user.id, session)
+
+    txn = Transaction(
+        id=uuid.uuid4(),
+        user_id=current_user.id,
+        type=body.type,
+        transacted_at=body.transacted_at,
+        amount=body.amount,
+        currency=currency,
+        description=body.description,
+        notes=body.notes,
+        account_id=body.account_id,
+        payment_method_id=body.payment_method_id,
+        payee_id=body.payee_id,
+        to_account_id=body.to_account_id,
+        to_amount=body.to_amount,
+        to_currency=body.to_currency,
+    )
+    session.add(txn)
+    await session.flush()
+
+    await _apply_balance(txn, session, current_user.id, sign=+1)
+    await _set_joins(txn.id, body.category_ids, body.tag_ids, body.budget_ids, session)
+    await session.commit()
+    await session.refresh(txn)
+    return await _to_response(txn, session)
+
+
+@router.get("", response_model=TransactionListResponse)
+async def list_transactions(
+    type: TransactionType | None = None,
+    account_id: uuid.UUID | None = None,
+    payee_id: uuid.UUID | None = None,
+    category_id: uuid.UUID | None = None,
+    tag_id: uuid.UUID | None = None,
+    budget_id: uuid.UUID | None = None,
+    from_date: datetime | None = Query(None, alias="from"),
+    to_date: datetime | None = Query(None, alias="to"),
+    cursor: str | None = None,
+    limit: int = Query(50, ge=1, le=200),
+    include_deleted: bool = False,
+    current_user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+) -> TransactionListResponse:
+    stmt = select(Transaction).where(Transaction.user_id == current_user.id)
+
+    if not include_deleted:
+        stmt = stmt.where(Transaction.deleted_at.is_(None))
+    if type is not None:
+        stmt = stmt.where(Transaction.type == type)
+    if account_id is not None:
+        stmt = stmt.where(Transaction.account_id == account_id)
+    if payee_id is not None:
+        stmt = stmt.where(Transaction.payee_id == payee_id)
+    if from_date is not None:
+        stmt = stmt.where(Transaction.transacted_at >= from_date)
+    if to_date is not None:
+        stmt = stmt.where(Transaction.transacted_at <= to_date)
+
+    # Join filters
+    if category_id is not None:
+        stmt = stmt.where(
+            Transaction.id.in_(
+                select(transaction_categories.c.transaction_id).where(
+                    transaction_categories.c.category_id == category_id
+                )
+            )
+        )
+    if tag_id is not None:
+        stmt = stmt.where(
+            Transaction.id.in_(
+                select(transaction_tags.c.transaction_id).where(
+                    transaction_tags.c.tag_id == tag_id
+                )
+            )
+        )
+    if budget_id is not None:
+        stmt = stmt.where(
+            Transaction.id.in_(
+                select(transaction_budgets.c.transaction_id).where(
+                    transaction_budgets.c.budget_id == budget_id
+                )
+            )
+        )
+
+    # Cursor (transacted_at DESC, id DESC)
+    if cursor is not None:
+        cur_ts, cur_id = _decode_cursor(cursor)
+        stmt = stmt.where(
+            (Transaction.transacted_at < cur_ts)
+            | (
+                (Transaction.transacted_at == cur_ts)
+                & (Transaction.id < cur_id)
+            )
+        )
+
+    stmt = stmt.order_by(Transaction.transacted_at.desc(), Transaction.id.desc())
+    stmt = stmt.limit(limit + 1)
+
+    rows = (await session.execute(stmt)).scalars().all()
+
+    has_more = len(rows) > limit
+    items = rows[:limit]
+
+    next_cursor: str | None = None
+    if has_more and items:
+        last = items[-1]
+        next_cursor = _encode_cursor(last.transacted_at, last.id)
+
+    responses = [await _to_response(t, session) for t in items]
+    return TransactionListResponse(items=responses, next_cursor=next_cursor)
+
+
+@router.get("/{txn_id}", response_model=TransactionResponse)
+async def get_transaction(
+    txn_id: uuid.UUID,
+    current_user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+) -> TransactionResponse:
+    txn = await _get_txn_or_404(txn_id, current_user, session)
+    return await _to_response(txn, session)
+
+
+@router.patch("/{txn_id}", response_model=TransactionResponse)
+async def patch_transaction(
+    txn_id: uuid.UUID,
+    body: TransactionPatch,
+    current_user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+) -> TransactionResponse:
+    txn = await _get_txn_or_404(txn_id, current_user, session)
+
+    # Reverse old balance effect before applying changes
+    await _apply_balance(txn, session, current_user.id, sign=-1)
+
+    # Apply scalar field patches
+    scalar_fields = {
+        "type", "transacted_at", "amount", "currency", "description", "notes",
+        "account_id", "payment_method_id", "payee_id", "to_account_id", "to_amount", "to_currency",
+    }
+    patch_data = body.model_dump(exclude_none=True, exclude={"category_ids", "tag_ids", "budget_ids"})
+
+    # Validate transfer constraint after patching
+    new_type = patch_data.get("type", txn.type)
+    new_to_account = patch_data.get("to_account_id", txn.to_account_id)
+    if new_type == TransactionType.transfer and new_to_account is None:
+        raise HTTPException(status_code=422, detail="transfer requires to_account_id")
+    if new_type != TransactionType.transfer and new_to_account is not None:
+        raise HTTPException(status_code=422, detail="to_account_id only allowed for transfer")
+
+    for field, value in patch_data.items():
+        if field in scalar_fields:
+            setattr(txn, field, value)
+
+    await session.flush()
+
+    # Re-apply new balance effect
+    await _apply_balance(txn, session, current_user.id, sign=+1)
+
+    # Update joins if provided
+    if body.category_ids is not None or body.tag_ids is not None or body.budget_ids is not None:
+        existing_cats = await _fetch_category_ids(txn.id, session)
+        existing_tags = await _fetch_tag_ids(txn.id, session)
+        await _set_joins(
+            txn.id,
+            body.category_ids if body.category_ids is not None else existing_cats,
+            body.tag_ids if body.tag_ids is not None else existing_tags,
+            body.budget_ids if body.budget_ids is not None else [],
+            session,
+        )
+
+    await session.commit()
+    await session.refresh(txn)
+    return await _to_response(txn, session)
+
+
+@router.delete("/{txn_id}", status_code=204)
+async def delete_transaction(
+    txn_id: uuid.UUID,
+    current_user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+) -> None:
+    txn = await _get_txn_or_404(txn_id, current_user, session)
+    await _apply_balance(txn, session, current_user.id, sign=-1)
+    txn.deleted_at = datetime.now(UTC)
+    await session.commit()
+
+
+@router.post("/{txn_id}/restore", response_model=TransactionResponse)
+async def restore_transaction(
+    txn_id: uuid.UUID,
+    current_user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+) -> TransactionResponse:
+    txn = await _get_txn_or_404(txn_id, current_user, session, include_deleted=True)
+    if txn.deleted_at is None:
+        raise HTTPException(status_code=400, detail="Transaction is not deleted")
+    if datetime.now(UTC) - txn.deleted_at.replace(tzinfo=UTC) > _SOFT_DELETE_WINDOW:
+        raise HTTPException(
+            status_code=410, detail="Transaction deleted more than 30 days ago; cannot restore"
+        )
+    txn.deleted_at = None
+    await _apply_balance(txn, session, current_user.id, sign=+1)
+    await session.commit()
+    await session.refresh(txn)
+    return await _to_response(txn, session)

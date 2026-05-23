@@ -7,6 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.session import get_session
 from app.dependencies import get_current_user
+from app.models.category import payee_default_categories
 from app.models.payee import Payee, PayeeType
 from app.models.user import User
 from app.schemas.payee import PayeeCreate, PayeePatch, PayeeResponse
@@ -14,6 +15,24 @@ from app.schemas.payee import PayeeCreate, PayeePatch, PayeeResponse
 router = APIRouter(prefix="/payees", tags=["payees"])
 
 _SOFT_DELETE_WINDOW = timedelta(days=30)
+
+
+async def _default_category_ids(payee_id: uuid.UUID, session: AsyncSession) -> list[uuid.UUID]:
+    rows = (
+        await session.execute(
+            select(payee_default_categories.c.category_id).where(
+                payee_default_categories.c.payee_id == payee_id
+            )
+        )
+    ).fetchall()
+    return [r.category_id for r in rows]
+
+
+async def _to_payee_response(payee: Payee, session: AsyncSession) -> PayeeResponse:
+    cat_ids = await _default_category_ids(payee.id, session)
+    data = {c.key: getattr(payee, c.key) for c in payee.__table__.columns}
+    data["default_category_ids"] = cat_ids
+    return PayeeResponse.model_validate(data)
 
 
 async def _get_payee_or_404(
@@ -49,7 +68,7 @@ async def create_payee(
     session.add(payee)
     await session.commit()
     await session.refresh(payee)
-    return PayeeResponse.model_validate(payee)
+    return await _to_payee_response(payee, session)
 
 
 @router.get("", response_model=list[PayeeResponse])
@@ -69,7 +88,7 @@ async def list_payees(
         stmt = stmt.where(Payee.type == type)
     stmt = stmt.order_by(Payee.name)
     result = await session.execute(stmt)
-    return [PayeeResponse.model_validate(p) for p in result.scalars()]
+    return [await _to_payee_response(p, session) for p in result.scalars()]
 
 
 @router.get("/{payee_id}", response_model=PayeeResponse)
@@ -79,7 +98,7 @@ async def get_payee(
     session: AsyncSession = Depends(get_session),
 ) -> PayeeResponse:
     payee = await _get_payee_or_404(payee_id, current_user, session)
-    return PayeeResponse.model_validate(payee)
+    return await _to_payee_response(payee, session)
 
 
 @router.patch("/{payee_id}", response_model=PayeeResponse)
@@ -94,7 +113,7 @@ async def patch_payee(
         setattr(payee, field, value)
     await session.commit()
     await session.refresh(payee)
-    return PayeeResponse.model_validate(payee)
+    return await _to_payee_response(payee, session)
 
 
 @router.delete("/{payee_id}", status_code=204)
@@ -127,4 +146,4 @@ async def restore_payee(
     payee.deleted_at = None
     await session.commit()
     await session.refresh(payee)
-    return PayeeResponse.model_validate(payee)
+    return await _to_payee_response(payee, session)

@@ -7,6 +7,8 @@ import Accounts from './pages/Accounts'
 import Payees from './pages/Payees'
 import Categories from './pages/Categories'
 import Tags from './pages/Tags'
+import Transactions from './pages/Transactions'
+import TransactionFormPage from './pages/TransactionForm'
 
 const rootRoute = createRootRoute({ component: Outlet })
 
@@ -64,6 +66,18 @@ const tagsRoute = createRoute({
   component: Tags,
 })
 
+const transactionsRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/transactions',
+  component: Transactions,
+})
+
+const transactionNewRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/transactions/new',
+  component: TransactionFormPage,
+})
+
 const routeTree = rootRoute.addChildren([
   indexRoute,
   setupRoute,
@@ -74,6 +88,8 @@ const routeTree = rootRoute.addChildren([
   payeesRoute,
   categoriesRoute,
   tagsRoute,
+  transactionsRoute,
+  transactionNewRoute,
 ])
 
 export const router = createRouter({ routeTree })

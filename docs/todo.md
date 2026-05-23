@@ -162,33 +162,33 @@
 ## Milestone 3: Transactions
 
 ### Task 3.1: Transactions Schema
-- [ ] Transaction model with all fields
-- [ ] Join tables (categories, tags, budgets)
-- [ ] Indexes
-- [ ] Constraints (transfer requires to_account_id)
-- [ ] Tests
+- [x] Transaction model with all fields
+- [x] Join tables (categories, tags, budgets)
+- [x] Indexes
+- [x] Constraints (transfer requires to_account_id)
+- [x] Tests
 
 ### Task 3.2: Transactions CRUD
-- [ ] All endpoints (POST/GET/PATCH/DELETE/restore)
-- [ ] Filters + cursor pagination
-- [ ] Currency override
-- [ ] Balance recompute transactional
-- [ ] Tests: all paths, balance correctness, all filters
+- [x] All endpoints (POST/GET/PATCH/DELETE/restore)
+- [x] Filters + cursor pagination
+- [x] Currency override
+- [x] Balance recompute transactional
+- [x] Tests: all paths, balance correctness, all filters
 
 ### Task 3.3: Frontend — Transaction Form
-- [ ] pages/TransactionForm.tsx
-- [ ] components/Autocomplete.tsx with inline-create
-- [ ] Type toggle behavior
-- [ ] Payee selection populates categories
-- [ ] Tests
+- [x] pages/TransactionForm.tsx
+- [x] components/Autocomplete.tsx with inline-create
+- [x] Type toggle behavior
+- [x] Payee selection populates categories
+- [x] Tests
 
 ### Task 3.4: Frontend — Transaction List
-- [ ] pages/Transactions.tsx
-- [ ] Filters synced to URL
-- [ ] Desktop table / mobile cards
-- [ ] Infinite scroll
-- [ ] Bulk select UI (action button comes in M4)
-- [ ] Tests
+- [x] pages/Transactions.tsx
+- [x] Filters synced to URL
+- [x] Desktop table / mobile cards
+- [x] Infinite scroll
+- [x] Bulk select UI (action button comes in M4)
+- [x] Tests
 
 ---
 
@@ -549,6 +549,15 @@
 - [ ] Cut v1.0.0 tag
 - [ ] Publish ARM64 + AMD64 images to GHCR
 - [ ] Release notes
+
+---
+
+## Diagrams Backlog
+
+- [ ] UML / Mermaid ER diagram — all DB models and their relationships
+- [ ] Backend architecture diagram — routers, services, models, Alembic, ARQ worker dependency map
+- [ ] Frontend component tree — page hierarchy, shared components, API hooks
+- [ ] System interaction diagram — FE ↔ BE ↔ DB ↔ Redis ↔ Ollama ↔ Caddy (infra overview showing all services and how data flows between them)
 
 ---
 

@@ -7,6 +7,23 @@ from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.base import Base
 
+payee_default_categories = sa.Table(
+    "payee_default_categories",
+    Base.metadata,
+    sa.Column(
+        "payee_id",
+        sa.UUID(as_uuid=True),
+        sa.ForeignKey("payees.id", ondelete="CASCADE"),
+        primary_key=True,
+    ),
+    sa.Column(
+        "category_id",
+        sa.UUID(as_uuid=True),
+        sa.ForeignKey("categories.id", ondelete="CASCADE"),
+        primary_key=True,
+    ),
+)
+
 
 class CategoryApplicability(StrEnum):
     expense = "expense"

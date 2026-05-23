@@ -8,6 +8,7 @@ export interface Payee {
   type: 'merchant' | 'person' | 'business' | 'other'
   notes: string | null
   is_active: boolean
+  default_category_ids: string[]
   created_at: string
   updated_at: string
   deleted_at: string | null
