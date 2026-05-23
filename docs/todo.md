@@ -282,11 +282,11 @@
 - [x] Tests
 
 ### Task 6.3: Frontend — Subs & Piggy Banks
-- [ ] Subscriptions list/form/detail
-- [ ] Status badges color-coded
-- [ ] Piggy banks list/form/detail
-- [ ] Progress rings
-- [ ] Tests
+- [x] Subscriptions list/form/detail
+- [x] Status badges color-coded
+- [x] Piggy banks list/form/detail
+- [x] Progress rings
+- [x] Tests
 
 ---
 

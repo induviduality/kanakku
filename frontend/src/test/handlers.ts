@@ -163,6 +163,82 @@ export const BUDGETS_RESPONSE: object[] = [
   },
 ]
 
+export const SUBSCRIPTIONS_RESPONSE = [
+  {
+    id: 'sub-1',
+    user_id: 'user-1',
+    name: 'Netflix',
+    amount: '649.00',
+    currency: 'INR',
+    billing_cycle: 'monthly',
+    billing_day: 15,
+    last_billed_at: '2026-04-15T00:00:00Z',
+    account_id: 'acc-1',
+    payment_method_id: null,
+    category_id: null,
+    is_active: true,
+    url: null,
+    notes: null,
+    next_billing_date: '2026-05-15',
+    status: 'upcoming',
+    created_at: '2026-01-01T00:00:00Z',
+    updated_at: '2026-01-01T00:00:00Z',
+    deleted_at: null,
+  },
+  {
+    id: 'sub-2',
+    user_id: 'user-1',
+    name: 'Spotify',
+    amount: '199.00',
+    currency: 'INR',
+    billing_cycle: 'monthly',
+    billing_day: 1,
+    last_billed_at: '2026-03-01T00:00:00Z',
+    account_id: 'acc-1',
+    payment_method_id: null,
+    category_id: null,
+    is_active: true,
+    url: null,
+    notes: null,
+    next_billing_date: '2026-04-01',
+    status: 'overdue',
+    created_at: '2026-01-01T00:00:00Z',
+    updated_at: '2026-01-01T00:00:00Z',
+    deleted_at: null,
+  },
+]
+
+export const PIGGY_BANKS_RESPONSE = [
+  {
+    id: 'pig-1',
+    user_id: 'user-1',
+    name: 'Europe Trip',
+    target_amount: '200000.00',
+    currency: 'INR',
+    current_amount: '60000.00',
+    target_date: '2027-06-01',
+    notes: null,
+    is_completed: false,
+    progress_pct: 30,
+    created_at: '2026-01-01T00:00:00Z',
+    updated_at: '2026-01-01T00:00:00Z',
+    deleted_at: null,
+  },
+]
+
+export const CONTRIBUTIONS_RESPONSE = [
+  {
+    id: 'contrib-1',
+    piggy_bank_id: 'pig-1',
+    transaction_id: 'txn-1',
+    contribution_type: 'expense',
+    amount: '60000.00',
+    date: '2026-04-01',
+    notes: null,
+    created_at: '2026-04-01T00:00:00Z',
+  },
+]
+
 export const BUDGET_TRANSACTIONS_RESPONSE = {
   items: [
     {
@@ -366,6 +442,80 @@ export const handlers = [
   http.delete('/api/v1/budgets/:budgetId', () => new HttpResponse(null, { status: 204 })),
   http.get('/api/v1/budgets/:budgetId/transactions', () =>
     HttpResponse.json(BUDGET_TRANSACTIONS_RESPONSE),
+  ),
+
+  // Subscriptions
+  http.get('/api/v1/subscriptions', () => HttpResponse.json(SUBSCRIPTIONS_RESPONSE)),
+  http.post('/api/v1/subscriptions', async ({ request }) => {
+    const body = await request.json() as Record<string, unknown>
+    return HttpResponse.json(
+      { ...SUBSCRIPTIONS_RESPONSE[0], id: 'sub-new', name: body.name },
+      { status: 201 },
+    )
+  }),
+  http.get('/api/v1/subscriptions/:subId', ({ params }) => {
+    const sub = SUBSCRIPTIONS_RESPONSE.find((s) => s.id === params.subId)
+    if (!sub) return HttpResponse.json({ detail: 'Subscription not found' }, { status: 404 })
+    return HttpResponse.json(sub)
+  }),
+  http.patch('/api/v1/subscriptions/:subId', async ({ request, params }) => {
+    const body = await request.json() as Record<string, unknown>
+    return HttpResponse.json({ ...SUBSCRIPTIONS_RESPONSE[0], id: params.subId, ...body })
+  }),
+  http.delete('/api/v1/subscriptions/:subId', () => new HttpResponse(null, { status: 204 })),
+  http.post('/api/v1/subscriptions/:subId/link-transaction', async ({ request, params }) => {
+    const body = await request.json() as Record<string, unknown>
+    return HttpResponse.json({
+      ...TRANSACTIONS_RESPONSE.items[0],
+      subscription_id: params.subId,
+      id: body.transaction_id,
+    })
+  }),
+  http.get('/api/v1/subscriptions/:subId/history', () =>
+    HttpResponse.json(TRANSACTIONS_RESPONSE.items),
+  ),
+
+  // Piggy banks
+  http.get('/api/v1/piggy-banks', () => HttpResponse.json(PIGGY_BANKS_RESPONSE)),
+  http.post('/api/v1/piggy-banks', async ({ request }) => {
+    const body = await request.json() as Record<string, unknown>
+    return HttpResponse.json(
+      {
+        ...PIGGY_BANKS_RESPONSE[0],
+        id: 'pig-new',
+        name: body.name,
+        target_amount: body.target_amount,
+      },
+      { status: 201 },
+    )
+  }),
+  http.get('/api/v1/piggy-banks/:piggyId', ({ params }) => {
+    const pig = PIGGY_BANKS_RESPONSE.find((p) => p.id === params.piggyId)
+    if (!pig) return HttpResponse.json({ detail: 'Piggy bank not found' }, { status: 404 })
+    return HttpResponse.json(pig)
+  }),
+  http.patch('/api/v1/piggy-banks/:piggyId', async ({ request, params }) => {
+    const body = await request.json() as Record<string, unknown>
+    return HttpResponse.json({ ...PIGGY_BANKS_RESPONSE[0], id: params.piggyId, ...body })
+  }),
+  http.delete('/api/v1/piggy-banks/:piggyId', () => new HttpResponse(null, { status: 204 })),
+  http.get('/api/v1/piggy-banks/:piggyId/contributions', () =>
+    HttpResponse.json(CONTRIBUTIONS_RESPONSE),
+  ),
+  http.post('/api/v1/piggy-banks/:piggyId/contributions', async ({ request, params }) => {
+    const body = await request.json() as Record<string, unknown>
+    return HttpResponse.json(
+      {
+        ...CONTRIBUTIONS_RESPONSE[0],
+        id: 'contrib-new',
+        piggy_bank_id: params.piggyId,
+        amount: body.amount,
+      },
+      { status: 201 },
+    )
+  }),
+  http.delete('/api/v1/piggy-banks/:piggyId/contributions/:contribId', () =>
+    new HttpResponse(null, { status: 204 }),
   ),
 
   // Tags

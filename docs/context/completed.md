@@ -1,6 +1,21 @@
 # Completed Milestones
 
-## Milestone 6: Subscriptions & Piggy Banks (in progress)
+## Milestone 6: Subscriptions & Piggy Banks — COMPLETE
+
+### Task 6.3: Frontend — Subscriptions & Piggy Banks
+- frontend/src/api/subscriptions.ts: BillingCycle, SubscriptionStatus, Subscription types; useGetSubscriptions, useGetSubscription, useCreateSubscription, usePatchSubscription, useDeleteSubscription, useLinkTransaction, useGetSubscriptionHistory hooks
+- frontend/src/api/piggy_banks.ts: PiggyBank, Contribution types; useGetPiggyBanks, useGetPiggyBank, useCreatePiggyBank, usePatchPiggyBank, useDeletePiggyBank, useGetContributions, useAddContribution, useRemoveContribution hooks
+- frontend/src/pages/Subscriptions.tsx: list with StatusBadge (green=upcoming, amber=due_soon, red=overdue, aria-label for accessibility), inline create modal
+- frontend/src/pages/SubscriptionDetail.tsx: subscription info, status badge, linked transactions history
+- frontend/src/pages/SubscriptionForm.tsx: create/edit form, useEffect to pre-populate for edit mode
+- frontend/src/pages/PiggyBanks.tsx: list with ProgressRing SVG (aria-label "X% progress"), completed badge
+- frontend/src/pages/PiggyBankDetail.tsx: progress ring, add contribution inline form (transaction_id + amount), contributions list with remove button
+- frontend/src/pages/PiggyBankForm.tsx: create/edit form
+- frontend/src/router.tsx: 8 new routes (/subscriptions/* and /piggy-banks/*)
+- frontend/src/test/handlers.ts: SUBSCRIPTIONS_RESPONSE (Netflix/upcoming, Spotify/overdue), PIGGY_BANKS_RESPONSE (Europe Trip 30%), CONTRIBUTIONS_RESPONSE; MSW handlers for all endpoints
+- Tests: Subscriptions.test.tsx (8), SubscriptionDetail.test.tsx (5), SubscriptionForm.test.tsx (3), PiggyBanks.test.tsx (6), PiggyBankDetail.test.tsx (6) — 28 total
+
+
 
 ### Task 6.2: Piggy Banks
 - app/models/piggy_bank.py: PiggyBank model (id, user_id, name, target_amount, currency, current_amount (default 0), target_date nullable, notes, is_completed, timestamps, deleted_at); PiggyBankContribution (id, piggy_bank_id FK→piggy_banks CASCADE, transaction_id FK→transactions RESTRICT, contribution_type enum(transfer/expense), amount, date, notes, created_at); ContributionType StrEnum

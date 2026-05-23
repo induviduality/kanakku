@@ -13,6 +13,12 @@ import SplitDetail from './pages/SplitDetail'
 import Budgets from './pages/Budgets'
 import BudgetDetail from './pages/BudgetDetail'
 import BudgetFormPage from './pages/BudgetForm'
+import Subscriptions from './pages/Subscriptions'
+import SubscriptionDetail from './pages/SubscriptionDetail'
+import SubscriptionFormPage from './pages/SubscriptionForm'
+import PiggyBanks from './pages/PiggyBanks'
+import PiggyBankDetail from './pages/PiggyBankDetail'
+import PiggyBankFormPage from './pages/PiggyBankForm'
 
 const rootRoute = createRootRoute({ component: Outlet })
 
@@ -112,6 +118,54 @@ const budgetEditRoute = createRoute({
   component: BudgetFormPage,
 })
 
+const subscriptionsRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/subscriptions',
+  component: Subscriptions,
+})
+
+const subscriptionNewRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/subscriptions/new',
+  component: SubscriptionFormPage,
+})
+
+const subscriptionDetailRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/subscriptions/$subId',
+  component: SubscriptionDetail,
+})
+
+const subscriptionEditRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/subscriptions/$subId/edit',
+  component: SubscriptionFormPage,
+})
+
+const piggyBanksRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/piggy-banks',
+  component: PiggyBanks,
+})
+
+const piggyBankNewRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/piggy-banks/new',
+  component: PiggyBankFormPage,
+})
+
+const piggyBankDetailRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/piggy-banks/$piggyId',
+  component: PiggyBankDetail,
+})
+
+const piggyBankEditRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/piggy-banks/$piggyId/edit',
+  component: PiggyBankFormPage,
+})
+
 const routeTree = rootRoute.addChildren([
   indexRoute,
   setupRoute,
@@ -129,6 +183,14 @@ const routeTree = rootRoute.addChildren([
   budgetNewRoute,
   budgetDetailRoute,
   budgetEditRoute,
+  subscriptionsRoute,
+  subscriptionNewRoute,
+  subscriptionDetailRoute,
+  subscriptionEditRoute,
+  piggyBanksRoute,
+  piggyBankNewRoute,
+  piggyBankDetailRoute,
+  piggyBankEditRoute,
 ])
 
 export const router = createRouter({ routeTree })
