@@ -355,17 +355,17 @@
 ## Milestone 9: LLM Integration
 
 ### Task 9.1: LLMClient Interface
-- [ ] llm/base.py ABC (text-only methods)
-- [ ] llm/factory.py
-- [ ] NullClient
-- [ ] Tests
+- [x] llm/base.py ABC (text-only methods)
+- [x] llm/factory.py
+- [x] NullClient
+- [x] Tests
 
 ### Task 9.2: Ollama Implementation
-- [ ] llm/ollama_client.py
-- [ ] suggest_category with retry
-- [ ] match_gpay_to_bank
-- [ ] Robust output parsing
-- [ ] Tests (mocked)
+- [x] llm/ollama_client.py
+- [x] suggest_category with retry
+- [x] match_gpay_to_bank
+- [x] Robust output parsing
+- [x] Tests (mocked)
 
 ### Task 9.3: LLM Activity Log
 - [ ] LLMActivityLog model

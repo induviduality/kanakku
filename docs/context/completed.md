@@ -1,6 +1,21 @@
 # Completed Milestones
 
-## Milestone 7: Home Dashboard — COMPLETE
+## Milestone 9: LLM Integration — In Progress
+
+### Task 9.1: LLMClient Interface
+- backend/app/llm/base.py: LLMClient ABC with GPayRecord, BankCandidate, Match dataclasses; suggest_category + match_gpay_to_bank abstract methods
+- backend/app/llm/null_client.py: NullClient — returns None/empty for testing and LLM_BACKEND=none
+- backend/app/llm/factory.py: make_llm_client(settings) → OllamaClient or NullClient based on llm_backend env
+- backend/pyproject.toml: added ollama>=0.4 dependency
+- backend/tests/test_llm_interface.py: 8 tests — factory dispatch (none/unknown/ollama), NullClient safety (suggest/match/empty)
+
+### Task 9.2: Ollama Implementation
+- backend/app/llm/ollama_client.py: OllamaClient using ollama.AsyncClient; suggest_category with retry on bad output + fence stripping; match_gpay_to_bank per-record with int parsing from prose
+- backend/tests/test_ollama_client.py: 9 tests — clean match, fence stripping, retry on bad output, two-fail returns None, empty categories, match returns index, no candidates, index from prose, out-of-range index
+
+## Milestone 8: PDF Statement Import — COMPLETE
+
+### Task 8.7: Frontend — Import Pages
 
 ### Task 7.1: Dashboard Backend Endpoint
 - backend/app/schemas/dashboard.py: DashboardResponse + 7 sub-schemas (BudgetSummaryItem, CategoryBreakdownItem, PendingSplitsSummary, PiggyBankSummaryItem, AccountBalanceItem, ActiveSubscriptionItem, RecentTransaction)
