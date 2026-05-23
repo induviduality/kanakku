@@ -1,5 +1,12 @@
 # Completed Milestones
 
+## Dev mode unified toggle
+- `.dev-config.yml`: single file with `preset: all | be_only | fe_only | infra_only` options
+- `infra/load-dev-config.py`: reads the YAML, prints `export DEV_MODE_BACKEND/FRONTEND/INFRA` + `DEV_MODE` (backward compat)
+- `infra/env.example`: documents new env var names
+- `DEV_MODE_SETUP.md`: usage docs with bash/PowerShell examples
+- Load in shell: `source <(python infra/load-dev-config.py)` then run app normally
+
 ## Task 1.6: Frontend Auth Pages
 - lib/auth-storage.ts: access token in memory, refresh token in localStorage; storeTokens/clearAuth helpers
 - api/auth.ts: useSetup, useLogin, useAcceptInvite mutations (TanStack Query); fetchInviteInfo query fn; storeTokens on success
