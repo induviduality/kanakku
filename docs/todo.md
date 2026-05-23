@@ -142,20 +142,20 @@
 - [x] Tests: duplicate 409, soft-delete frees name
 
 ### Task 2.7: Frontend — Settings Page
-- [ ] pages/Settings.tsx
-- [ ] components/forms/SettingsForm.tsx
-- [ ] api/settings.ts
-- [ ] Tests
+- [x] pages/Settings.tsx
+- [x] components/forms/SettingsForm.tsx
+- [x] api/settings.ts
+- [x] Tests
 
 ### Task 2.8: Frontend — Entity Pages
-- [ ] components/DataTable.tsx (mobile fallback)
-- [ ] components/EntityModal.tsx
-- [ ] components/ConfirmDialog.tsx
-- [ ] Accounts page with inline payment methods
-- [ ] Payees page
-- [ ] Categories page
-- [ ] Tags page
-- [ ] Tests per page
+- [x] components/DataTable.tsx (mobile fallback)
+- [x] components/EntityModal.tsx
+- [x] components/ConfirmDialog.tsx
+- [x] Accounts page with inline payment methods
+- [x] Payees page
+- [x] Categories page
+- [x] Tags page
+- [x] Tests per page
 
 ---
 

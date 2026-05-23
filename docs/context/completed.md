@@ -1,5 +1,29 @@
 # Completed Milestones
 
+## Task 2.8: Frontend — Entity Pages
+- lib/api-client.ts: shared authenticated fetch helpers (apiGet/apiPost/apiPatch/apiDelete)
+- components/DataTable.tsx: responsive table — desktop HTML table, mobile card list
+- components/EntityModal.tsx: Radix Dialog wrapper for create/edit forms
+- components/ConfirmDialog.tsx: Radix Dialog wrapper for destructive confirms
+- api/accounts.ts: useAccounts, useCreateAccount, usePatchAccount, useDeleteAccount, usePaymentMethods, useCreatePaymentMethod, useDeletePaymentMethod
+- api/payees.ts: usePayees (with search), useCreatePayee, usePatchPayee, useDeletePayee
+- api/categories.ts: useCategories, useCreateCategory, usePatchCategory, useDeleteCategory, useSeedDefaultCategories
+- api/tags.ts: useTags, useCreateTag, usePatchTag, useDeleteTag
+- pages/Accounts.tsx: accordion list with inline PaymentMethodsPanel per account; create/edit/delete via modals
+- pages/Payees.tsx: searchable list, create/edit/delete
+- pages/Categories.tsx: list with seed-defaults button (shown only when empty), create/edit/delete
+- pages/Tags.tsx: list with duplicate-name 409 error shown inline
+- Tests: 7+ per page (49 total across all test files), patched to handle DataTable's dual desktop/mobile render in jsdom
+- router.tsx: /settings, /accounts, /payees, /categories, /tags routes added
+
+## Task 2.7: Frontend — Settings Page
+- api/settings.ts: useSettings (GET /settings), usePatchSettings (PATCH /settings), UserSettings + SettingsPatch types
+- components/forms/SettingsForm.tsx: dropdowns for currency, timezone, date format, number format; shows "Saved!" flash
+- pages/Settings.tsx: loading/error states + SettingsForm
+- test/handlers.ts: settings + all entity MSW handlers added
+- pages/Settings.test.tsx: 5 tests (render, loading, error, save, fields)
+- router.tsx: /settings route added
+
 ## Task 2.6: Tags CRUD
 - app/models/tag.py: Tag (name, color nullable, soft delete)
 - alembic/versions/0007_tags.py: partial unique index uq_tags_user_name_active (user_id, name WHERE deleted_at IS NULL) — soft-deleting frees the name for reuse

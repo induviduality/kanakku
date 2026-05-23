@@ -1,22 +1,26 @@
-# Current Task: Task 2.7 — Frontend Settings Page
+# Milestone 2 Complete
 
-## What I'll implement
-- pages/Settings.tsx — settings page UI
-- components/forms/SettingsForm.tsx — form for currency, timezone, date format, number format
-- api/settings.ts — useSettings query + usePatchSettings mutation (TanStack Query)
-- Tests with MSW
+All tasks 2.1–2.8 are done. The next milestone is Milestone 3: Transactions.
 
-## Files I'll work in
-frontend/src/pages/Settings.tsx
-frontend/src/components/forms/SettingsForm.tsx
-frontend/src/api/settings.ts
-frontend/src/test/handlers.ts (add settings handlers)
-frontend/src/pages/Settings.test.tsx
+## Next Task: Task 3.1 — Transactions Schema
 
-## Key constraints
-- All fields optional in PATCH; empty PATCH is a no-op
-- Currency, timezone, date format, number format are the four user settings fields
-- All endpoints at /api/v1/settings
+### What to implement
+- Transaction model with all fields
+- Join tables (transaction_categories, transaction_tags)
+- Indexes
+- Constraints (transfer requires to_account_id, type enum: expense/income/transfer only)
+- Tests
 
-## Definition of done
-bun run test passes for settings tests
+### Files to create
+backend/app/models/transaction.py
+backend/alembic/versions/0008_transactions.py
+backend/tests/test_transactions_schema.py (model-level tests)
+
+### Key constraints
+- type: expense | income | transfer (NOT split_parent)
+- transfer requires to_account_id
+- amount: Numeric(15,2), must be positive
+- currency: str, defaults to account's currency
+- transaction_categories: (transaction_id, category_id)
+- transaction_tags: (transaction_id, tag_id)
+- Soft delete + 30-day restore
