@@ -1,4 +1,5 @@
-import { createRootRoute, createRoute, createRouter, Outlet } from '@tanstack/react-router'
+import { createRootRoute, createRoute, createRouter } from '@tanstack/react-router'
+import AppLayout from './components/AppLayout'
 import Dashboard from './pages/Dashboard'
 import Login from './pages/Login'
 import Setup from './pages/Setup'
@@ -32,7 +33,7 @@ import ReportDashboard from './pages/ReportDashboard'
 import SettingsDataExport from './pages/SettingsDataExport'
 import SettingsDataImport from './pages/SettingsDataImport'
 
-const rootRoute = createRootRoute({ component: Outlet })
+const rootRoute = createRootRoute({ component: AppLayout })
 
 const indexRoute = createRoute({
   getParentRoute: () => rootRoute,

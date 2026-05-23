@@ -72,6 +72,15 @@
 - frontend/index.html: title="Kanakku", theme-color meta, apple-mobile-web-app-* tags, apple-touch-icon link
 - Build output: dist/manifest.webmanifest, dist/sw.js, dist/workbox-*.js generated; 12 assets precached; 249 tests passing
 
+### Task 13.2: Mobile Audit
+- frontend/src/components/MobileNav.tsx: bottom tab bar (Dashboard, Transactions, Add FAB, Budgets, More); More opens Radix Dialog sheet with 9 secondary links; active tab highlighted; all touch targets ≥ 44×44px; hidden on md+ screens
+- frontend/src/components/AppLayout.tsx: root layout wrapper — renders Outlet + MobileNav; adds pb-14 on mobile for nav bar clearance; suppresses MobileNav on guest paths (/login, /setup, /accept-invite)
+- frontend/src/router.tsx: rootRoute component updated to AppLayout
+- frontend/playwright.config.ts: Playwright config with mobile-chrome project (360×780), webServer using vite preview, e2e/mobile.spec.ts testMatch
+- frontend/e2e/mobile.spec.ts: 5 Playwright tests verifying no horizontal scroll at 360px and MobileNav presence
+- frontend/vite.config.ts: e2e/ excluded from Vitest discovery
+- 5 new Vitest tests for MobileNav; 254 total passing
+
 ### Task 11.2: Schema Reference Endpoint
 - backend/app/routers/reports.py: GET /reports/schema — hand-curated 19-table schema with column types, descriptions, FK metadata
 - backend/app/schemas/reports.py: ColumnInfo, TableInfo, SchemaResponse schemas

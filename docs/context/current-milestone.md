@@ -44,5 +44,7 @@
 ## Completed Tasks
 - 13.1 PWA Setup (vite-plugin-pwa configured, manifest.webmanifest, sw.js + workbox, icons 192/512) — DONE
 
+- 13.2 Mobile Audit (AppLayout wrapper, MobileNav bottom tab bar, Playwright config + e2e/mobile.spec.ts, 5 tests) — DONE
+
 ## Next Task
-- 13.2 Mobile Audit (360px verification, tap targets, MobileNav bottom tab bar, Playwright snapshots)
+- 13.3 Soft Delete Recovery UI (RecentlyDeleted page, daily purge ARQ job, tests)

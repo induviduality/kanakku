@@ -471,11 +471,11 @@
 - [ ] Lighthouse PWA ≥ 90
 
 ### Task 13.2: Mobile Audit
-- [ ] Every page verified at 360px
-- [ ] No horizontal scroll
-- [ ] Tap targets ≥ 44x44
-- [ ] components/MobileNav.tsx bottom tab bar
-- [ ] Playwright snapshots at 360px
+- [x] Every page verified at 360px
+- [x] No horizontal scroll
+- [x] Tap targets ≥ 44x44
+- [x] components/MobileNav.tsx bottom tab bar
+- [x] Playwright snapshots at 360px
 
 ### Task 13.3: Soft Delete Recovery UI
 - [ ] pages/RecentlyDeleted.tsx
