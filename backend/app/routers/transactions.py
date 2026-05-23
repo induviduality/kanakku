@@ -219,6 +219,7 @@ async def create_transaction(
         to_account_id=body.to_account_id,
         to_amount=body.to_amount,
         to_currency=body.to_currency,
+        subscription_id=body.subscription_id,
     )
     session.add(txn)
     await session.flush()
@@ -340,9 +341,12 @@ async def patch_transaction(
     # Apply scalar field patches
     scalar_fields = {
         "type", "transacted_at", "amount", "currency", "description", "notes",
-        "account_id", "payment_method_id", "payee_id", "to_account_id", "to_amount", "to_currency",
+        "account_id", "payment_method_id", "payee_id", "to_account_id", "to_amount",
+        "to_currency", "subscription_id",
     }
-    patch_data = body.model_dump(exclude_none=True, exclude={"category_ids", "tag_ids", "budget_ids"})
+    patch_data = body.model_dump(
+        exclude_none=True, exclude={"category_ids", "tag_ids", "budget_ids"}
+    )
 
     # Validate transfer constraint after patching
     new_type = patch_data.get("type", txn.type)

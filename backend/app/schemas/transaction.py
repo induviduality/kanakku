@@ -23,6 +23,7 @@ class TransactionCreate(BaseModel):
     category_ids: list[uuid.UUID] = []
     tag_ids: list[uuid.UUID] = []
     budget_ids: list[uuid.UUID] = []
+    subscription_id: uuid.UUID | None = None
 
     @field_validator("amount")
     @classmethod
@@ -48,6 +49,7 @@ class TransactionPatch(BaseModel):
     category_ids: list[uuid.UUID] | None = None
     tag_ids: list[uuid.UUID] | None = None
     budget_ids: list[uuid.UUID] | None = None
+    subscription_id: uuid.UUID | None = None
 
     @field_validator("amount")
     @classmethod

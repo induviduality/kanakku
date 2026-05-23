@@ -1,5 +1,19 @@
 # Completed Milestones
 
+## Milestone 6: Subscriptions & Piggy Banks (in progress)
+
+### Task 6.1: Subscriptions
+- app/models/subscription.py: Subscription model (id, user_id, name, amount, currency, billing_cycle enum (daily/weekly/monthly/quarterly/yearly), billing_day INT, last_billed_at nullable, account_id FK→accounts, payment_method_id FK→payment_methods nullable, category_id FK→categories nullable, is_active, url, notes, timestamps, deleted_at)
+- app/services/subscription_dates.py: compute_next_billing_date(sub, as_of) → date (one cycle after last_billed_at; or first occurrence from billing_day if never billed); subscription_status(sub, as_of) → "overdue"|"due_soon"|"upcoming" (due_soon = within 3 days)
+- app/schemas/subscription.py: SubscriptionCreate, SubscriptionPatch, SubscriptionResponse (includes next_billing_date + status computed fields)
+- app/routers/subscriptions.py: POST/GET/GET{id}/PATCH/DELETE/restore CRUD; POST /subscriptions/{id}/link-transaction (sets transaction.subscription_id); GET /subscriptions/{id}/history (linked transactions)
+- alembic/versions/0012_subscriptions.py: creates subscriptions table; adds FK fk_transactions_subscription_id (transactions.subscription_id → subscriptions.id)
+- app/schemas/transaction.py: added subscription_id to TransactionCreate + TransactionPatch
+- app/routers/transactions.py: wires subscription_id on create + patch (as scalar field)
+- app/main.py: subscriptions_router registered
+- tests/test_subscription_dates.py: 16 unit tests (all billing cycles, status transitions)
+- tests/test_subscriptions.py: 18 integration tests (CRUD, cross-user isolation, link-transaction, history, create-with-subscription-id)
+
 ## Milestone 5: Budgets (in progress)
 
 ### Task 5.5: Frontend — Budgets

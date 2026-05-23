@@ -268,11 +268,11 @@
 ## Milestone 6: Subscriptions & Piggy Banks
 
 ### Task 6.1: Subscriptions
-- [ ] Subscription model
-- [ ] services/subscription_dates.py
-- [ ] CRUD + link-transaction + history
-- [ ] Transaction PATCH accepts subscription_id
-- [ ] Tests
+- [x] Subscription model
+- [x] services/subscription_dates.py
+- [x] CRUD + link-transaction + history
+- [x] Transaction PATCH accepts subscription_id
+- [x] Tests
 
 ### Task 6.2: Piggy Banks
 - [ ] PiggyBank + PiggyBankContribution models
