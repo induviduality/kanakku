@@ -206,10 +206,10 @@
 - [x] Tests: happy path, sum mismatch, type mismatch, rollback
 
 ### Task 4.3: Retroactive Bundling
-- [ ] POST /splits/bundle
-- [ ] Computes user share as remainder
-- [ ] Conflict detection
-- [ ] Tests: all paths
+- [x] POST /splits/bundle
+- [x] Computes user share as remainder
+- [x] Conflict detection
+- [x] Tests: all paths
 
 ### Task 4.4: Settle / Forgive Endpoints
 - [ ] settle, forgive, unsettle

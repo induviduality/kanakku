@@ -2,6 +2,11 @@
 
 ## Milestone 4: Splits (in progress)
 
+### Task 4.3: Retroactive Bundling
+- app/schemas/split.py: added ForgivenShareCreate and BundleCreate schemas
+- app/routers/splits.py: POST /splits/bundle — validates expense type and ownership, checks no existing split (409), loads and validates each income leg (type, existence, not-already-settled), enforces FR-7.6 (income+forgiven ≤ expense), computes user own share as remainder, creates Split + settled/forgiven/pending shares atomically
+- tests/test_splits_bundle.py: 10 tests — expense only, income leg, forgiven share, zero remainder, sum over expense (422), already bundled (409), nonexistent expense (404), nonexistent income leg (404), income leg already settled (409), non-income leg (422), auth guard (401)
+
 ### Task 4.2: Upfront Split Creation
 - app/schemas/split.py: SplitShareCreate (payee_id nullable, amount, notes), SplitCreate (expense_transaction_id, notes, shares), SplitShareResponse, SplitResponse
 - app/routers/splits.py: POST /splits (validates expense type, duplicate, share sum; creates atomically; calls validate_invariant before commit), GET /splits/{id}

@@ -20,6 +20,26 @@ class SplitShareCreate(BaseModel):
         return v
 
 
+class ForgivenShareCreate(BaseModel):
+    payee_id: uuid.UUID | None = None
+    amount: Decimal
+    notes: str | None = None
+
+    @field_validator("amount")
+    @classmethod
+    def amount_positive(cls, v: Decimal) -> Decimal:
+        if v <= 0:
+            raise ValueError("amount must be positive")
+        return v
+
+
+class BundleCreate(BaseModel):
+    expense_transaction_id: uuid.UUID
+    income_transaction_ids: list[uuid.UUID] = []
+    forgiven_shares: list[ForgivenShareCreate] = []
+    notes: str | None = None
+
+
 class SplitCreate(BaseModel):
     expense_transaction_id: uuid.UUID
     notes: str | None = None
