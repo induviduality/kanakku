@@ -47,6 +47,8 @@ After completing any task:
 3. Update docs/context/current-milestone.md for the next task (or clear it 
    if milestone is done).
 4. Check docs/todo.md and cross off the completed items, if applicable.
+5. Commit the changes before moving on to the next task. Do not batch
+   multiple tasks into one commit.
 
 When asked to commit, do not include yourself as a co-author.
 

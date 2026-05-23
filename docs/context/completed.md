@@ -1,5 +1,15 @@
 # Completed Milestones
 
+## Milestone 4: Splits (in progress)
+
+### Task 4.1: Splits Schema + Invariant
+- app/models/split.py: Split (id, user_id FK→users CASCADE, expense_transaction_id FK→transactions UNIQUE RESTRICT, notes, timestamps, deleted_at) and SplitShare (id, split_id FK→splits CASCADE, payee_id FK→payees SET NULL nullable, amount Numeric 15,2, status enum pending/settled/forgiven, settled_at, settlement_transaction_id FK→transactions SET NULL nullable, forgiven_at, notes, timestamps)
+- app/services/split_service.py: SplitInvariantError + validate_invariant(session, split_id) — sums split_shares.amount and compares to parent transaction.amount
+- alembic/versions/0009_splits.py: creates splits + split_shares tables; installs check_split_invariant() PL/pgSQL function + DEFERRABLE INITIALLY DEFERRED constraint trigger trg_split_invariant on split_shares
+- app/models/__init__.py: Split, SplitShare, SplitShareStatus registered
+- tests/test_splits_schema.py: 8 tests — model creation, unique constraint, all statuses, application validator (OK + mismatch), DB trigger (OK, insert mismatch, update mismatch, delete mismatch)
+- docs/CLAUDE.md: added step 5 (commit after each task before moving on)
+
 ## Setup Guide & README
 
 - docs/SETUP.md: new "start here" guide with platform-specific install commands for three scenarios — Local PC (Windows/macOS), Raspberry Pi 5, Cloud VPS (Ubuntu 22.04/24.04). Covers OS-level prerequisites (Docker, Git, openssl), platform-specific install commands (winget/brew/apt/get.docker.com), DNS setup for VPS, and links to the relevant running.md section per scenario.

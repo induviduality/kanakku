@@ -1,4 +1,17 @@
 # Decision Log
+
+## 2026-05-23 — Split invariant DB trigger uses DEFERRABLE INITIALLY DEFERRED
+
+**Context:** The invariant trigger on split_shares (SUM(shares) == parent transaction amount) fires AFTER INSERT/UPDATE/DELETE on each row. If it fires immediately after each row, inserting multiple shares within a single transaction would fail after the first insert (partial sum < total).
+
+**Decision:** Used a PostgreSQL CONSTRAINT TRIGGER with DEFERRABLE INITIALLY DEFERRED. This defers the invariant check to commit time, so all shares can be inserted within one transaction before the constraint is evaluated.
+
+**Alternatives considered:**
+- AFTER STATEMENT trigger — PostgreSQL constraint triggers can only be FOR EACH ROW, not FOR EACH STATEMENT, so this isn't available
+- Immediate trigger with "allow partial" logic (e.g. only fire when sum > expected) — fragile and makes delete-to-break harder to enforce
+- Application-only enforcement (no DB trigger) — violates the TDD requirement for dual-layer enforcement
+
+**Affects:** `0009_splits.py` (trigger SQL), `test_splits_schema.py` (custom fixture creates the trigger for schema tests, since db_tables uses Base.metadata.create_all which doesn't install triggers).
 The format: date, title, context, decision, alternatives, what it affects.
 
 ## 2026-05-23 — Setup prerequisites live in docs/SETUP.md, not docs/running.md

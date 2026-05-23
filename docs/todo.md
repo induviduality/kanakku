@@ -195,10 +195,10 @@
 ## Milestone 4: Splits
 
 ### Task 4.1: Splits Schema + Invariant
-- [ ] Split + SplitShare models
-- [ ] Application validator
-- [ ] DB trigger enforcing invariant
-- [ ] Tests: invariant on insert/update/delete
+- [x] Split + SplitShare models
+- [x] Application validator
+- [x] DB trigger enforcing invariant
+- [x] Tests: invariant on insert/update/delete
 
 ### Task 4.2: Upfront Split Creation
 - [ ] POST /splits with bundled payload

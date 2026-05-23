@@ -1,19 +1,20 @@
-# Milestone 3 Complete
+# Milestone 4: Splits (in progress)
 
-All tasks 3.1–3.4 are done. The next milestone is Milestone 4: Splits.
-
-## Next Task: Task 4.1 — Splits Schema + Invariant
+## Next Task: Task 4.2 — Upfront Split Creation
 
 ### What to implement
-- Split model (id, user_id, expense_transaction_id FK UNIQUE, notes, timestamps, deleted_at)
-- SplitShare model (id, split_id FK, payee_id NULL FK, amount, status enum: pending/settled/forgiven, settled_at, settlement_transaction_id, forgiven_at, notes, timestamps)
-- Application-level invariant validator: services/split_service.py validate_invariant(split_id)
-- DB trigger: check_split_invariant() fired AFTER INSERT/UPDATE/DELETE on split_shares
-- Migration: 0009_splits.py
-- Tests: sum matches OK, sum mismatch raises, update breaking sum raises, delete breaking sum raises
+- POST /splits endpoint with bundled payload:
+  - split + all shares in one request body
+  - Atomic: split, shares, invariant check all in one DB transaction
+  - Only expense transactions may be wrapped (validate type)
+  - Transaction must not already have a split (expense_transaction_id UNIQUE enforces this at DB level)
+- Schemas: SplitCreate (expense_transaction_id, notes, shares: list[SplitShareCreate]), SplitShareCreate (payee_id nullable, amount, notes)
+- SplitResponse, SplitShareResponse
+- Router: app/routers/splits.py — POST /splits
+- Tests: happy path, shares sum mismatch (400), non-expense transaction (400), duplicate split (409), rollback on any error
 
-### Files to create
-backend/app/models/split.py
-backend/app/services/split_service.py
-backend/alembic/versions/0009_splits.py
-backend/tests/test_splits_schema.py
+### Files to create/modify
+- backend/app/schemas/split.py
+- backend/app/routers/splits.py
+- backend/app/main.py (register router)
+- backend/tests/test_splits.py
