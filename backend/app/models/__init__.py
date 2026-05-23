@@ -1,6 +1,16 @@
 from app.models.account import Account
 from app.models.budget import Budget, BudgetPeriod, BudgetType, budget_categories
 from app.models.category import Category, payee_default_categories
+from app.models.import_batch import (
+    ImportBatch,
+    ImportBatchStatus,
+    ImportSource,
+    RawImportRecord,
+    RecordConfidence,
+    RecordMatchType,
+    RecordStatus,
+    VerificationStatus,
+)
 from app.models.invite_token import InviteToken
 from app.models.payee import Payee
 from app.models.payment_method import PaymentMethod
@@ -27,4 +37,6 @@ __all__ = [
     "Budget", "BudgetType", "BudgetPeriod", "budget_categories",
     "Subscription", "BillingCycle",
     "PiggyBank", "PiggyBankContribution", "ContributionType",
+    "ImportBatch", "ImportBatchStatus", "ImportSource", "VerificationStatus",
+    "RawImportRecord", "RecordStatus", "RecordConfidence", "RecordMatchType",
 ]
