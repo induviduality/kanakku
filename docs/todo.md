@@ -216,9 +216,9 @@
 - [x] Tests: all transitions
 
 ### Task 4.5: Net Expense Calculation
-- [ ] services/expense_calculator.py
-- [ ] SQL view transaction_with_net_amount
-- [ ] Tests: all split combinations
+- [x] services/expense_calculator.py
+- [x] SQL view transaction_with_net_amount
+- [x] Tests: all split combinations
 
 ### Task 4.6: Frontend — Split UIs
 - [ ] components/SplitSharesEditor.tsx (upfront)

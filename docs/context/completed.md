@@ -2,6 +2,11 @@
 
 ## Milestone 4: Splits (in progress)
 
+### Task 4.5: Net Expense Calculation
+- app/services/expense_calculator.py: net_expense(session, transaction_id) — returns transaction.amount for non-split; for split returns SUM(shares WHERE payee_id IS NULL OR status='forgiven') per FR-7.9
+- alembic/versions/0010_net_expense_view.py: CREATE OR REPLACE VIEW transaction_with_net_amount with same logic in SQL (LEFT JOIN splits + COALESCE subquery)
+- tests/test_expense_calculator.py: 7 tests — non-split full amount, user-own-only, forgiven included, settled excluded, all-forgiven no own share, fully-settled, missing txn raises
+
 ### Task 4.4: Settle / Forgive Endpoints
 - app/schemas/split.py: added SettleRequest schema
 - app/routers/splits.py: POST /splits/{id}/shares/{id}/settle (validates pending status, income txn ownership, not-already-used), /forgive (pending only), /unsettle (settled only, clears settled_at + settlement_transaction_id)
