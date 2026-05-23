@@ -109,27 +109,27 @@
 ## Milestone 2: Settings & Core Entities
 
 ### Task 2.1: User Settings
-- [ ] UserSettings model
-- [ ] Auto-create on user signup
-- [ ] GET/PATCH /settings
-- [ ] Tests: defaults, scoping
+- [x] UserSettings model
+- [x] Auto-create on user signup
+- [x] GET/PATCH /settings
+- [x] Tests: defaults, scoping
 
 ### Task 2.2: Accounts CRUD
-- [ ] Account model
-- [ ] Full CRUD + soft delete + restore
-- [ ] Currency defaults from user settings
-- [ ] Tests: CRUD, access control, soft delete, 30-day purge rule
+- [x] Account model
+- [x] Full CRUD + soft delete + restore
+- [x] Currency defaults from user settings
+- [x] Tests: CRUD, access control, soft delete, 30-day purge rule
 
 ### Task 2.3: Payment Methods CRUD
-- [ ] PaymentMethod model
-- [ ] Nested endpoints
-- [ ] upi_app validation
-- [ ] Tests
+- [x] PaymentMethod model
+- [x] Nested endpoints
+- [x] upi_app validation
+- [x] Tests
 
 ### Task 2.4: Payees CRUD
-- [ ] Payee model + default_categories join
-- [ ] CRUD with search + type filter
-- [ ] Tests
+- [x] Payee model (default_categories join deferred to Task 2.5 when categories exist)
+- [x] CRUD with search + type filter
+- [x] Tests
 
 ### Task 2.5: Categories CRUD
 - [ ] Category model with optional applicability

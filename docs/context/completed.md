@@ -1,5 +1,27 @@
 # Completed Milestones
 
+## Task 2.4: Payees CRUD
+- app/models/payee.py: Payee (PayeeType StrEnum: merchant/person/business/other), soft delete, is_active
+- alembic/versions/0005_payees.py: migration with indexes on (user_id) and (user_id, name)
+- app/schemas/payee.py: PayeeCreate, PayeePatch, PayeeResponse
+- app/routers/payees.py: POST/GET/GET{id}/PATCH/DELETE/restore — list supports ?search + ?type filter
+- tests/test_payees.py: 12 tests — CRUD, search, type filter, soft delete, restore, scoping
+- Note: payee_default_categories join deferred to Task 2.5 when categories are implemented
+
+## Task 2.3: Payment Methods CRUD
+- app/models/payment_method.py: PaymentMethod (PaymentMethodType StrEnum: debit_card/credit_card/netbanking/upi), soft delete
+- alembic/versions/0004_payment_methods.py: migration with index on account_id
+- app/schemas/payment_method.py: PaymentMethodCreate (upi_app validator), PaymentMethodPatch, PaymentMethodResponse
+- app/routers/payment_methods.py: nested under /accounts/{account_id}/payment-methods — full CRUD + soft delete + restore
+- tests/test_payment_methods.py: 10 tests — CRUD, upi_app validation, access scoping, soft delete, restore
+
+## Task 2.2: Accounts CRUD
+- app/models/account.py: Account (AccountType StrEnum: bank/cash/credit_card/loan), opening_balance + current_balance (Numeric 15,2), soft delete
+- alembic/versions/0003_accounts.py: migration with index on user_id
+- app/schemas/account.py: AccountCreate (currency optional — defaults to user settings), AccountPatch, AccountResponse
+- app/routers/accounts.py: POST/GET/GET{id}/PATCH/DELETE/restore — 30-day restore window enforced (410 if expired)
+- tests/test_accounts.py: 12 tests — CRUD, currency default, access control (cross-user 404), soft delete, restore, 400 on restore-not-deleted
+
 ## Task 2.1: User Settings
 - app/models/user_settings.py: UserSettings (PK=user_id FK→users CASCADE), fields: primary_currency/timezone/date_format/number_format/updated_at, all with INR/Asia/Kolkata/DD/MM/YYYY/en-IN defaults
 - alembic/versions/0002_user_settings.py: migration with upgrade/downgrade
