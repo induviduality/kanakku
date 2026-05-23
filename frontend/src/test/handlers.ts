@@ -743,6 +743,146 @@ export const handlers = [
     })
   }),
 
+  // Reports
+  http.get('/api/v1/reports/schema', () =>
+    HttpResponse.json({
+      tables: [
+        {
+          name: 'transactions',
+          description: 'All financial transactions',
+          columns: [
+            { name: 'id', type: 'uuid', description: 'Primary key', foreign_key: null },
+            { name: 'user_id', type: 'uuid', description: 'Owner user', foreign_key: 'users.id' },
+            { name: 'amount', type: 'numeric', description: 'Transaction amount', foreign_key: null },
+          ],
+        },
+        {
+          name: 'accounts',
+          description: 'Bank and wallet accounts',
+          columns: [
+            { name: 'id', type: 'uuid', description: 'Primary key', foreign_key: null },
+            { name: 'user_id', type: 'uuid', description: 'Owner user', foreign_key: 'users.id' },
+            { name: 'name', type: 'text', description: 'Account name', foreign_key: null },
+          ],
+        },
+      ],
+    }),
+  ),
+  http.post('/api/v1/reports/query', async ({ request }) => {
+    const body = await request.json() as Record<string, unknown>
+    const sql = body.sql as string
+    if (!sql?.includes('user_id')) {
+      return HttpResponse.json({ detail: 'Query must include a user_id filter' }, { status: 400 })
+    }
+    return HttpResponse.json({
+      columns: ['id', 'amount'],
+      rows: [{ id: 'txn-1', amount: '500.00' }],
+      row_count: 1,
+      truncated: false,
+    })
+  }),
+  http.get('/api/v1/reports/dashboards', () =>
+    HttpResponse.json([
+      {
+        id: 'dash-1',
+        user_id: 'user-1',
+        name: 'Spending Overview',
+        description: 'Monthly spending',
+        created_at: '2026-01-01T00:00:00Z',
+        updated_at: '2026-01-01T00:00:00Z',
+        deleted_at: null,
+      },
+    ]),
+  ),
+  http.post('/api/v1/reports/dashboards', async ({ request }) => {
+    const body = await request.json() as Record<string, unknown>
+    return HttpResponse.json(
+      {
+        id: 'dash-new',
+        user_id: 'user-1',
+        name: body.name,
+        description: body.description ?? null,
+        created_at: '2026-01-01T00:00:00Z',
+        updated_at: '2026-01-01T00:00:00Z',
+        deleted_at: null,
+      },
+      { status: 201 },
+    )
+  }),
+  http.get('/api/v1/reports/dashboards/:dashboardId', ({ params }) =>
+    HttpResponse.json({
+      id: params.dashboardId,
+      user_id: 'user-1',
+      name: 'Spending Overview',
+      description: 'Monthly spending',
+      created_at: '2026-01-01T00:00:00Z',
+      updated_at: '2026-01-01T00:00:00Z',
+      deleted_at: null,
+    }),
+  ),
+  http.patch('/api/v1/reports/dashboards/:dashboardId', async ({ request, params }) => {
+    const body = await request.json() as Record<string, unknown>
+    return HttpResponse.json({
+      id: params.dashboardId,
+      user_id: 'user-1',
+      name: body.name ?? 'Spending Overview',
+      description: body.description ?? null,
+      created_at: '2026-01-01T00:00:00Z',
+      updated_at: '2026-01-01T00:00:00Z',
+      deleted_at: null,
+    })
+  }),
+  http.delete('/api/v1/reports/dashboards/:dashboardId', () => new HttpResponse(null, { status: 204 })),
+  http.get('/api/v1/reports/dashboards/:dashboardId/widgets', () =>
+    HttpResponse.json([
+      {
+        id: 'widget-1',
+        dashboard_id: 'dash-1',
+        title: 'Top Expenses',
+        query: 'SELECT amount FROM transactions WHERE user_id = :user_id',
+        viz_type: 'bar',
+        viz_config: { x_key: 'month', y_key: 'amount' },
+        position: { x: 0, y: 0, w: 6, h: 4 },
+        created_at: '2026-01-01T00:00:00Z',
+        updated_at: '2026-01-01T00:00:00Z',
+      },
+    ]),
+  ),
+  http.post('/api/v1/reports/dashboards/:dashboardId/widgets', async ({ request, params }) => {
+    const body = await request.json() as Record<string, unknown>
+    return HttpResponse.json(
+      {
+        id: 'widget-new',
+        dashboard_id: params.dashboardId,
+        title: body.title,
+        query: body.query,
+        viz_type: body.viz_type,
+        viz_config: body.viz_config ?? null,
+        position: body.position ?? null,
+        created_at: '2026-01-01T00:00:00Z',
+        updated_at: '2026-01-01T00:00:00Z',
+      },
+      { status: 201 },
+    )
+  }),
+  http.patch('/api/v1/reports/dashboards/:dashboardId/widgets/:widgetId', async ({ request, params }) => {
+    const body = await request.json() as Record<string, unknown>
+    return HttpResponse.json({
+      id: params.widgetId,
+      dashboard_id: params.dashboardId,
+      title: body.title ?? 'Top Expenses',
+      query: 'SELECT amount FROM transactions WHERE user_id = :user_id',
+      viz_type: body.viz_type ?? 'bar',
+      viz_config: body.viz_config ?? null,
+      position: body.position ?? null,
+      created_at: '2026-01-01T00:00:00Z',
+      updated_at: '2026-01-01T00:00:00Z',
+    })
+  }),
+  http.delete('/api/v1/reports/dashboards/:dashboardId/widgets/:widgetId', () =>
+    new HttpResponse(null, { status: 204 }),
+  ),
+
   // LLM Activity
   http.get('/api/v1/settings/llm-activity', ({ request }) => {
     const url = new URL(request.url)

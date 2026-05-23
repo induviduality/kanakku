@@ -420,14 +420,14 @@
 - [x] Tests
 
 ### Task 11.4: Frontend — Reports
-- [ ] pages/Reports.tsx list
-- [ ] pages/ReportDashboard.tsx with react-grid-layout
-- [ ] components/reports/QueryEditor.tsx (CodeMirror)
-- [ ] components/reports/SchemaReferencePanel.tsx
-- [ ] components/reports/StarterQueryLibrary.tsx (6 starter queries)
-- [ ] components/reports/WidgetRenderer.tsx
-- [ ] components/reports/WidgetEditor.tsx
-- [ ] Tests
+- [x] pages/Reports.tsx list
+- [x] pages/ReportDashboard.tsx with react-grid-layout
+- [x] components/reports/QueryEditor.tsx (CodeMirror)
+- [x] components/reports/SchemaReferencePanel.tsx
+- [x] components/reports/StarterQueryLibrary.tsx (6 starter queries)
+- [x] components/reports/WidgetRenderer.tsx
+- [x] components/reports/WidgetEditor.tsx
+- [x] Tests
 
 ---
 

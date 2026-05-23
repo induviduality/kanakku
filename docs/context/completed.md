@@ -12,6 +12,28 @@
 - backend/pyproject.toml: added sqlglot>=25.0
 - backend/tests/test_reports_query.py: 8 tests (select works, DML rejected, missing user_id, multiple statements, invalid SQL, unauthenticated, row limit)
 
+### Task 11.3: Dashboards & Widgets CRUD
+- backend/app/models/report_dashboard.py: ReportDashboard, ReportWidget models with VizType enum
+- backend/alembic/versions/0018_report_dashboards.py: migration with readonly grants
+- backend/app/routers/reports.py: full CRUD for dashboards + widgets (10 endpoints)
+- backend/app/schemas/reports.py: Dashboard/Widget create/update/response schemas
+- backend/tests/test_report_dashboards.py: 12 tests (CRUD, access control, cascade delete)
+
+### Task 11.4: Frontend — Reports
+- frontend/src/api/reports.ts: full API hooks (schema, query, dashboards CRUD, widgets CRUD)
+- frontend/src/pages/Reports.tsx: dashboard list with create form
+- frontend/src/pages/ReportDashboard.tsx: react-grid-layout grid with widget cards, widget data loading via useEffect
+- frontend/src/components/reports/QueryEditor.tsx: CodeMirror SQL editor with run button
+- frontend/src/components/reports/SchemaReferencePanel.tsx: collapsible table/column browser with search
+- frontend/src/components/reports/StarterQueryLibrary.tsx: 6 hardcoded starter queries
+- frontend/src/components/reports/WidgetRenderer.tsx: bar/line/pie/kpi/table viz via Recharts
+- frontend/src/components/reports/WidgetEditor.tsx: modal with SQL editor + schema panel + viz config
+- frontend/src/router.tsx: /reports and /reports/:dashboardId routes
+- frontend/src/test/handlers.ts: MSW handlers for all reports endpoints
+- 8 test files (Reports, ReportDashboard, QueryEditor, SchemaReferencePanel, StarterQueryLibrary, WidgetRenderer, WidgetEditor): 37 tests passing
+
+## Milestone 11: Reports & Custom Dashboards — COMPLETE
+
 ### Task 11.2: Schema Reference Endpoint
 - backend/app/routers/reports.py: GET /reports/schema — hand-curated 19-table schema with column types, descriptions, FK metadata
 - backend/app/schemas/reports.py: ColumnInfo, TableInfo, SchemaResponse schemas
