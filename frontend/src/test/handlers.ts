@@ -269,6 +269,42 @@ export const TAGS_RESPONSE = [
   },
 ]
 
+export const IMPORT_BATCHES_RESPONSE = [
+  {
+    id: 'batch-1',
+    user_id: 'user-1',
+    source: 'pdf',
+    filename: 'hdfc_jan_2026.pdf',
+    account_id: 'acc-1',
+    status: 'completed',
+    verification_status: 'verified',
+    total_parsed: 10,
+    total_confirmed: 8,
+    total_rejected: 2,
+    imported_at: '2026-01-15T10:00:00Z',
+    completed_at: '2026-01-15T10:05:00Z',
+  },
+]
+
+export const IMPORT_RECORDS_RESPONSE = [
+  {
+    id: 'rec-1',
+    batch_id: 'batch-1',
+    raw_text: '15/01/26 SWIGGY 350.00',
+    parsed_json: {
+      date: '2026-01-15',
+      description: 'SWIGGY',
+      amount: '350.00',
+      type: 'expense',
+    },
+    status: 'pending',
+    transaction_id: null,
+    confidence: 'high',
+    match_type: 'new',
+    created_at: '2026-01-15T10:00:00Z',
+  },
+]
+
 export const DASHBOARD_RESPONSE = {
   month: '2026-05',
   total_spent_net: '1410.00',
@@ -587,6 +623,31 @@ export const handlers = [
   }),
   http.delete('/api/v1/piggy-banks/:piggyId/contributions/:contribId', () =>
     new HttpResponse(null, { status: 204 }),
+  ),
+
+  // Imports
+  http.get('/api/v1/imports', () => HttpResponse.json(IMPORT_BATCHES_RESPONSE)),
+  http.get('/api/v1/imports/:batchId', ({ params }) => {
+    if (params.batchId === 'not-found') {
+      return HttpResponse.json({ detail: 'Import batch not found' }, { status: 404 })
+    }
+    return HttpResponse.json({ ...IMPORT_BATCHES_RESPONSE[0], id: params.batchId })
+  }),
+  http.get('/api/v1/imports/:batchId/records', () => HttpResponse.json(IMPORT_RECORDS_RESPONSE)),
+  http.patch('/api/v1/imports/:batchId/records/:recordId', async ({ request, params }) => {
+    const body = await request.json() as Record<string, unknown>
+    return HttpResponse.json({
+      ...IMPORT_RECORDS_RESPONSE[0],
+      id: params.recordId,
+      batch_id: params.batchId,
+      ...body,
+    })
+  }),
+  http.post('/api/v1/imports/:batchId/confirm', () =>
+    HttpResponse.json({ ...IMPORT_BATCHES_RESPONSE[0], total_confirmed: 9 }),
+  ),
+  http.post('/api/v1/imports/:batchId/reject', () =>
+    HttpResponse.json({ ...IMPORT_BATCHES_RESPONSE[0], total_rejected: 3 }),
   ),
 
   // Tags

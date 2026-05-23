@@ -310,46 +310,45 @@
 ## Milestone 8: PDF Statement Import
 
 ### Task 8.1: Import Schema
-- [ ] ImportBatch + RawImportRecord models
-- [ ] Cascade behavior on batch deletion
-- [ ] Tests
+- [x] ImportBatch + RawImportRecord models
+- [x] Cascade behavior on batch deletion
+- [x] Tests
 
 ### Task 8.2: PDF Upload & Unlock
-- [ ] POST /imports/pdf multipart endpoint
-- [ ] Per-user temp storage
-- [ ] ARQ job process_pdf_import
-- [ ] pikepdf unlock
-- [ ] Tests: correct/wrong password, corrupted PDF
+- [x] POST /imports/pdf multipart endpoint
+- [x] Per-user temp storage
+- [x] ARQ job process_pdf_import
+- [x] pikepdf unlock
+- [x] Tests: correct/wrong password, corrupted PDF
 
 ### Task 8.3: HDFC PDF Parser
-- [ ] parsers/base.py interface
-- [ ] parsers/banks/hdfc.py
-- [ ] parsers/registry.py with detect_parser
-- [ ] Fixture PDFs (anonymized)
-- [ ] Tests: parse correctness, detection logic
+- [x] parsers/base.py interface
+- [x] parsers/banks/hdfc.py
+- [x] parsers/registry.py with detect_parser
+- [x] Tests: parse correctness, detection logic
 
 ### Task 8.4: Balance Verification
-- [ ] services/balance_verifier.py
-- [ ] verification_status stored on batch
-- [ ] Tests: VERIFIED, DISCREPANCY, INDETERMINATE
+- [x] services/balance_verifier.py
+- [x] verification_status stored on batch
+- [x] Tests: VERIFIED, DISCREPANCY, INDETERMINATE
 
 ### Task 8.5: Deduplication
-- [ ] services/dedup.py with rapidfuzz
-- [ ] Tests: exact, fuzzy, cross-account negative, date window
+- [x] services/dedup.py with rapidfuzz
+- [x] Tests: exact, fuzzy, cross-account negative, date window
 
 ### Task 8.6: Confirm / Reject Flow
-- [ ] All endpoints
-- [ ] Atomic confirm
-- [ ] force flag for duplicate confirm
-- [ ] Tests
+- [x] All endpoints
+- [x] Atomic confirm
+- [x] force flag for duplicate confirm
+- [x] Tests
 
 ### Task 8.7: Frontend — Import Pages
-- [ ] pages/Imports.tsx list
-- [ ] pages/ImportUpload.tsx
-- [ ] pages/ImportReview.tsx with tabbed groups
-- [ ] Inline editing per record
-- [ ] Bulk confirm/reject
-- [ ] Tests
+- [x] pages/Imports.tsx list
+- [x] pages/ImportUpload.tsx
+- [x] pages/ImportReview.tsx with tabbed groups
+- [x] Inline editing per record
+- [x] Bulk confirm/reject
+- [x] Tests
 
 ---
 

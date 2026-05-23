@@ -20,6 +20,9 @@ import SubscriptionFormPage from './pages/SubscriptionForm'
 import PiggyBanks from './pages/PiggyBanks'
 import PiggyBankDetail from './pages/PiggyBankDetail'
 import PiggyBankFormPage from './pages/PiggyBankForm'
+import Imports from './pages/Imports'
+import ImportUpload from './pages/ImportUpload'
+import ImportReview from './pages/ImportReview'
 
 const rootRoute = createRootRoute({ component: Outlet })
 
@@ -167,6 +170,24 @@ const piggyBankEditRoute = createRoute({
   component: PiggyBankFormPage,
 })
 
+const importsRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/imports',
+  component: Imports,
+})
+
+const importUploadRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/imports/upload',
+  component: ImportUpload,
+})
+
+const importReviewRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/imports/$batchId',
+  component: ImportReview,
+})
+
 const routeTree = rootRoute.addChildren([
   indexRoute,
   setupRoute,
@@ -192,6 +213,9 @@ const routeTree = rootRoute.addChildren([
   piggyBankNewRoute,
   piggyBankDetailRoute,
   piggyBankEditRoute,
+  importsRoute,
+  importUploadRoute,
+  importReviewRoute,
 ])
 
 export const router = createRouter({ routeTree })

@@ -40,15 +40,19 @@ Before starting any task:
 2. Read docs/decisions/log.md (scan for anything affecting current files)
 3. Read docs/context/completed.md (understand what's already built)
 
-After completing any task:
+After completing any task (update after EACH TASK, not after a full milestone):
 1. Append to docs/decisions/log.md if any non-trivial decision was made.
    Non-trivial = anything where you chose between two reasonable approaches.
-2. Update docs/context/completed.md with a brief summary.
-3. Update docs/context/current-milestone.md for the next task (or clear it 
-   if milestone is done).
+2. Update docs/context/completed.md with a brief summary of the just-finished task.
+3. Update docs/context/current-milestone.md to reflect the just-finished task
+   and set the next task (or mark milestone done if all tasks complete).
 4. Check docs/todo.md and cross off the completed items, if applicable.
 5. Commit the changes before moving on to the next task. Do not batch
    multiple tasks into one commit.
+
+IMPORTANT: Steps 2–4 must happen after EVERY individual task, not just at
+milestone boundaries. If a milestone has tasks 8.1, 8.2, 8.3, update the docs
+and commit after 8.1, again after 8.2, again after 8.3.
 
 When asked to commit, do not include yourself as a co-author.
 

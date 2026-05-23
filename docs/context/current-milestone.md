@@ -1,7 +1,13 @@
-# Milestone 7: Home Dashboard — COMPLETE
+# Milestone 8: PDF Statement Import — In Progress
 
-All tasks done:
-- 7.1 Dashboard Backend Endpoint — COMPLETE
-- 7.2 Frontend Dashboard (page + 4 components, skeleton loaders, 24 tests) — COMPLETE
+## Completed Tasks
+- 8.1 Import Schema (ImportBatch + RawImportRecord models, migration, tests) — DONE
+- 8.2 PDF Upload & Unlock (POST /imports/pdf, ARQ job, pikepdf unlock, 6 tests) — DONE
+- 8.3 HDFC PDF Parser (parsers/base.py, parsers/banks/hdfc.py, registry.py, 15 tests) — DONE
+- 8.4 Balance Verification (services/balance_verifier.py, 9 tests) — DONE
+- 8.5 Deduplication (services/dedup.py with rapidfuzz, 9 tests) — DONE
+- 8.6 Confirm / Reject Flow (endpoints + force flag, tests in test_imports.py) — DONE
 
-## Next: Milestone 8 — Reports & Analytics
+- 8.7 Frontend — Import Pages (Imports.tsx, ImportUpload.tsx, ImportReview.tsx, MSW handlers, 19 tests) — DONE
+
+## Milestone 8: PDF Statement Import — COMPLETE

@@ -20,6 +20,47 @@
 - Tests: Dashboard.test.tsx (10), BudgetProgressCard.test.tsx (5), CategoryBreakdownChart.test.tsx (2), SubscriptionStatusBadge.test.tsx (3), PiggyBankProgressRing.test.tsx (4) = 24 tests
 - backend/app/dev_seed.py: idempotent seed data with realistic scenarios (subscriptions/piggy banks/budgets/transactions) for dev mode
 
+## Milestone 8: PDF Statement Import — In Progress
+
+### Task 8.7: Frontend — Import Pages
+- frontend/src/pages/Imports.tsx: batch list with status badge (pending/processing/completed/failed), verification_status, parsed/confirmed/rejected counts, Review link per batch, Upload PDF link
+- frontend/src/pages/ImportUpload.tsx: file input (PDF only), account selector, optional password field; calls useUploadPdf; navigates to review page on success
+- frontend/src/pages/ImportReview.tsx: batch header with status + verification badge; 4 tabs (pending/confirmed/rejected/duplicate); per-row inline edit (description, amount, type) via usePatchRecord; bulk confirm (+ force confirm for duplicates) and bulk reject via select-all checkbox; useConfirmRecords/useRejectRecords
+- frontend/src/test/handlers.ts: IMPORT_BATCHES_RESPONSE + IMPORT_RECORDS_RESPONSE fixtures; MSW handlers for GET/PATCH /imports and confirm/reject endpoints
+- frontend/src/router.tsx: /imports, /imports/upload, /imports/$batchId routes
+- Tests: Imports.test.tsx (5), ImportUpload.test.tsx (5), ImportReview.test.tsx (9) = 19 tests
+
+### Task 8.6: Confirm / Reject Flow
+- app/routers/imports.py: POST /imports/{batch_id}/confirm (ConfirmRequest: record_ids optional, force flag; converts pending/duplicate records to Transaction rows atomically; updates total_confirmed); POST /imports/{batch_id}/reject (RejectRequest: record_ids optional; marks pending records as rejected; updates total_rejected)
+- _record_to_transaction() helper: converts parsed_json → Transaction row
+- Tests in tests/test_imports.py: confirm creates transaction, force flag confirms duplicates, reject selected, reject all pending
+
+### Task 8.5: Deduplication
+- backend/app/services/dedup.py: find_duplicates(session, user_id, candidates) using rapidfuzz fuzzy matching; exact match on (date, amount, account), fuzzy match on description with date window; cross-account negative
+- 9 unit tests: exact/fuzzy/date-window/cross-account
+
+### Task 8.4: Balance Verification
+- backend/app/services/balance_verifier.py: verify_balance(records, opening_balance) → VerificationResult; VERIFIED/DISCREPANCY/INDETERMINATE status stored on batch
+- 9 unit tests: VERIFIED/DISCREPANCY/INDETERMINATE cases
+
+### Task 8.3: HDFC PDF Parser
+- backend/app/parsers/base.py: BankParser ABC with parse(text) → list[ParsedTransaction]
+- backend/app/parsers/banks/hdfc.py: HDFCParser regex-based implementation
+- backend/app/parsers/registry.py: detect_parser(text) → BankParser | None
+- 15 unit tests: parse correctness, detection logic
+
+### Task 8.2: PDF Upload & Unlock
+- backend/app/workers/import_worker.py: process_pdf_import ARQ job; pikepdf unlock; parser detection + run
+- POST /imports/pdf multipart endpoint; per-user temp storage; ARQ enqueueing with fallback
+- 6 integration tests: correct/wrong password, non-PDF, empty file, auth, cross-user isolation
+
+### Task 8.1: Import Schema
+- backend/app/models/import_batch.py: ImportBatch (id, user_id, source, filename, account_id, status, verification_status, total_parsed/confirmed/rejected, imported_at, completed_at, deleted_at); RawImportRecord (id, batch_id, raw_text, parsed_json JSONB, status, transaction_id, confidence, match_type, created_at); enums: ImportSource, ImportBatchStatus, VerificationStatus, RecordStatus, RecordConfidence, RecordMatchType
+- backend/app/schemas/imports.py: ImportBatchResponse, RawImportRecordResponse, RawImportRecordPatch, ParsedTransaction
+- alembic migration: import_batches + raw_import_records tables; FK transactions.import_record_id → raw_import_records
+- frontend/src/api/imports.ts: all types + hooks (useGetImportBatches, useGetImportBatch, useGetImportRecords, useUploadPdf, usePatchRecord, useConfirmRecords, useRejectRecords)
+- backend/tests/test_import_schema.py: model-level tests
+
 ## Milestone 6: Subscriptions & Piggy Banks — COMPLETE
 
 ### Task 6.3: Frontend — Subscriptions & Piggy Banks
