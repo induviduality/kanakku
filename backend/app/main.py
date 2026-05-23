@@ -28,7 +28,7 @@ DEV_USER_PASSWORD = "dev-password"
 
 
 async def _seed_dev_user() -> None:
-    """Create test user for dev mode if it doesn't exist."""
+    """Create dev user if it doesn't exist, then seed fixture data."""
     if not settings.dev_mode:
         return
 
@@ -45,6 +45,9 @@ async def _seed_dev_user() -> None:
             session.add(dev_user)
             await session.commit()
             print(f"✓ Created dev user: {DEV_USER_EMAIL} / {DEV_USER_PASSWORD}")
+
+    from app.dev_seed import seed_dev_data
+    await seed_dev_data(DEV_USER_ID)
 
 
 @asynccontextmanager

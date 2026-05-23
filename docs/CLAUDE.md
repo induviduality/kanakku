@@ -60,3 +60,25 @@ Definition of non-trivial decision (log it):
 - Made a performance tradeoff
 
 Do NOT log: boilerplate, naming choices, formatting, standard CRUD.
+
+## Dev Seed Data
+
+`backend/app/dev_seed.py` seeds realistic fixture data when `DEV_MODE=true`.
+It runs automatically on every startup and is **fully idempotent** (fixed UUIDs,
+skips existing rows).
+
+**When to update the seed file:**
+- A new feature introduces a domain object (model, relationship) that has no
+  fixture representation yet — add a scenario so it's visible in dev.
+- A new page or component needs a specific state to be testable (e.g. empty
+  list, partially-filled form, error state) — add that state as a fixture.
+- A new enum value or status is introduced — add at least one row that shows it.
+
+**Rules for extending:**
+1. Assign a new fixed UUID constant in the `# Fixed UUIDs` block at the top.
+   Use the same prefix pattern for that entity type.
+2. Add a `# Scenario: <description>` comment above the new row.
+3. Never change an existing UUID — it would create a duplicate on a fresh DB
+   while leaving the old row orphaned on an existing one.
+4. Keep `seed_dev_data()` idempotent: always check-before-insert using the
+   existing set-based pattern in the file.

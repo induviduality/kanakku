@@ -1,5 +1,26 @@
 # Decision Log
 
+## 2026-05-23 — Dev seed lives in app/dev_seed.py, called from lifespan
+
+**Context:** Dev mode needed realistic fixture data spanning all domain entities
+(accounts, transactions, budgets, subscriptions, piggy banks) to support UI
+development without manually creating data each time.
+
+**Decision:** Created `backend/app/dev_seed.py` as a standalone idempotent seed
+module. It uses fixed UUIDs and a check-before-insert pattern so it's safe to
+call on every startup. Called from the existing `_seed_dev_user()` lifespan hook
+in `main.py`, lazy-imported to avoid import cost in production.
+
+**Alternatives considered:**
+- Alembic data migration — couples dev fixtures to the migration chain; hard to
+  evolve as features are added
+- CLI script (e.g. `uv run python seed.py`) — requires manual step; easy to forget
+- pytest fixtures only — test fixtures use in-memory SQLite; dev seed needs
+  real Postgres with the full schema, different use case
+
+**Affects:** `backend/app/dev_seed.py` (new), `backend/app/main.py` (call site),
+`docs/CLAUDE.md` (update-when rules for future Claude sessions).
+
 ## 2026-05-23 — Split invariant DB trigger uses DEFERRABLE INITIALLY DEFERRED
 
 **Context:** The invariant trigger on split_shares (SUM(shares) == parent transaction amount) fires AFTER INSERT/UPDATE/DELETE on each row. If it fires immediately after each row, inserting multiple shares within a single transaction would fail after the first insert (partial sum < total).
