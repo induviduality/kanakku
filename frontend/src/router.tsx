@@ -23,6 +23,7 @@ import PiggyBankFormPage from './pages/PiggyBankForm'
 import Imports from './pages/Imports'
 import ImportUpload from './pages/ImportUpload'
 import ImportReview from './pages/ImportReview'
+import SettingsLLMActivity from './pages/SettingsLLMActivity'
 
 const rootRoute = createRootRoute({ component: Outlet })
 
@@ -188,6 +189,12 @@ const importReviewRoute = createRoute({
   component: ImportReview,
 })
 
+const settingsLLMActivityRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/settings/llm-activity',
+  component: SettingsLLMActivity,
+})
+
 const routeTree = rootRoute.addChildren([
   indexRoute,
   setupRoute,
@@ -216,6 +223,7 @@ const routeTree = rootRoute.addChildren([
   importsRoute,
   importUploadRoute,
   importReviewRoute,
+  settingsLLMActivityRoute,
 ])
 
 export const router = createRouter({ routeTree })

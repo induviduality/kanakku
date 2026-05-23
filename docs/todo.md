@@ -374,10 +374,10 @@
 - [x] Tests: every call logged
 
 ### Task 9.4: Frontend — LLM Activity Page
-- [ ] pages/SettingsLLMActivity.tsx
-- [ ] Filter by operation/backend
-- [ ] Expand for payload summary
-- [ ] Tests
+- [x] pages/SettingsLLMActivity.tsx
+- [x] Filter by operation/backend
+- [x] Expand for payload summary
+- [x] Tests
 
 ---
 

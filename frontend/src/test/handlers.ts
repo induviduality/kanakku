@@ -305,6 +305,41 @@ export const IMPORT_RECORDS_RESPONSE = [
   },
 ]
 
+export const LLM_ACTIVITY_RESPONSE: Array<{
+  id: string
+  user_id: string
+  operation: string
+  payload_summary: Record<string, unknown>
+  backend: string
+  model: string
+  duration_ms: number
+  succeeded: boolean
+  created_at: string
+}> = [
+  {
+    id: 'llm-1',
+    user_id: 'user-1',
+    operation: 'suggest_category',
+    payload_summary: { payee: 'Zomato', description_length: 10, category_count: 5 },
+    backend: 'ollama',
+    model: 'qwen2.5:1.5b',
+    duration_ms: 420,
+    succeeded: true,
+    created_at: '2026-05-01T10:00:00Z',
+  },
+  {
+    id: 'llm-2',
+    user_id: 'user-1',
+    operation: 'match_gpay_to_bank',
+    payload_summary: { gpay_count: 3, candidate_count: 5 },
+    backend: 'ollama',
+    model: 'qwen2.5:1.5b',
+    duration_ms: 800,
+    succeeded: false,
+    created_at: '2026-05-02T11:00:00Z',
+  },
+]
+
 export const DASHBOARD_RESPONSE = {
   month: '2026-05',
   total_spent_net: '1410.00',
@@ -649,6 +684,17 @@ export const handlers = [
   http.post('/api/v1/imports/:batchId/reject', () =>
     HttpResponse.json({ ...IMPORT_BATCHES_RESPONSE[0], total_rejected: 3 }),
   ),
+
+  // LLM Activity
+  http.get('/api/v1/settings/llm-activity', ({ request }) => {
+    const url = new URL(request.url)
+    const op = url.searchParams.get('operation')
+    const be = url.searchParams.get('backend')
+    let data = LLM_ACTIVITY_RESPONSE
+    if (op) data = data.filter((l) => l.operation === op)
+    if (be) data = data.filter((l) => l.backend === be)
+    return HttpResponse.json(data)
+  }),
 
   // Tags
   http.get('/api/v1/tags', () => HttpResponse.json(TAGS_RESPONSE)),

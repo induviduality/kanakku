@@ -9,6 +9,13 @@
 - backend/pyproject.toml: added ollama>=0.4 dependency
 - backend/tests/test_llm_interface.py: 8 tests — factory dispatch (none/unknown/ollama), NullClient safety (suggest/match/empty)
 
+### Task 9.4: Frontend — LLM Activity Page
+- frontend/src/api/settings.ts: LLMActivityLog interface; useGetLLMActivity hook with operation/backend/limit params
+- frontend/src/pages/SettingsLLMActivity.tsx: table of recent LLM calls (timestamp, operation, backend, model, duration_ms, status badge); expand-row button for payload_summary JSON; filter dropdowns for operation and backend
+- frontend/src/router.tsx: /settings/llm-activity route added
+- frontend/src/test/handlers.ts: LLM_ACTIVITY_RESPONSE fixture (suggest_category/match_gpay_to_bank); MSW handler for GET /settings/llm-activity with operation+backend filter support
+- frontend/src/pages/SettingsLLMActivity.test.tsx: 8 tests (title, rows after load, backend/model columns, badges, duration, expand payload, operation filter, backend filter)
+
 ### Task 9.3: LLM Activity Log
 - backend/app/models/llm_activity_log.py: LLMActivityLog model (id, user_id, operation, payload_summary JSONB, backend, model, duration_ms, succeeded, created_at)
 - backend/alembic/versions/0015_llm_activity_log.py: migration creating llm_activity_log table with user_id index
