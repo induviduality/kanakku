@@ -2,28 +2,35 @@
 
 ## Completed Tasks
 - 5.1 Budgets Schema
+- 5.2 Recurrence Expansion
 
 ## Remaining Tasks
-- 5.2 Recurrence Expansion
 - 5.3 Budgets CRUD with Scope Semantics
 - 5.4 Transaction-Budget Linking
 - 5.5 Frontend — Budgets
 
-## Next Task: 5.2 — Recurrence Expansion
+## Next Task: 5.3 — Budgets CRUD with Scope Semantics
 
-### What to implement
+### Endpoints
+- POST /budgets
+- GET /budgets (?include_inactive=true)
+- GET /budgets/{id}
+- PATCH /budgets/{id}?scope=current_and_future|future_only
+- DELETE /budgets/{id}?scope=instance|current_and_future|future_only
 
-`backend/app/services/budget_expander.py`:
-- `expand_budget(budget, window_start, window_end) -> list[BudgetInstance]`
-  - recurring: parse RRULE via python-dateutil, return instances within window
-  - ad-hoc with dates: single instance from dates
-  - ad-hoc without dates, active: one open-ended instance
-- `BudgetInstance` dataclass: (budget_id, start_date, end_date, amount, is_modified, modified_budget_id, categories)
-- If a modified instance exists for a given start_date, use it instead of the template
+### Edit semantics
+- future_only: clone budget at next recurrence boundary; old gets end_date set
+- current_and_future: edit in place
+- ad-hoc: scope ignored, direct edit
 
-`backend/tests/test_budget_expander.py`:
-- monthly RRULE → 12 instances in a year
-- weekly RRULE → ~4-5 in a month
-- modified instance override
-- ad-hoc with dates
-- ad-hoc without dates (open-ended)
+### Delete semantics
+- instance: create a modified instance with amount=0 (treated as deleted)
+- future_only: set end_date = current occurrence end
+- current_and_future: soft delete (set deleted_at)
+- ad-hoc: scope ignored, soft delete
+
+### Files
+- backend/app/schemas/budget.py
+- backend/app/routers/budgets.py
+- backend/app/main.py (register router)
+- backend/tests/test_budgets.py (every scope path)

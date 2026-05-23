@@ -239,10 +239,10 @@
 - [x] Tests
 
 ### Task 5.2: Recurrence Expansion
-- [ ] services/budget_expander.py
-- [ ] All expansion scenarios
-- [ ] Modified instance override
-- [ ] Tests
+- [x] services/budget_expander.py
+- [x] All expansion scenarios
+- [x] Modified instance override
+- [x] Tests
 
 ### Task 5.3: Budgets CRUD with Scope Semantics
 - [ ] All endpoints with scope params
