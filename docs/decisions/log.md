@@ -1,6 +1,18 @@
 # Decision Log
 The format: date, title, context, decision, alternatives, what it affects.
 
+## 2026-05-23 — Setup prerequisites live in docs/SETUP.md, not docs/running.md
+
+**Context:** `docs/running.md` already covers how to run the stack (options 1–3), but had no coherent "what do I install on this machine first" section per deployment target. The README linked nowhere useful.
+
+**Decision:** Created `docs/SETUP.md` as the dedicated "start here" file covering OS-level prerequisites (Git, Docker, Python, Bun) for three scenarios: Local PC, Pi 5, Cloud VPS. `docs/running.md` retains the run instructions and gets a one-line cross-reference. README updated to link SETUP.md prominently.
+
+**Alternatives considered:**
+- Extend the existing Prerequisites table in `running.md` — that file is already long; mixing "install Docker" with "run migrations" in one document was the root of the confusion
+- One file per scenario — unnecessary fragmentation; a single SETUP.md with H2 sections per scenario is scannable
+
+**Affects:** `docs/SETUP.md` (new), `README.md`, `docs/running.md` (cross-ref only), `docs/todo.md` (backlog items added).
+
 ## 2026-05-23 — transaction_budgets join table created without budget_id FK
 
 **Context:** Task 3.1 requires a transaction_budgets join table, but the budgets table doesn't exist until M5.

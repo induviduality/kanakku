@@ -1,5 +1,12 @@
 # Completed Milestones
 
+## Setup Guide & README
+
+- docs/SETUP.md: new "start here" guide with platform-specific install commands for three scenarios — Local PC (Windows/macOS), Raspberry Pi 5, Cloud VPS (Ubuntu 22.04/24.04). Covers OS-level prerequisites (Docker, Git, openssl), platform-specific install commands (winget/brew/apt/get.docker.com), DNS setup for VPS, and links to the relevant running.md section per scenario.
+- README.md: replaced 2-line stub with navigation table linking SETUP.md, running.md, TDD.md, and decisions log.
+- docs/running.md: added "First time? See SETUP.md" cross-reference at the top.
+- docs/todo.md: Diagrams Backlog and Setup & Docs Backlog sections added.
+
 ## Milestone 3: Transactions (Tasks 3.1–3.4)
 
 ### Task 3.1: Transactions Schema
