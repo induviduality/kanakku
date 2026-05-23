@@ -2,6 +2,11 @@
 
 ## Milestone 4: Splits (in progress)
 
+### Task 4.4: Settle / Forgive Endpoints
+- app/schemas/split.py: added SettleRequest schema
+- app/routers/splits.py: POST /splits/{id}/shares/{id}/settle (validates pending status, income txn ownership, not-already-used), /forgive (pending only), /unsettle (settled only, clears settled_at + settlement_transaction_id)
+- tests/test_splits_settle.py: 13 tests — settle happy path, already-settled fail, settle-forgiven fail, wrong txn type (422), income already used (409), forgive happy path, forgive-settled fail, unsettle happy path, unsettle-pending fail, unsettle-forgiven fail, auth guard, share-not-found
+
 ### Task 4.3: Retroactive Bundling
 - app/schemas/split.py: added ForgivenShareCreate and BundleCreate schemas
 - app/routers/splits.py: POST /splits/bundle — validates expense type and ownership, checks no existing split (409), loads and validates each income leg (type, existence, not-already-settled), enforces FR-7.6 (income+forgiven ≤ expense), computes user own share as remainder, creates Split + settled/forgiven/pending shares atomically

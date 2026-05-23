@@ -53,6 +53,10 @@ class SplitCreate(BaseModel):
         return v
 
 
+class SettleRequest(BaseModel):
+    settlement_transaction_id: uuid.UUID
+
+
 class SplitShareResponse(BaseModel):
     id: uuid.UUID
     split_id: uuid.UUID

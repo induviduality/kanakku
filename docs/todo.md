@@ -212,8 +212,8 @@
 - [x] Tests: all paths
 
 ### Task 4.4: Settle / Forgive Endpoints
-- [ ] settle, forgive, unsettle
-- [ ] Tests: all transitions
+- [x] settle, forgive, unsettle
+- [x] Tests: all transitions
 
 ### Task 4.5: Net Expense Calculation
 - [ ] services/expense_calculator.py

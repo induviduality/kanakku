@@ -9,7 +9,7 @@ from app.dependencies import get_current_user
 from app.models.split import Split, SplitShare, SplitShareStatus
 from app.models.transaction import Transaction, TransactionType
 from app.models.user import User
-from app.schemas.split import BundleCreate, SplitCreate, SplitResponse, SplitShareResponse
+from app.schemas.split import BundleCreate, SettleRequest, SplitCreate, SplitResponse, SplitShareResponse
 from app.services.split_service import SplitInvariantError, validate_invariant
 
 router = APIRouter(prefix="/splits", tags=["splits"])
@@ -285,3 +285,126 @@ async def get_split(
         )
     ).scalars().all()
     return _build_response(split, list(shares))
+
+
+async def _get_share_or_404(
+    split_id: uuid.UUID, share_id: uuid.UUID, user: User, session: AsyncSession
+) -> tuple[Split, SplitShare]:
+    split = await _get_split_or_404(split_id, user, session)
+    share = (
+        await session.execute(
+            select(SplitShare).where(
+                SplitShare.id == share_id, SplitShare.split_id == split.id
+            )
+        )
+    ).scalar_one_or_none()
+    if share is None:
+        raise HTTPException(status_code=404, detail="Share not found")
+    return split, share
+
+
+@router.post(
+    "/{split_id}/shares/{share_id}/settle",
+    response_model=SplitShareResponse,
+)
+async def settle_share(
+    split_id: uuid.UUID,
+    share_id: uuid.UUID,
+    body: SettleRequest,
+    user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+) -> SplitShareResponse:
+    from datetime import UTC, datetime
+
+    _, share = await _get_share_or_404(split_id, share_id, user, session)
+    if share.status != SplitShareStatus.pending:
+        raise HTTPException(
+            status_code=422,
+            detail=f"Share is {share.status.value}, only pending shares can be settled",
+        )
+
+    # Validate settlement transaction
+    inc = (
+        await session.execute(
+            select(Transaction).where(
+                Transaction.id == body.settlement_transaction_id,
+                Transaction.user_id == user.id,
+                Transaction.deleted_at.is_(None),
+            )
+        )
+    ).scalar_one_or_none()
+    if inc is None:
+        raise HTTPException(status_code=404, detail="Settlement transaction not found")
+    if inc.type != TransactionType.income:
+        raise HTTPException(
+            status_code=422, detail="Settlement transaction must be an income transaction"
+        )
+
+    # Ensure the income transaction isn't already used by another share
+    existing = (
+        await session.execute(
+            select(SplitShare).where(
+                SplitShare.settlement_transaction_id == body.settlement_transaction_id,
+                SplitShare.id != share_id,
+            )
+        )
+    ).scalar_one_or_none()
+    if existing is not None:
+        raise HTTPException(
+            status_code=409, detail="Settlement transaction already linked to another share"
+        )
+
+    share.status = SplitShareStatus.settled
+    share.settled_at = datetime.now(UTC)
+    share.settlement_transaction_id = body.settlement_transaction_id
+    await session.commit()
+    return SplitShareResponse.model_validate(share)
+
+
+@router.post(
+    "/{split_id}/shares/{share_id}/forgive",
+    response_model=SplitShareResponse,
+)
+async def forgive_share(
+    split_id: uuid.UUID,
+    share_id: uuid.UUID,
+    user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+) -> SplitShareResponse:
+    from datetime import UTC, datetime
+
+    _, share = await _get_share_or_404(split_id, share_id, user, session)
+    if share.status != SplitShareStatus.pending:
+        raise HTTPException(
+            status_code=422,
+            detail=f"Share is {share.status.value}, only pending shares can be forgiven",
+        )
+
+    share.status = SplitShareStatus.forgiven
+    share.forgiven_at = datetime.now(UTC)
+    await session.commit()
+    return SplitShareResponse.model_validate(share)
+
+
+@router.post(
+    "/{split_id}/shares/{share_id}/unsettle",
+    response_model=SplitShareResponse,
+)
+async def unsettle_share(
+    split_id: uuid.UUID,
+    share_id: uuid.UUID,
+    user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+) -> SplitShareResponse:
+    _, share = await _get_share_or_404(split_id, share_id, user, session)
+    if share.status != SplitShareStatus.settled:
+        raise HTTPException(
+            status_code=422,
+            detail=f"Share is {share.status.value}, only settled shares can be unsettled",
+        )
+
+    share.status = SplitShareStatus.pending
+    share.settled_at = None
+    share.settlement_transaction_id = None
+    await session.commit()
+    return SplitShareResponse.model_validate(share)
