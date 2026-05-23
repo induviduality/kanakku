@@ -894,6 +894,37 @@ export const handlers = [
     return HttpResponse.json(data)
   }),
 
+  // Portability — Export
+  http.post('/api/v1/export', () =>
+    HttpResponse.json(
+      {
+        id: 'job-1',
+        status: 'done',
+        created_at: '2026-01-01T00:00:00Z',
+        completed_at: '2026-01-01T00:00:05Z',
+        error: null,
+      },
+      { status: 202 },
+    ),
+  ),
+  http.get('/api/v1/export/:jobId', ({ params }) =>
+    HttpResponse.json({
+      id: params.jobId,
+      status: 'done',
+      created_at: '2026-01-01T00:00:00Z',
+      completed_at: '2026-01-01T00:00:05Z',
+      error: null,
+    }),
+  ),
+  http.get('/api/v1/export/:jobId/download', () =>
+    new HttpResponse(new Blob(['fake-archive']), {
+      headers: { 'Content-Type': 'application/gzip' },
+    }),
+  ),
+  http.post('/api/v1/import-archive', () =>
+    HttpResponse.json({ imported_tables: { accounts: 2, transactions: 10 }, total_records: 12 }),
+  ),
+
   // Tags
   http.get('/api/v1/tags', () => HttpResponse.json(TAGS_RESPONSE)),
   http.post('/api/v1/tags', async ({ request }) => {

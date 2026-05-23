@@ -54,6 +54,16 @@
 - backend/app/cli.py: python -m app.cli with create-user, export-archive, import-archive commands (argparse, async)
 - backend/tests/test_cli.py: 6 tests (create-user, duplicate exit, export creates file, unknown user exit, roundtrip, wrong schema version)
 
+### Task 12.4: Frontend — Export/Import UI
+- frontend/src/api/portability.ts: useTriggerExport, useGetExportJob (polling), useImportArchive hooks
+- frontend/src/pages/SettingsDataExport.tsx: trigger export, poll for done, download link
+- frontend/src/pages/SettingsDataImport.tsx: file upload with safety warning, success with record counts
+- frontend/src/router.tsx: /settings/export and /settings/import routes
+- frontend/src/test/handlers.ts: MSW handlers for export/import-archive endpoints
+- frontend/src/pages/SettingsDataExport.test.tsx + SettingsDataImport.test.tsx: 12 tests passing (249 total)
+
+## Milestone 12: Data Portability — COMPLETE
+
 ### Task 11.2: Schema Reference Endpoint
 - backend/app/routers/reports.py: GET /reports/schema — hand-curated 19-table schema with column types, descriptions, FK metadata
 - backend/app/schemas/reports.py: ColumnInfo, TableInfo, SchemaResponse schemas

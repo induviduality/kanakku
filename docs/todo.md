@@ -455,9 +455,9 @@
 - [x] Tests
 
 ### Task 12.4: Frontend — Export/Import UI
-- [ ] pages/SettingsDataExport.tsx with polling
-- [ ] pages/SettingsDataImport.tsx with safety warning
-- [ ] Tests
+- [x] pages/SettingsDataExport.tsx with polling
+- [x] pages/SettingsDataImport.tsx with safety warning
+- [x] Tests
 
 ---
 

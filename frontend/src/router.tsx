@@ -29,6 +29,8 @@ import GPayResolve from './pages/GPayResolve'
 import GPayOrphans from './pages/GPayOrphans'
 import Reports from './pages/Reports'
 import ReportDashboard from './pages/ReportDashboard'
+import SettingsDataExport from './pages/SettingsDataExport'
+import SettingsDataImport from './pages/SettingsDataImport'
 
 const rootRoute = createRootRoute({ component: Outlet })
 
@@ -230,6 +232,18 @@ const reportDashboardRoute = createRoute({
   component: ReportDashboard,
 })
 
+const settingsDataExportRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/settings/export',
+  component: SettingsDataExport,
+})
+
+const settingsDataImportRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/settings/import',
+  component: SettingsDataImport,
+})
+
 const routeTree = rootRoute.addChildren([
   indexRoute,
   setupRoute,
@@ -264,6 +278,8 @@ const routeTree = rootRoute.addChildren([
   gpayOrphansRoute,
   reportsRoute,
   reportDashboardRoute,
+  settingsDataExportRoute,
+  settingsDataImportRoute,
 ])
 
 export const router = createRouter({ routeTree })
