@@ -82,3 +82,15 @@ The format: date, title, context, decision, alternatives, what it affects.
 - Shell alias / Makefile target — less discoverable, doesn't compose well across presets
 
 **Affects:** `.dev-config.yml`, `infra/load-dev-config.py`, `infra/env.example`, `DEV_MODE_SETUP.md`. No backend code changes; backend still reads `DEV_MODE` as before.
+## 2026-05-23 — Export and import-archive share one router file; ExportJob stored in DB (not Redis)
+
+**Context:** Tasks 12.1 (export) and 12.2 (import-archive) both need /export and /import-archive endpoints. Job status needs persistence across the ARQ worker and the API process.
+
+**Decision:** Put both endpoints in `app/routers/export.py`. Used a DB-backed `ExportJob` model for status (pending/running/done/failed) rather than Redis keys, so job history is durable and queryable. Import-archive runs synchronously inside the API handler (no separate ARQ job) since the operation is bounded by archive size and a single-user transaction.
+
+**Alternatives considered:**
+- Redis-only status store — lost on restart; requires Redis to be running in tests
+- Separate router files — needless fragmentation for two small endpoint groups
+- ARQ job for import — adds queue latency with no benefit; the atomic DB transaction blocks anyway
+
+**Affects:** `app/models/export_job.py`, `app/routers/export.py`, `0019_export_jobs.py`.

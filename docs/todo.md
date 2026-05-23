@@ -434,19 +434,19 @@
 ## Milestone 12: Data Portability
 
 ### Task 12.1: JSON Archive Export
-- [ ] POST /export triggers ARQ job
-- [ ] tar.gz with manifest + per-table JSON
-- [ ] GET /export/{job_id} status
-- [ ] GET /export/{job_id}/download
-- [ ] Tests
+- [x] POST /export triggers ARQ job
+- [x] tar.gz with manifest + per-table JSON
+- [x] GET /export/{job_id} status
+- [x] GET /export/{job_id}/download
+- [x] Tests
 
 ### Task 12.2: JSON Archive Import
-- [ ] POST /import-archive
-- [ ] Schema version validation
-- [ ] UUID conflict detection
-- [ ] Atomic load
-- [ ] Restricted to fresh user
-- [ ] Tests
+- [x] POST /import-archive
+- [x] Schema version validation
+- [x] UUID conflict detection
+- [x] Atomic load
+- [x] Restricted to fresh user
+- [x] Tests
 
 ### Task 12.3: CLI & Backup Scripts
 - [ ] infra/scripts/backup.sh

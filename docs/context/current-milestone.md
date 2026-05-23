@@ -26,3 +26,12 @@
 - 11.4 Frontend — Reports (pages/Reports.tsx, pages/ReportDashboard.tsx, components/reports/*, react-grid-layout, @uiw/react-codemirror, 37 tests) — DONE
 
 ## Milestone 11: Reports & Custom Dashboards — COMPLETE
+
+# Milestone 12: Data Portability — In Progress
+
+## Completed Tasks
+- 12.1 JSON Archive Export (ExportJob model, migration, export_archive ARQ job, 3 endpoints, 8 tests) — DONE
+- 12.2 JSON Archive Import (POST /import-archive, fresh-user guard, UUID conflict detection, 5 tests) — DONE
+
+## Next Task
+- 12.3 CLI & Backup Scripts (backup.sh, restore.sh, python -m app.cli, tests)

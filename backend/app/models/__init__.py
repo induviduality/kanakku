@@ -1,4 +1,5 @@
 from app.models.account import Account
+from app.models.export_job import ExportJob, ExportJobStatus
 from app.models.gpay_match import GPayMatch, GPayMatchStatus
 from app.models.report_dashboard import ReportDashboard, ReportWidget, VizType
 from app.models.llm_activity_log import LLMActivityLog
@@ -45,4 +46,5 @@ __all__ = [
     "LLMActivityLog",
     "GPayMatch", "GPayMatchStatus",
     "ReportDashboard", "ReportWidget", "VizType",
+    "ExportJob", "ExportJobStatus",
 ]

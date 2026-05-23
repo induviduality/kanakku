@@ -34,6 +34,20 @@
 
 ## Milestone 11: Reports & Custom Dashboards — COMPLETE
 
+## Milestone 12: Data Portability — In Progress
+
+### Task 12.1: JSON Archive Export
+- backend/app/models/export_job.py: ExportJob model (pending/running/done/failed status, file_path)
+- backend/alembic/versions/0019_export_jobs.py: migration
+- backend/app/schemas/export.py: ExportJobResponse schema
+- backend/app/workers/export_worker.py: export_archive ARQ job — queries 24 tables in dependency order, writes tar.gz with manifest.json + per-table JSON arrays
+- backend/app/routers/export.py: POST /export (enqueue/inline fallback), GET /export/{job_id}, GET /export/{job_id}/download
+- backend/tests/test_export.py: 8 tests (trigger, status, download, data isolation, unauthenticated)
+
+### Task 12.2: JSON Archive Import
+- backend/app/routers/export.py: POST /import-archive — validates schema_version, fresh-user guard (409 if has transactions), UUID conflict detection, atomic INSERT in dependency order with user_id remapping
+- backend/tests/test_import_archive.py: 5 tests (roundtrip, blocked with transactions, wrong version, malformed, unauthenticated)
+
 ### Task 11.2: Schema Reference Endpoint
 - backend/app/routers/reports.py: GET /reports/schema — hand-curated 19-table schema with column types, descriptions, FK metadata
 - backend/app/schemas/reports.py: ColumnInfo, TableInfo, SchemaResponse schemas
