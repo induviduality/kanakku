@@ -3,13 +3,24 @@
 ## Completed Tasks
 - 5.1 Budgets Schema
 - 5.2 Recurrence Expansion
+- 5.3 Budgets CRUD with Scope Semantics
 
 ## Remaining Tasks
-- 5.3 Budgets CRUD with Scope Semantics
 - 5.4 Transaction-Budget Linking
 - 5.5 Frontend — Budgets
 
-## Next Task: 5.3 — Budgets CRUD with Scope Semantics
+## Next Task: 5.4 — Transaction-Budget Linking
+
+### What to implement
+- POST /transactions and PATCH /transactions/{id} already accept budget_ids (from M3 stub); wire them to actually insert into transaction_budgets
+- GET /budgets/{id}/transactions: list transactions linked to this budget, with optional ?from and ?to date filters scoped to the budget's instance window
+- Spent calc: explicit transaction_budgets links + category-match auto-include (transactions whose category_id is in budget_categories for this budget and transacted_at in window)
+- Response distinguishes: `linked_explicitly` vs `linked_via_category` per transaction
+
+### Files
+- backend/app/routers/budgets.py: add GET /budgets/{id}/transactions
+- backend/app/routers/transactions.py: wire budget_ids on create/patch
+- backend/tests/test_budget_linking.py
 
 ### Endpoints
 - POST /budgets

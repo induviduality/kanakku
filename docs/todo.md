@@ -245,9 +245,9 @@
 - [x] Tests
 
 ### Task 5.3: Budgets CRUD with Scope Semantics
-- [ ] All endpoints with scope params
-- [ ] Edit/delete scope handling
-- [ ] Tests: every scope combination
+- [x] All endpoints with scope params
+- [x] Edit/delete scope handling
+- [x] Tests: every scope combination
 
 ### Task 5.4: Transaction-Budget Linking
 - [ ] Transactions accept budget_ids

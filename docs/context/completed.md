@@ -2,6 +2,12 @@
 
 ## Milestone 5: Budgets (in progress)
 
+### Task 5.3: Budgets CRUD with Scope Semantics
+- app/schemas/budget.py: BudgetCreate, BudgetPatch, BudgetResponse, EditScope (current_and_future/future_only), DeleteScope (instance/current_and_future/future_only)
+- app/routers/budgets.py: POST /budgets, GET /budgets (?include_inactive), GET /budgets/{id}, PATCH /budgets/{id}?scope, DELETE /budgets/{id}?scope; edit future_only clones budget at next recurrence boundary; delete instance creates soft-deleted modified instance; delete future_only caps end_date; delete current_and_future soft-deletes; ad-hoc ignores scope
+- app/main.py: budgets_router registered
+- tests/test_budgets.py: 20 integration tests — create adhoc/recurring/with-categories, invalid amount, auth guard, list active/inactive/cross-user, get/404/cross-user, patch adhoc/current_and_future/future_only, delete adhoc/current_and_future/future_only/instance/auth
+
 ### Task 5.2: Recurrence Expansion
 - app/services/budget_expander.py: expand_budget(budget, window_start, window_end, modified_instances, category_ids) → list[BudgetInstance]; BudgetInstance dataclass (budget_id, start_date, end_date, amount, is_modified, modified_budget_id, category_ids); handles recurring (RRULE via python-dateutil, period end = day before next occurrence), ad-hoc with dates (single instance), ad-hoc without dates active (open-ended), ad-hoc inactive (empty); modified instances override template by matching start_date
 - tests/test_budget_expander.py: 12 pure-unit tests (no DB) — monthly 12 in a year, monthly amounts, monthly start dates, window filtering, weekly 4-5 in a month, weekly not-modified, modified override, non-overridden months, adhoc-with-dates, adhoc-without-dates-active, adhoc-without-dates-inactive, category_ids propagation
