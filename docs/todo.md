@@ -293,17 +293,17 @@
 ## Milestone 7: Home Dashboard
 
 ### Task 7.1: Dashboard Endpoint
-- [ ] GET /dashboard/home with parallel sub-queries
-- [ ] Tests: structure, empty state, cross-check
+- [x] GET /dashboard/home with parallel sub-queries
+- [x] Tests: structure, empty state, cross-check
 
 ### Task 7.2: Frontend — Dashboard
-- [ ] pages/Dashboard.tsx responsive grid
-- [ ] components/dashboard/BudgetProgressCard.tsx
-- [ ] components/dashboard/CategoryBreakdownChart.tsx
-- [ ] components/dashboard/SubscriptionStatusBadge.tsx
-- [ ] components/dashboard/PiggyBankProgressRing.tsx
-- [ ] Skeleton loaders
-- [ ] Tests
+- [x] pages/Dashboard.tsx responsive grid
+- [x] components/dashboard/BudgetProgressCard.tsx
+- [x] components/dashboard/CategoryBreakdownChart.tsx
+- [x] components/dashboard/SubscriptionStatusBadge.tsx
+- [x] components/dashboard/PiggyBankProgressRing.tsx
+- [x] Skeleton loaders
+- [x] Tests
 
 ---
 

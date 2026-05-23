@@ -1,8 +1,7 @@
-# Milestone 6: Subscriptions & Piggy Banks — COMPLETE
+# Milestone 7: Home Dashboard — COMPLETE
 
 All tasks done:
-- 6.1 Subscriptions — COMPLETE
-- 6.2 Piggy Banks — COMPLETE
-- 6.3 Frontend: Subscriptions & Piggy Banks — COMPLETE
+- 7.1 Dashboard Backend Endpoint — COMPLETE
+- 7.2 Frontend Dashboard (page + 4 components, skeleton loaders, 24 tests) — COMPLETE
 
-## Next: Milestone 7 — Home Dashboard
+## Next: Milestone 8 — Reports & Analytics

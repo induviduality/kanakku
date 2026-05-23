@@ -1,5 +1,25 @@
 # Completed Milestones
 
+## Milestone 7: Home Dashboard — COMPLETE
+
+### Task 7.1: Dashboard Backend Endpoint
+- backend/app/schemas/dashboard.py: DashboardResponse + 7 sub-schemas (BudgetSummaryItem, CategoryBreakdownItem, PendingSplitsSummary, PiggyBankSummaryItem, AccountBalanceItem, ActiveSubscriptionItem, RecentTransaction)
+- backend/app/routers/dashboard.py: GET /dashboard/home; _month_window(), _budget_status() helpers; 8 sub-query helpers (monthly_totals, budgets_summary, category_breakdown, recent_transactions, pending_splits_summary, piggy_banks_summary, account_balances, active_subscriptions)
+- backend/app/main.py: dashboard router registered
+- backend/tests/test_dashboard.py: 16 integration tests (structure, totals, transfers excluded, cross-user, category breakdown, budget summary, over_budget, piggy banks, subscriptions, pending splits, prev month excluded)
+
+### Task 7.2: Frontend — Dashboard
+- frontend/src/api/dashboard.ts: DashboardData and all sub-interfaces; useGetDashboard() hook
+- frontend/src/pages/Dashboard.tsx: responsive grid with skeleton loaders; StatCard, hero stats (total_spent_net/total_income/net), budgets, category chart, subscriptions, piggy banks, pending splits, account balances, recent transactions; error state
+- frontend/src/components/dashboard/BudgetProgressCard.tsx: status badge (on_track/warning/over_budget), progress bar, spent/amount display
+- frontend/src/components/dashboard/CategoryBreakdownChart.tsx: Recharts donut PieChart; wrapped in <div aria-label="..."> (Recharts doesn't forward aria-label in jsdom)
+- frontend/src/components/dashboard/SubscriptionStatusBadge.tsx: color-coded badge (green/amber/red) with aria-label
+- frontend/src/components/dashboard/PiggyBankProgressRing.tsx: SVG circle ring with aria-label, green on completed
+- frontend/src/router.tsx: index route wired to Dashboard
+- frontend/src/test/handlers.ts: DASHBOARD_RESPONSE fixture + MSW handler
+- Tests: Dashboard.test.tsx (10), BudgetProgressCard.test.tsx (5), CategoryBreakdownChart.test.tsx (2), SubscriptionStatusBadge.test.tsx (3), PiggyBankProgressRing.test.tsx (4) = 24 tests
+- backend/app/dev_seed.py: idempotent seed data with realistic scenarios (subscriptions/piggy banks/budgets/transactions) for dev mode
+
 ## Milestone 6: Subscriptions & Piggy Banks — COMPLETE
 
 ### Task 6.3: Frontend — Subscriptions & Piggy Banks

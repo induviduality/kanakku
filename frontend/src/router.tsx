@@ -1,4 +1,5 @@
 import { createRootRoute, createRoute, createRouter, Outlet } from '@tanstack/react-router'
+import Dashboard from './pages/Dashboard'
 import Login from './pages/Login'
 import Setup from './pages/Setup'
 import AcceptInvite from './pages/AcceptInvite'
@@ -25,7 +26,7 @@ const rootRoute = createRootRoute({ component: Outlet })
 const indexRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/',
-  component: () => <div className="p-8 text-gray-500">Dashboard coming soon.</div>,
+  component: Dashboard,
 })
 
 const setupRoute = createRoute({

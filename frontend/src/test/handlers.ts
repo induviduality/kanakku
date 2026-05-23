@@ -269,7 +269,78 @@ export const TAGS_RESPONSE = [
   },
 ]
 
+export const DASHBOARD_RESPONSE = {
+  month: '2026-05',
+  total_spent_net: '1410.00',
+  total_income: '85000.00',
+  budgets_summary: [
+    {
+      id: 'budget-1',
+      name: 'Food Budget',
+      amount: '5000.00',
+      currency: 'INR',
+      spent: '1410.00',
+      percentage: 28.2,
+      status: 'on_track',
+    },
+  ],
+  category_breakdown: [
+    { category_id: 'cat-1', name: 'Food & Dining', amount: '1410.00', percentage: 100.0 },
+  ],
+  recent_transactions: [
+    {
+      id: 'txn-1',
+      type: 'expense',
+      transacted_at: '2026-05-18T10:00:00Z',
+      amount: '420.00',
+      currency: 'INR',
+      description: 'Dinner order',
+      account_id: 'acc-1',
+      payee_id: 'payee-1',
+      category_ids: ['cat-1'],
+    },
+  ],
+  pending_splits_summary: {
+    count: 1,
+    total_owed: '500.00',
+    by_payee: [{ payee_id: 'payee-1', payee_name: 'Swiggy', total: '500.00' }],
+  },
+  piggy_banks_summary: [
+    {
+      id: 'pig-1',
+      name: 'Europe Trip',
+      target_amount: '200000.00',
+      current_amount: '60000.00',
+      currency: 'INR',
+      progress_pct: 30,
+      is_completed: false,
+    },
+  ],
+  account_balances: [
+    {
+      id: 'acc-1',
+      name: 'HDFC Savings',
+      type: 'bank',
+      currency: 'INR',
+      current_balance: '87430.00',
+    },
+  ],
+  active_subscriptions: [
+    {
+      id: 'sub-1',
+      name: 'Netflix',
+      amount: '649.00',
+      currency: 'INR',
+      status: 'upcoming',
+      next_billing_date: '2026-06-15',
+    },
+  ],
+}
+
 export const handlers = [
+  // Dashboard
+  http.get('/api/v1/dashboard/home', () => HttpResponse.json(DASHBOARD_RESPONSE)),
+
   http.post('/api/v1/auth/setup', () => HttpResponse.json(TOKEN_RESPONSE, { status: 201 })),
   http.post('/api/v1/auth/login', () => HttpResponse.json(TOKEN_RESPONSE)),
   http.post('/api/v1/auth/accept-invite', () => HttpResponse.json(TOKEN_RESPONSE, { status: 201 })),
