@@ -9,6 +9,17 @@
 - backend/pyproject.toml: added ollama>=0.4 dependency
 - backend/tests/test_llm_interface.py: 8 tests — factory dispatch (none/unknown/ollama), NullClient safety (suggest/match/empty)
 
+## Milestone 10: GPay Takeout Enrichment — In Progress
+
+### Task 10.1: GPay Parser & Matcher
+- backend/app/models/gpay_match.py: GPayMatch model (id, user_id, gpay_data JSONB, candidate_transaction_ids UUID[], chosen_transaction_id, llm_suggestion_id, status enum, created_at); GPayMatchStatus enum (pending/resolved/orphan/auto_linked)
+- backend/alembic/versions/0016_gpay_matches.py: migration creating gpay_matches table
+- backend/app/services/gpay_matcher.py: parse_takeout() accepting JSON string/bytes/dict/list; _parse_record() with multi-format date parsing + currency symbol stripping; match_records() — ±1 day window, ±0.01 amount tolerance; persist_results() — auto-links exact matches, enriches bank txn notes with merchant name
+- backend/app/schemas/gpay.py: GPayMatchResponse, GPayResolveRequest, GPayUploadResponse schemas
+- backend/app/routers/gpay.py: POST /imports/gpay-takeout (upload + match + persist); GET /imports/gpay-matches; GET /imports/gpay-matches/pending; GET /imports/gpay-matches/orphans; POST /imports/gpay-matches/{id}/resolve (validates ownership, marks resolved, enriches txn)
+- backend/app/models/__init__.py + main.py: GPayMatch registered, gpay_router mounted
+- backend/tests/test_gpay_matcher.py: 6 unit tests (parse list, wrapped dict, rupee stripping, invalid skipping, date formats, empty); 5 integration tests (exact auto-link, orphan, ambiguous pending, invalid JSON 422, auth guard); 2 endpoint tests (list matches, resolve+cross-user 404) = 13 total
+
 ### Task 9.4: Frontend — LLM Activity Page
 - frontend/src/api/settings.ts: LLMActivityLog interface; useGetLLMActivity hook with operation/backend/limit params
 - frontend/src/pages/SettingsLLMActivity.tsx: table of recent LLM calls (timestamp, operation, backend, model, duration_ms, status badge); expand-row button for payload_summary JSON; filter dropdowns for operation and backend

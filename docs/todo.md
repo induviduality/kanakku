@@ -384,12 +384,12 @@
 ## Milestone 10: GPay Takeout
 
 ### Task 10.1: GPay Parser & Matcher
-- [ ] POST /imports/gpay-takeout
-- [ ] services/gpay_matcher.py
-- [ ] GPayMatch model
-- [ ] All match paths
-- [ ] LLM invoked only when needed for ambiguous resolution
-- [ ] Tests
+- [x] POST /imports/gpay-takeout
+- [x] services/gpay_matcher.py
+- [x] GPayMatch model
+- [x] All match paths
+- [x] LLM invoked only when needed for ambiguous resolution
+- [x] Tests
 
 ### Task 10.2: Frontend — GPay UI
 - [ ] pages/GPayImport.tsx

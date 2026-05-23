@@ -8,5 +8,13 @@
 
 ## Milestone 9: LLM Integration — COMPLETE
 
-## Next Milestone
-Milestone 10: GPay Takeout Enrichment
+# Milestone 10: GPay Takeout Enrichment — In Progress
+
+## Completed Tasks
+- 10.1 GPay Parser & Matcher (gpay_matcher.py, GPayMatch model, migration, 4 endpoints, 11 tests) — DONE
+
+## Remaining Tasks
+- 10.2 Frontend — GPay UI (GPayImport.tsx, GPayResolve.tsx, GPayOrphans.tsx, tests)
+
+## Next Task
+10.2 Frontend — GPay UI
