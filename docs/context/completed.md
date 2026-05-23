@@ -1,5 +1,13 @@
 # Completed Milestones
 
+## Milestone 5: Budgets (in progress)
+
+### Task 5.1: Budgets Schema
+- app/models/budget.py: Budget model (id, user_id, name, amount, currency, period enum, start_date, end_date, type enum, recurrence_rule, parent_budget_id self-FK, is_modified_instance, is_active, notes, timestamps, deleted_at); BudgetType (recurring/adhoc), BudgetPeriod (daily/weekly/monthly/quarterly/yearly); budget_categories join table
+- alembic/versions/0011_budgets.py: creates budgets + budget_categories tables; adds FK from transaction_budgets.budget_id → budgets.id (deferred from M3)
+- app/models/__init__.py: Budget, BudgetType, BudgetPeriod, budget_categories registered
+- tests/test_budgets_schema.py: 5 tests — recurring budget, adhoc with dates, adhoc without dates, budget_categories join, modified instance with parent FK
+
 ## Milestone 4: Splits (complete)
 
 ### Task 4.6: Frontend — Split UIs

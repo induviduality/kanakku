@@ -1,4 +1,5 @@
 from app.models.account import Account
+from app.models.budget import Budget, BudgetType, BudgetPeriod, budget_categories
 from app.models.category import Category, payee_default_categories
 from app.models.invite_token import InviteToken
 from app.models.payee import Payee
@@ -16,4 +17,5 @@ __all__ = [
     "Transaction", "transaction_categories", "transaction_tags", "transaction_budgets",
     "payee_default_categories",
     "Split", "SplitShare", "SplitShareStatus",
+    "Budget", "BudgetType", "BudgetPeriod", "budget_categories",
 ]

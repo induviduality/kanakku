@@ -234,9 +234,9 @@
 ## Milestone 5: Budgets
 
 ### Task 5.1: Budgets Schema
-- [ ] Budget model with RRULE
-- [ ] budget_categories join
-- [ ] Tests
+- [x] Budget model with RRULE
+- [x] budget_categories join
+- [x] Tests
 
 ### Task 5.2: Recurrence Expansion
 - [ ] services/budget_expander.py
