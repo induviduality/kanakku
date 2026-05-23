@@ -2,6 +2,12 @@
 
 ## Milestone 4: Splits (in progress)
 
+### Task 4.2: Upfront Split Creation
+- app/schemas/split.py: SplitShareCreate (payee_id nullable, amount, notes), SplitCreate (expense_transaction_id, notes, shares), SplitShareResponse, SplitResponse
+- app/routers/splits.py: POST /splits (validates expense type, duplicate, share sum; creates atomically; calls validate_invariant before commit), GET /splits/{id}
+- app/main.py: splits_router registered
+- tests/test_splits.py: 9 tests — happy path, GET, sum mismatch (422), income txn rejected (422), transfer txn rejected (422), nonexistent txn (404), duplicate (409), empty shares (422), auth guard (401), cross-user 404
+
 ### Task 4.1: Splits Schema + Invariant
 - app/models/split.py: Split (id, user_id FK→users CASCADE, expense_transaction_id FK→transactions UNIQUE RESTRICT, notes, timestamps, deleted_at) and SplitShare (id, split_id FK→splits CASCADE, payee_id FK→payees SET NULL nullable, amount Numeric 15,2, status enum pending/settled/forgiven, settled_at, settlement_transaction_id FK→transactions SET NULL nullable, forgiven_at, notes, timestamps)
 - app/services/split_service.py: SplitInvariantError + validate_invariant(session, split_id) — sums split_shares.amount and compares to parent transaction.amount

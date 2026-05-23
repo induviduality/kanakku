@@ -201,9 +201,9 @@
 - [x] Tests: invariant on insert/update/delete
 
 ### Task 4.2: Upfront Split Creation
-- [ ] POST /splits with bundled payload
-- [ ] Atomic creation
-- [ ] Tests: happy path, sum mismatch, type mismatch, rollback
+- [x] POST /splits with bundled payload
+- [x] Atomic creation
+- [x] Tests: happy path, sum mismatch, type mismatch, rollback
 
 ### Task 4.3: Retroactive Bundling
 - [ ] POST /splits/bundle
