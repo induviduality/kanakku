@@ -1,5 +1,7 @@
 # Running Kanakku
 
+> **First time?** Install platform prerequisites before reading this — see [docs/SETUP.md](SETUP.md).
+
 Three ways to run the stack:
 
 1. **Local dev** — native processes, fastest iteration

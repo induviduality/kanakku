@@ -559,6 +559,13 @@
 - [ ] Frontend component tree — page hierarchy, shared components, API hooks
 - [ ] System interaction diagram — FE ↔ BE ↔ DB ↔ Redis ↔ Ollama ↔ Caddy (infra overview showing all services and how data flows between them)
 
+## Setup & Docs Backlog
+
+- [ ] Verify docs/SETUP.md prereq steps on actual Pi 5 hardware
+- [ ] Verify docs/SETUP.md prereq steps on a real cloud VPS (Ubuntu 22.04)
+- [ ] Add `docs/SETUP.md` smoke-test checklist: after prerequisites, confirm docker/git/openssl versions
+- [ ] `docs/running.md` — add note on minimum storage requirements (Pi SD card size, VPS disk)
+
 ---
 
 ## Post-v1 Backlog (Reference Only)
