@@ -1,5 +1,19 @@
 # Completed Milestones
 
+## Task 2.6: Tags CRUD
+- app/models/tag.py: Tag (name, color nullable, soft delete)
+- alembic/versions/0007_tags.py: partial unique index uq_tags_user_name_active (user_id, name WHERE deleted_at IS NULL) — soft-deleting frees the name for reuse
+- app/schemas/tag.py: TagCreate, TagPatch, TagResponse
+- app/routers/tags.py: POST/GET/GET{id}/PATCH/DELETE/restore — 409 on duplicate name, IntegrityError caught on create/patch/restore
+- tests/test_tags.py: 14 tests — CRUD, 409 duplicate, patch-to-duplicate, soft-delete frees name, restore, scoping
+
+## Task 2.5: Categories CRUD
+- app/models/category.py: Category (name, icon, color, applicability enum: expense/income/both nullable, soft delete)
+- alembic/versions/0006_categories.py: creates categories table + payee_default_categories join table (payee_id FK→payees, category_id FK→categories)
+- app/schemas/category.py: CategoryCreate, CategoryPatch, CategoryResponse
+- app/routers/categories.py: POST/GET/GET{id}/PATCH/DELETE/restore + POST /categories/seed-defaults (12 defaults, 409 if any exist)
+- tests/test_categories.py: 13 tests — CRUD, applicability filter, soft delete, restore, seed-defaults, 409 on second seed
+
 ## Task 2.4: Payees CRUD
 - app/models/payee.py: Payee (PayeeType StrEnum: merchant/person/business/other), soft delete, is_active
 - alembic/versions/0005_payees.py: migration with indexes on (user_id) and (user_id, name)

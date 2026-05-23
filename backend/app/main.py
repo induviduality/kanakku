@@ -10,9 +10,11 @@ from app.db.session import async_session_factory
 from app.models.user import User
 from app.routers.accounts import router as accounts_router
 from app.routers.auth import router as auth_router
+from app.routers.categories import router as categories_router
 from app.routers.payees import router as payees_router
 from app.routers.payment_methods import router as payment_methods_router
 from app.routers.settings import router as settings_router
+from app.routers.tags import router as tags_router
 from app.security.passwords import hash_password
 
 DEV_USER_ID = uuid.UUID("11111111-1111-1111-1111-111111111111")
@@ -52,6 +54,8 @@ app.include_router(settings_router, prefix="/api/v1")
 app.include_router(accounts_router, prefix="/api/v1")
 app.include_router(payment_methods_router, prefix="/api/v1")
 app.include_router(payees_router, prefix="/api/v1")
+app.include_router(categories_router, prefix="/api/v1")
+app.include_router(tags_router, prefix="/api/v1")
 
 
 @app.get("/health")

@@ -132,14 +132,14 @@
 - [x] Tests
 
 ### Task 2.5: Categories CRUD
-- [ ] Category model with optional applicability
-- [ ] CRUD + seed-defaults endpoint
-- [ ] Tests
+- [x] Category model with optional applicability
+- [x] CRUD + seed-defaults endpoint
+- [x] Tests
 
 ### Task 2.6: Tags CRUD
-- [ ] Tag model with partial unique index
-- [ ] CRUD
-- [ ] Tests: duplicate 409, soft-delete frees name
+- [x] Tag model with partial unique index
+- [x] CRUD
+- [x] Tests: duplicate 409, soft-delete frees name
 
 ### Task 2.7: Frontend — Settings Page
 - [ ] pages/Settings.tsx

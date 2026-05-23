@@ -1,21 +1,22 @@
-# Current Task: Task 2.5 — Categories CRUD
+# Current Task: Task 2.7 — Frontend Settings Page
 
-## What I'm implementing
-Category model, CRUD + seed-defaults endpoint. Also wire up payee_default_categories join (deferred from 2.4).
+## What I'll implement
+- pages/Settings.tsx — settings page UI
+- components/forms/SettingsForm.tsx — form for currency, timezone, date format, number format
+- api/settings.ts — useSettings query + usePatchSettings mutation (TanStack Query)
+- Tests with MSW
 
 ## Files I'll work in
-backend/app/models/category.py
-backend/alembic/versions/0006_categories.py  (includes payee_default_categories table)
-backend/app/routers/categories.py
-backend/app/schemas/category.py
-backend/tests/test_categories.py
+frontend/src/pages/Settings.tsx
+frontend/src/components/forms/SettingsForm.tsx
+frontend/src/api/settings.ts
+frontend/src/test/handlers.ts (add settings handlers)
+frontend/src/pages/Settings.test.tsx
 
-## Key constraints to remember
-- Category fields: id (UUID), user_id (FK→users CASCADE), name, icon (str nullable), color (str nullable), applicability (enum: expense/income/both, nullable), created_at, updated_at, deleted_at
-- payee_default_categories: (payee_id FK→payees, category_id FK→categories, PK both) — join table added in this migration
-- Seed-defaults endpoint: POST /categories/seed-defaults creates a standard set if none exist
-- All endpoints scoped to current_user.id
-- Soft delete + 30-day restore
+## Key constraints
+- All fields optional in PATCH; empty PATCH is a no-op
+- Currency, timezone, date format, number format are the four user settings fields
+- All endpoints at /api/v1/settings
 
 ## Definition of done
-pytest passes for categories tests
+bun run test passes for settings tests
