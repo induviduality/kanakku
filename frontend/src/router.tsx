@@ -24,6 +24,9 @@ import Imports from './pages/Imports'
 import ImportUpload from './pages/ImportUpload'
 import ImportReview from './pages/ImportReview'
 import SettingsLLMActivity from './pages/SettingsLLMActivity'
+import GPayImport from './pages/GPayImport'
+import GPayResolve from './pages/GPayResolve'
+import GPayOrphans from './pages/GPayOrphans'
 
 const rootRoute = createRootRoute({ component: Outlet })
 
@@ -195,6 +198,24 @@ const settingsLLMActivityRoute = createRoute({
   component: SettingsLLMActivity,
 })
 
+const gpayImportRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/gpay/import',
+  component: GPayImport,
+})
+
+const gpayResolveRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/gpay/resolve',
+  component: GPayResolve,
+})
+
+const gpayOrphansRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/gpay/orphans',
+  component: GPayOrphans,
+})
+
 const routeTree = rootRoute.addChildren([
   indexRoute,
   setupRoute,
@@ -224,6 +245,9 @@ const routeTree = rootRoute.addChildren([
   importUploadRoute,
   importReviewRoute,
   settingsLLMActivityRoute,
+  gpayImportRoute,
+  gpayResolveRoute,
+  gpayOrphansRoute,
 ])
 
 export const router = createRouter({ routeTree })

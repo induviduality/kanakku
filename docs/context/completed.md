@@ -11,6 +11,15 @@
 
 ## Milestone 10: GPay Takeout Enrichment — In Progress
 
+### Task 10.2: Frontend — GPay UI
+- frontend/src/api/gpay.ts: GPayMatch, GPayUploadResponse types; useGetGPayMatches, useGetPendingGPayMatches, useGetOrphanGPayMatches, useUploadGPayTakeout, useResolveGPayMatch hooks
+- frontend/src/pages/GPayImport.tsx: file picker (JSON only); upload + summary panel (parsed/auto-linked/pending/orphans); links to review and orphans pages
+- frontend/src/pages/GPayResolve.tsx: list pending matches; per-match card showing GPay record + candidate radios + LLM suggestion; Confirm button resolves match and shows resolved state inline
+- frontend/src/pages/GPayOrphans.tsx: list orphan records with merchant/date/amount and "orphan" badge
+- frontend/src/router.tsx: /gpay/import, /gpay/resolve, /gpay/orphans routes added
+- frontend/src/test/handlers.ts: GPAY_MATCHES_RESPONSE, GPAY_ORPHANS_RESPONSE, GPAY_UPLOAD_RESPONSE fixtures; MSW handlers for all 5 GPay endpoints
+- Tests: GPayImport.test.tsx (5), GPayResolve.test.tsx (7), GPayOrphans.test.tsx (5) = 17 tests
+
 ### Task 10.1: GPay Parser & Matcher
 - backend/app/models/gpay_match.py: GPayMatch model (id, user_id, gpay_data JSONB, candidate_transaction_ids UUID[], chosen_transaction_id, llm_suggestion_id, status enum, created_at); GPayMatchStatus enum (pending/resolved/orphan/auto_linked)
 - backend/alembic/versions/0016_gpay_matches.py: migration creating gpay_matches table

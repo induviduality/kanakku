@@ -392,10 +392,10 @@
 - [x] Tests
 
 ### Task 10.2: Frontend — GPay UI
-- [ ] pages/GPayImport.tsx
-- [ ] pages/GPayResolve.tsx
-- [ ] pages/GPayOrphans.tsx
-- [ ] Tests
+- [x] pages/GPayImport.tsx
+- [x] pages/GPayResolve.tsx
+- [x] pages/GPayOrphans.tsx
+- [x] Tests
 
 ---
 

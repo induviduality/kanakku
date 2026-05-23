@@ -305,6 +305,49 @@ export const IMPORT_RECORDS_RESPONSE = [
   },
 ]
 
+export const GPAY_MATCHES_RESPONSE: Array<{
+  id: string
+  user_id: string
+  gpay_data: Record<string, unknown>
+  candidate_transaction_ids: string[]
+  chosen_transaction_id: string | null
+  llm_suggestion_id: string | null
+  status: string
+  created_at: string
+}> = [
+  {
+    id: 'gm-1',
+    user_id: 'user-1',
+    gpay_data: { Date: '2024-01-15', Amount: '420.00', Description: 'Zomato' },
+    candidate_transaction_ids: ['txn-1', 'txn-2'],
+    chosen_transaction_id: null,
+    llm_suggestion_id: null,
+    status: 'pending',
+    created_at: '2026-01-15T10:00:00Z',
+  },
+]
+
+export const GPAY_ORPHANS_RESPONSE = [
+  {
+    id: 'gm-2',
+    user_id: 'user-1',
+    gpay_data: { Date: '2024-02-01', Amount: '999.00', Description: 'Mystery shop' },
+    candidate_transaction_ids: [],
+    chosen_transaction_id: null,
+    llm_suggestion_id: null,
+    status: 'orphan',
+    created_at: '2026-02-01T09:00:00Z',
+  },
+]
+
+export const GPAY_UPLOAD_RESPONSE = {
+  parsed: 2,
+  auto_linked: 1,
+  pending: 1,
+  orphans: 0,
+  matches: GPAY_MATCHES_RESPONSE,
+}
+
 export const LLM_ACTIVITY_RESPONSE: Array<{
   id: string
   user_id: string
@@ -684,6 +727,21 @@ export const handlers = [
   http.post('/api/v1/imports/:batchId/reject', () =>
     HttpResponse.json({ ...IMPORT_BATCHES_RESPONSE[0], total_rejected: 3 }),
   ),
+
+  // GPay
+  http.post('/api/v1/imports/gpay-takeout', () => HttpResponse.json(GPAY_UPLOAD_RESPONSE)),
+  http.get('/api/v1/imports/gpay-matches', () => HttpResponse.json(GPAY_MATCHES_RESPONSE)),
+  http.get('/api/v1/imports/gpay-matches/pending', () => HttpResponse.json(GPAY_MATCHES_RESPONSE)),
+  http.get('/api/v1/imports/gpay-matches/orphans', () => HttpResponse.json(GPAY_ORPHANS_RESPONSE)),
+  http.post('/api/v1/imports/gpay-matches/:matchId/resolve', async ({ request, params }) => {
+    const body = await request.json() as Record<string, string>
+    return HttpResponse.json({
+      ...GPAY_MATCHES_RESPONSE[0],
+      id: params.matchId,
+      status: 'resolved',
+      chosen_transaction_id: body.chosen_transaction_id,
+    })
+  }),
 
   // LLM Activity
   http.get('/api/v1/settings/llm-activity', ({ request }) => {
