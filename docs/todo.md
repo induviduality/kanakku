@@ -250,10 +250,10 @@
 - [x] Tests: every scope combination
 
 ### Task 5.4: Transaction-Budget Linking
-- [ ] Transactions accept budget_ids
-- [ ] GET /budgets/{id}/transactions
-- [ ] Spent calc (explicit + category match)
-- [ ] Tests
+- [x] Transactions accept budget_ids
+- [x] GET /budgets/{id}/transactions
+- [x] Spent calc (explicit + category match)
+- [x] Tests
 
 ### Task 5.5: Frontend — Budgets
 - [ ] pages/Budgets.tsx with progress bars

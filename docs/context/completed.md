@@ -2,6 +2,10 @@
 
 ## Milestone 5: Budgets (in progress)
 
+### Task 5.4: Transaction-Budget Linking
+- app/routers/budgets.py: added GET /budgets/{id}/transactions — returns explicit links (transaction_budgets) and category-match links (transaction_categories overlapping budget_categories), deduplicates so explicit wins; total_spent sums expense amounts; BudgetTransactionItem includes link_type field; supports ?from and ?to date filters; transaction_budgets linking already wired in transactions router (M3)
+- tests/test_budget_linking.py: 11 integration tests — create with budget_ids, patch to link, explicit link appears, category match appears, no duplication when both explicit+category, total_spent sum, date filter narrows, auth guard, cross-user 404, unlink removes
+
 ### Task 5.3: Budgets CRUD with Scope Semantics
 - app/schemas/budget.py: BudgetCreate, BudgetPatch, BudgetResponse, EditScope (current_and_future/future_only), DeleteScope (instance/current_and_future/future_only)
 - app/routers/budgets.py: POST /budgets, GET /budgets (?include_inactive), GET /budgets/{id}, PATCH /budgets/{id}?scope, DELETE /budgets/{id}?scope; edit future_only clones budget at next recurrence boundary; delete instance creates soft-deleted modified instance; delete future_only caps end_date; delete current_and_future soft-deletes; ad-hoc ignores scope

@@ -1,7 +1,9 @@
 import uuid
 from datetime import UTC, date, datetime, timedelta
+from decimal import Decimal
 
 from fastapi import APIRouter, Depends, HTTPException, Query
+from pydantic import BaseModel
 from sqlalchemy import delete, insert, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -9,11 +11,37 @@ from app.db.session import get_session
 from app.dependencies import get_current_user
 from app.models.budget import Budget, BudgetType, budget_categories
 from app.models.category import Category
+from app.models.transaction import (
+    Transaction,
+    TransactionType,
+    transaction_budgets,
+    transaction_categories,
+)
 from app.models.user import User
 from app.schemas.budget import BudgetCreate, BudgetPatch, BudgetResponse, DeleteScope, EditScope
 from app.services.budget_expander import expand_budget
 
 router = APIRouter(prefix="/budgets", tags=["budgets"])
+
+
+class BudgetTransactionItem(BaseModel):
+    id: uuid.UUID
+    type: TransactionType
+    transacted_at: datetime
+    amount: Decimal
+    currency: str
+    description: str | None
+    account_id: uuid.UUID
+    payee_id: uuid.UUID | None
+    category_ids: list[uuid.UUID]
+    link_type: str  # "explicit" or "category_match"
+
+    model_config = {"from_attributes": True}
+
+
+class BudgetTransactionsResponse(BaseModel):
+    items: list[BudgetTransactionItem]
+    total_spent: Decimal
 
 
 async def _get_budget_or_404(
@@ -308,3 +336,122 @@ async def delete_budget(
             session.add(modified)
 
     await session.commit()
+
+
+@router.get("/{budget_id}/transactions", response_model=BudgetTransactionsResponse)
+async def list_budget_transactions(
+    budget_id: uuid.UUID,
+    from_date: date | None = Query(None, alias="from"),
+    to_date: date | None = Query(None, alias="to"),
+    user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+) -> BudgetTransactionsResponse:
+    b = await _get_budget_or_404(budget_id, user, session)
+
+    # Determine window from budget or query params
+    win_start = from_date or b.start_date
+    win_end = to_date or b.end_date
+
+    # Explicit links
+    explicit_q = (
+        select(Transaction)
+        .join(transaction_budgets, transaction_budgets.c.transaction_id == Transaction.id)
+        .where(
+            transaction_budgets.c.budget_id == budget_id,
+            Transaction.user_id == user.id,
+            Transaction.deleted_at.is_(None),
+        )
+    )
+    if win_start:
+        ws_dt = datetime(win_start.year, win_start.month, win_start.day)
+        explicit_q = explicit_q.where(Transaction.transacted_at >= ws_dt)
+    if win_end:
+        we_dt = datetime(win_end.year, win_end.month, win_end.day, 23, 59, 59)
+        explicit_q = explicit_q.where(Transaction.transacted_at <= we_dt)
+
+    explicit_txns = (await session.execute(explicit_q)).scalars().all()
+    explicit_ids = {t.id for t in explicit_txns}
+
+    # Category-match links
+    cat_ids = await _load_category_ids(budget_id, session)
+    cat_match_txns: list[Transaction] = []
+    if cat_ids:
+        cat_q = (
+            select(Transaction)
+            .join(
+                transaction_categories,
+                transaction_categories.c.transaction_id == Transaction.id,
+            )
+            .where(
+                transaction_categories.c.category_id.in_(cat_ids),
+                Transaction.user_id == user.id,
+                Transaction.deleted_at.is_(None),
+                Transaction.id.not_in(explicit_ids),
+            )
+        )
+        if win_start:
+            cat_q = cat_q.where(Transaction.transacted_at >= ws_dt)
+        if win_end:
+            cat_q = cat_q.where(Transaction.transacted_at <= we_dt)
+        cat_match_txns = list((await session.execute(cat_q)).scalars().all())
+
+    items: list[BudgetTransactionItem] = []
+    total_spent = Decimal("0")
+
+    for txn in explicit_txns:
+        cat_row_ids = [
+            r.category_id
+            for r in (
+                await session.execute(
+                    select(transaction_categories.c.category_id).where(
+                        transaction_categories.c.transaction_id == txn.id
+                    )
+                )
+            ).all()
+        ]
+        items.append(
+            BudgetTransactionItem(
+                id=txn.id,
+                type=txn.type,
+                transacted_at=txn.transacted_at,
+                amount=txn.amount,
+                currency=txn.currency,
+                description=txn.description,
+                account_id=txn.account_id,
+                payee_id=txn.payee_id,
+                category_ids=cat_row_ids,
+                link_type="explicit",
+            )
+        )
+        if txn.type == TransactionType.expense:
+            total_spent += txn.amount
+
+    for txn in cat_match_txns:
+        cat_row_ids = [
+            r.category_id
+            for r in (
+                await session.execute(
+                    select(transaction_categories.c.category_id).where(
+                        transaction_categories.c.transaction_id == txn.id
+                    )
+                )
+            ).all()
+        ]
+        items.append(
+            BudgetTransactionItem(
+                id=txn.id,
+                type=txn.type,
+                transacted_at=txn.transacted_at,
+                amount=txn.amount,
+                currency=txn.currency,
+                description=txn.description,
+                account_id=txn.account_id,
+                payee_id=txn.payee_id,
+                category_ids=cat_row_ids,
+                link_type="category_match",
+            )
+        )
+        if txn.type == TransactionType.expense:
+            total_spent += txn.amount
+
+    return BudgetTransactionsResponse(items=items, total_spent=total_spent)

@@ -4,12 +4,28 @@
 - 5.1 Budgets Schema
 - 5.2 Recurrence Expansion
 - 5.3 Budgets CRUD with Scope Semantics
+- 5.4 Transaction-Budget Linking
 
 ## Remaining Tasks
-- 5.4 Transaction-Budget Linking
 - 5.5 Frontend — Budgets
 
-## Next Task: 5.4 — Transaction-Budget Linking
+## Next Task: 5.5 — Frontend Budgets
+
+### Pages
+- pages/Budgets.tsx: list with progress bars (spent / amount), link to BudgetDetail
+- pages/BudgetDetail.tsx: budget info + transactions list with link_type indicator
+- pages/BudgetForm.tsx: create/edit form (name, amount, currency, type toggle, recurrence fields for recurring, category multi-select)
+
+### Dialogs (recurring only)
+- Edit dialog: "Also affect the current period?" checkbox (default checked → current_and_future; unchecked → future_only)
+- Delete dialog: three radio options (this instance / current and future / future only)
+- Ad-hoc: direct edit/delete (no dialog)
+
+### API hooks
+- frontend/src/api/budgets.ts: types + useGetBudgets, useGetBudget, useCreateBudget, usePatchBudget, useDeleteBudget, useGetBudgetTransactions
+
+### Tests
+- per page (Budgets, BudgetDetail, BudgetForm)
 
 ### What to implement
 - POST /transactions and PATCH /transactions/{id} already accept budget_ids (from M3 stub); wire them to actually insert into transaction_budgets
