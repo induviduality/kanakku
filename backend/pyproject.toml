@@ -25,6 +25,7 @@ dependencies = [
     "python-multipart>=0.0.9",
     "rapidfuzz>=3.0",
     "ollama>=0.4",
+    "sqlglot>=25.0",
 ]
 
 [project.optional-dependencies]

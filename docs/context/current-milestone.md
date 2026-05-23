@@ -15,3 +15,13 @@
 - 10.2 Frontend — GPay UI (GPayImport.tsx, GPayResolve.tsx, GPayOrphans.tsx, 17 tests) — DONE
 
 ## Milestone 10: GPay Takeout Enrichment — COMPLETE
+
+# Milestone 11: Reports & Custom Dashboards — In Progress
+
+## Completed Tasks
+- 11.1 Read-Only Role & Query Endpoint (sqlglot validation, readonly engine, migration, 8 tests) — DONE
+- 11.2 Schema Reference Endpoint (GET /reports/schema, 19 curated tables, 4 tests) — DONE
+- 11.3 Dashboards & Widgets CRUD (ReportDashboard/ReportWidget models, migration, CRUD endpoints, tests) — DONE
+
+## Next Task
+- 11.4 Frontend — Reports (pages/Reports.tsx, pages/ReportDashboard.tsx, components/reports/*, react-grid-layout, CodeMirror)

@@ -1,5 +1,22 @@
 # Completed Milestones
 
+## Milestone 11: Reports & Custom Dashboards — In Progress
+
+### Task 11.1: Read-Only Role & Query Endpoint
+- backend/alembic/versions/0017_readonly_role.py: creates app_readonly role with SELECT on 19 curated tables
+- backend/app/config.py: added readonly_database_url (defaults to database_url), query_timeout_ms (10s), query_row_limit (10K)
+- backend/app/db/session.py: lazy get_readonly_engine() using READONLY_DATABASE_URL
+- backend/app/schemas/reports.py: QueryRequest, QueryResponse schemas
+- backend/app/routers/reports.py: POST /reports/query — sqlglot SELECT-only + user_id check, SET TRANSACTION READ ONLY, 10s timeout, 10K row limit
+- backend/app/main.py: registered reports router
+- backend/pyproject.toml: added sqlglot>=25.0
+- backend/tests/test_reports_query.py: 8 tests (select works, DML rejected, missing user_id, multiple statements, invalid SQL, unauthenticated, row limit)
+
+### Task 11.2: Schema Reference Endpoint
+- backend/app/routers/reports.py: GET /reports/schema — hand-curated 19-table schema with column types, descriptions, FK metadata
+- backend/app/schemas/reports.py: ColumnInfo, TableInfo, SchemaResponse schemas
+- backend/tests/test_reports_schema.py: 4 tests (curated tables, auth tables excluded, FK metadata present, unauthenticated rejected)
+
 ## Milestone 9: LLM Integration — In Progress
 
 ### Task 9.1: LLMClient Interface

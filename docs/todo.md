@@ -402,22 +402,22 @@
 ## Milestone 11: Reports
 
 ### Task 11.1: Read-Only Role & Query Endpoint
-- [ ] Postgres app_readonly role (migration)
-- [ ] Separate engine
-- [ ] POST /reports/query with safety wrappers
-- [ ] User-id filter enforcement
-- [ ] Row limit + timeout
-- [ ] Tests
+- [x] Postgres app_readonly role (migration)
+- [x] Separate engine
+- [x] POST /reports/query with safety wrappers
+- [x] User-id filter enforcement
+- [x] Row limit + timeout
+- [x] Tests
 
 ### Task 11.2: Schema Reference Endpoint
-- [ ] GET /reports/schema with curated tables
-- [ ] FK metadata
-- [ ] Tests
+- [x] GET /reports/schema with curated tables
+- [x] FK metadata
+- [x] Tests
 
 ### Task 11.3: Dashboards & Widgets
-- [ ] ReportDashboard + ReportWidget models
-- [ ] CRUD APIs
-- [ ] Tests
+- [x] ReportDashboard + ReportWidget models
+- [x] CRUD APIs
+- [x] Tests
 
 ### Task 11.4: Frontend — Reports
 - [ ] pages/Reports.tsx list

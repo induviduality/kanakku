@@ -1,0 +1,134 @@
+"""Tests for POST /api/v1/reports/query."""
+
+import pytest
+from httpx import AsyncClient
+
+
+async def _setup(client: AsyncClient, email: str = "admin@example.com") -> dict:
+    resp = await client.post(
+        "/api/v1/auth/setup", json={"email": email, "password": "password123"}
+    )
+    assert resp.status_code == 201
+    return {"Authorization": f"Bearer {resp.json()['access_token']}"}
+
+
+async def _account(client: AsyncClient, headers: dict) -> str:
+    resp = await client.post(
+        "/api/v1/accounts",
+        json={"name": "Test Bank", "type": "bank", "currency": "INR", "opening_balance": "1000.00"},
+        headers=headers,
+    )
+    assert resp.status_code == 201
+    return resp.json()["id"]
+
+
+@pytest.mark.usefixtures("db_tables")
+async def test_select_works(client: AsyncClient) -> None:
+    headers = await _setup(client)
+    await _account(client, headers)
+    resp = await client.post(
+        "/api/v1/reports/query",
+        json={"sql": "SELECT id, name FROM accounts WHERE user_id = :user_id"},
+        headers=headers,
+    )
+    assert resp.status_code == 200
+    data = resp.json()
+    assert "columns" in data
+    assert "rows" in data
+    assert "id" in data["columns"]
+    assert "name" in data["columns"]
+    assert data["truncated"] is False
+    assert data["row_count"] >= 1
+
+
+@pytest.mark.usefixtures("db_tables")
+async def test_insert_rejected_by_validation(client: AsyncClient) -> None:
+    headers = await _setup(client)
+    resp = await client.post(
+        "/api/v1/reports/query",
+        json={"sql": "INSERT INTO accounts (id) VALUES ('00000000-0000-0000-0000-000000000001') WHERE user_id = :user_id"},
+        headers=headers,
+    )
+    assert resp.status_code == 400
+    assert "SELECT" in resp.json()["detail"]
+
+
+@pytest.mark.usefixtures("db_tables")
+async def test_update_rejected_by_validation(client: AsyncClient) -> None:
+    headers = await _setup(client)
+    resp = await client.post(
+        "/api/v1/reports/query",
+        json={"sql": "UPDATE accounts SET name = 'x' WHERE user_id = :user_id"},
+        headers=headers,
+    )
+    assert resp.status_code == 400
+    assert "SELECT" in resp.json()["detail"]
+
+
+@pytest.mark.usefixtures("db_tables")
+async def test_missing_user_id_rejected(client: AsyncClient) -> None:
+    headers = await _setup(client)
+    resp = await client.post(
+        "/api/v1/reports/query",
+        json={"sql": "SELECT * FROM accounts"},
+        headers=headers,
+    )
+    assert resp.status_code == 400
+    assert "user_id" in resp.json()["detail"]
+
+
+@pytest.mark.usefixtures("db_tables")
+async def test_multiple_statements_rejected(client: AsyncClient) -> None:
+    headers = await _setup(client)
+    resp = await client.post(
+        "/api/v1/reports/query",
+        json={"sql": "SELECT 1 WHERE user_id = :user_id; DROP TABLE accounts"},
+        headers=headers,
+    )
+    assert resp.status_code == 400
+    assert "Multiple" in resp.json()["detail"]
+
+
+@pytest.mark.usefixtures("db_tables")
+async def test_invalid_sql_rejected(client: AsyncClient) -> None:
+    headers = await _setup(client)
+    resp = await client.post(
+        "/api/v1/reports/query",
+        json={"sql": "THIS IS NOT SQL user_id = :user_id"},
+        headers=headers,
+    )
+    assert resp.status_code == 400
+
+
+@pytest.mark.usefixtures("db_tables")
+async def test_unauthenticated_rejected(client: AsyncClient) -> None:
+    resp = await client.post(
+        "/api/v1/reports/query",
+        json={"sql": "SELECT * FROM accounts WHERE user_id = :user_id"},
+    )
+    assert resp.status_code == 401
+
+
+@pytest.mark.usefixtures("db_tables")
+async def test_row_limit_enforced(client: AsyncClient, monkeypatch: pytest.MonkeyPatch) -> None:
+    import app.config as cfg
+    monkeypatch.setattr(cfg.settings, "query_row_limit", 1)
+
+    headers = await _setup(client)
+    # Create 3 accounts
+    for i in range(3):
+        await client.post(
+            "/api/v1/accounts",
+            json={"name": f"Account {i}", "type": "bank", "currency": "INR", "opening_balance": "0"},
+            headers=headers,
+        )
+
+    resp = await client.post(
+        "/api/v1/reports/query",
+        json={"sql": "SELECT id FROM accounts WHERE user_id = :user_id"},
+        headers=headers,
+    )
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["row_count"] == 1
+    assert data["truncated"] is True
