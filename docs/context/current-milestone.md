@@ -2,8 +2,33 @@
 
 ## Completed Tasks
 - 6.1 Subscriptions — COMPLETE
+- 6.2 Piggy Banks — COMPLETE
 
-## Next Task: 6.2 — Piggy Banks
+## Next Task: 6.3 — Frontend: Subscriptions & Piggy Banks
+
+### Pages
+- pages/Subscriptions.tsx — list with status badges (green=upcoming, amber=due_soon, red=overdue)
+- pages/SubscriptionForm.tsx — create/edit form
+- pages/SubscriptionDetail.tsx — subscription info + history (linked transactions)
+- pages/PiggyBanks.tsx — list with progress rings (SVG circle, progress_pct)
+- pages/PiggyBankForm.tsx — create/edit form
+- pages/PiggyBankDetail.tsx — piggy bank info + contributions list + add contribution form
+
+### API hooks (frontend/src/api/)
+- subscriptions.ts: Subscription type, SubscriptionCreate, useGetSubscriptions, useGetSubscription, useCreateSubscription, usePatchSubscription, useDeleteSubscription, useLinkTransaction, useGetHistory
+- piggy_banks.ts: PiggyBank, PiggyBankCreate, ContributionCreate, useGetPiggyBanks, useGetPiggyBank, useCreatePiggyBank, usePatchPiggyBank, useDeletePiggyBank, useAddContribution, useRemoveContribution, useGetContributions
+
+### Routes
+- /subscriptions, /subscriptions/new, /subscriptions/$subId, /subscriptions/$subId/edit
+- /piggy-banks, /piggy-banks/new, /piggy-banks/$piggyId, /piggy-banks/$piggyId/edit
+
+### Tests
+- Status badge colors (green/amber/red per status)
+- Progress ring matches progress_pct
+- Add contribution calls API and refetches
+
+## Remaining Tasks
+- 6.3 Frontend — Subscriptions & Piggy Banks
 
 ### Models
 - PiggyBank(id, user_id, name, target_amount, currency, current_amount, target_date, notes, is_completed, timestamps, deleted_at)

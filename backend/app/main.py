@@ -14,6 +14,7 @@ from app.routers.budgets import router as budgets_router
 from app.routers.categories import router as categories_router
 from app.routers.payees import router as payees_router
 from app.routers.payment_methods import router as payment_methods_router
+from app.routers.piggy_banks import router as piggy_banks_router
 from app.routers.settings import router as settings_router
 from app.routers.splits import router as splits_router
 from app.routers.subscriptions import router as subscriptions_router
@@ -64,6 +65,7 @@ app.include_router(transactions_router, prefix="/api/v1")
 app.include_router(splits_router, prefix="/api/v1")
 app.include_router(budgets_router, prefix="/api/v1")
 app.include_router(subscriptions_router, prefix="/api/v1")
+app.include_router(piggy_banks_router, prefix="/api/v1")
 
 
 @app.get("/health")

@@ -4,6 +4,7 @@ from app.models.category import Category, payee_default_categories
 from app.models.invite_token import InviteToken
 from app.models.payee import Payee
 from app.models.payment_method import PaymentMethod
+from app.models.piggy_bank import ContributionType, PiggyBank, PiggyBankContribution
 from app.models.session import Session
 from app.models.split import Split, SplitShare, SplitShareStatus
 from app.models.subscription import BillingCycle, Subscription
@@ -25,4 +26,5 @@ __all__ = [
     "Split", "SplitShare", "SplitShareStatus",
     "Budget", "BudgetType", "BudgetPeriod", "budget_categories",
     "Subscription", "BillingCycle",
+    "PiggyBank", "PiggyBankContribution", "ContributionType",
 ]

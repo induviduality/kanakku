@@ -2,6 +2,13 @@
 
 ## Milestone 6: Subscriptions & Piggy Banks (in progress)
 
+### Task 6.2: Piggy Banks
+- app/models/piggy_bank.py: PiggyBank model (id, user_id, name, target_amount, currency, current_amount (default 0), target_date nullable, notes, is_completed, timestamps, deleted_at); PiggyBankContribution (id, piggy_bank_id FK→piggy_banks CASCADE, transaction_id FK→transactions RESTRICT, contribution_type enum(transfer/expense), amount, date, notes, created_at); ContributionType StrEnum
+- app/schemas/piggy_bank.py: PiggyBankCreate, PiggyBankPatch, PiggyBankResponse (with computed progress_pct float), ContributionCreate, ContributionResponse
+- app/routers/piggy_banks.py: POST/GET/GET{id}/PATCH/DELETE/restore CRUD; POST /piggy-banks/{id}/contributions (validates txn ownership, adds amount to current_amount, auto-sets is_completed); DELETE /piggy-banks/{id}/contributions/{contrib_id} (reverses amount, un-completes if now < target); GET /piggy-banks/{id}/contributions; _update_completion helper (is_completed = current >= target)
+- alembic/versions/0013_piggy_banks.py: creates piggy_banks + piggy_bank_contributions tables
+- tests/test_piggy_banks.py: 18 integration tests (CRUD, cross-user, add contribution updates total, auto-complete at threshold, remove reverses/un-completes, list contributions, cross-user transaction 404, invalid transaction 404, patch triggers auto-complete)
+
 ### Task 6.1: Subscriptions
 - app/models/subscription.py: Subscription model (id, user_id, name, amount, currency, billing_cycle enum (daily/weekly/monthly/quarterly/yearly), billing_day INT, last_billed_at nullable, account_id FK→accounts, payment_method_id FK→payment_methods nullable, category_id FK→categories nullable, is_active, url, notes, timestamps, deleted_at)
 - app/services/subscription_dates.py: compute_next_billing_date(sub, as_of) → date (one cycle after last_billed_at; or first occurrence from billing_day if never billed); subscription_status(sub, as_of) → "overdue"|"due_soon"|"upcoming" (due_soon = within 3 days)

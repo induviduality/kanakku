@@ -275,11 +275,11 @@
 - [x] Tests
 
 ### Task 6.2: Piggy Banks
-- [ ] PiggyBank + PiggyBankContribution models
-- [ ] CRUD + contributions endpoints
-- [ ] current_amount transactional update
-- [ ] Auto-complete at threshold
-- [ ] Tests
+- [x] PiggyBank + PiggyBankContribution models
+- [x] CRUD + contributions endpoints
+- [x] current_amount transactional update
+- [x] Auto-complete at threshold
+- [x] Tests
 
 ### Task 6.3: Frontend — Subs & Piggy Banks
 - [ ] Subscriptions list/form/detail
