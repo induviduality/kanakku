@@ -33,5 +33,7 @@
 - 12.1 JSON Archive Export (ExportJob model, migration, export_archive ARQ job, 3 endpoints, 8 tests) — DONE
 - 12.2 JSON Archive Import (POST /import-archive, fresh-user guard, UUID conflict detection, 5 tests) — DONE
 
+- 12.3 CLI & Backup Scripts (backup.sh, restore.sh, python -m app.cli, 6 tests) — DONE
+
 ## Next Task
-- 12.3 CLI & Backup Scripts (backup.sh, restore.sh, python -m app.cli, tests)
+- 12.4 Frontend — Export/Import UI (SettingsDataExport.tsx, SettingsDataImport.tsx, tests)

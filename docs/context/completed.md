@@ -48,6 +48,12 @@
 - backend/app/routers/export.py: POST /import-archive — validates schema_version, fresh-user guard (409 if has transactions), UUID conflict detection, atomic INSERT in dependency order with user_id remapping
 - backend/tests/test_import_archive.py: 5 tests (roundtrip, blocked with transactions, wrong version, malformed, unauthenticated)
 
+### Task 12.3: CLI & Backup Scripts
+- infra/scripts/backup.sh: pg_dump to timestamped file in BACKUP_DIR (strips asyncpg prefix)
+- infra/scripts/restore.sh: pg_restore from dump file with schema drop/recreate
+- backend/app/cli.py: python -m app.cli with create-user, export-archive, import-archive commands (argparse, async)
+- backend/tests/test_cli.py: 6 tests (create-user, duplicate exit, export creates file, unknown user exit, roundtrip, wrong schema version)
+
 ### Task 11.2: Schema Reference Endpoint
 - backend/app/routers/reports.py: GET /reports/schema — hand-curated 19-table schema with column types, descriptions, FK metadata
 - backend/app/schemas/reports.py: ColumnInfo, TableInfo, SchemaResponse schemas

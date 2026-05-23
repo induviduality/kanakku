@@ -449,10 +449,10 @@
 - [x] Tests
 
 ### Task 12.3: CLI & Backup Scripts
-- [ ] infra/scripts/backup.sh
-- [ ] infra/scripts/restore.sh
-- [ ] CLI: create-user, export-archive, import-archive
-- [ ] Tests
+- [x] infra/scripts/backup.sh
+- [x] infra/scripts/restore.sh
+- [x] CLI: create-user, export-archive, import-archive
+- [x] Tests
 
 ### Task 12.4: Frontend — Export/Import UI
 - [ ] pages/SettingsDataExport.tsx with polling
