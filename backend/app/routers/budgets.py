@@ -455,3 +455,29 @@ async def list_budget_transactions(
             total_spent += txn.amount
 
     return BudgetTransactionsResponse(items=items, total_spent=total_spent)
+
+
+_SOFT_DELETE_WINDOW = timedelta(days=30)
+
+
+@router.post("/{budget_id}/restore", response_model=BudgetResponse)
+async def restore_budget(
+    budget_id: uuid.UUID,
+    user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+) -> BudgetResponse:
+    result = await session.execute(
+        select(Budget).where(Budget.id == budget_id, Budget.user_id == user.id)
+    )
+    b = result.scalar_one_or_none()
+    if b is None:
+        raise HTTPException(status_code=404, detail="Budget not found")
+    if b.deleted_at is None:
+        raise HTTPException(status_code=400, detail="Budget is not deleted")
+    if datetime.now(UTC) - b.deleted_at.replace(tzinfo=UTC) > _SOFT_DELETE_WINDOW:
+        raise HTTPException(status_code=410, detail="Budget deleted more than 30 days ago; cannot restore")
+    b.deleted_at = None
+    await session.commit()
+    await session.refresh(b)
+    cat_ids = await _load_category_ids(b.id, session)
+    return _budget_response(b, cat_ids)

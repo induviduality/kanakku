@@ -46,5 +46,13 @@
 
 - 13.2 Mobile Audit (AppLayout wrapper, MobileNav bottom tab bar, Playwright config + e2e/mobile.spec.ts, 5 tests) — DONE
 
+- 13.3 Soft Delete Recovery UI (RecentlyDeleted page, budget restore endpoint, daily purge ARQ cron, 9 backend tests, 7 frontend tests) — DONE
+
+## Milestone 13: PWA & Polish — COMPLETE
+
+# Milestone 14: Production Deployment — In Progress
+
+## Completed Tasks
+
 ## Next Task
-- 13.3 Soft Delete Recovery UI (RecentlyDeleted page, daily purge ARQ job, tests)
+- 14.1 Caddyfile & Production Compose

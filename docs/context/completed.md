@@ -81,6 +81,20 @@
 - frontend/vite.config.ts: e2e/ excluded from Vitest discovery
 - 5 new Vitest tests for MobileNav; 254 total passing
 
+### Task 13.3: Soft Delete Recovery UI
+- backend/app/routers/recently_deleted.py: GET /recently-deleted — queries 8 entity tables, returns items soft-deleted within 30-day window sorted by deleted_at desc
+- backend/app/routers/budgets.py: POST /budgets/{id}/restore endpoint added (was missing)
+- backend/app/workers/purge_worker.py: purge_soft_deleted ARQ job + WorkerSettings with cron(hour=3) — deletes rows where deleted_at < now()-30d across all 8 entity tables
+- backend/app/main.py: recently_deleted_router registered
+- backend/tests/test_recently_deleted.py: 9 integration tests (empty list, shows deleted, excludes old, auth guard, cross-user, budget restore happy/not-found/not-deleted, purge job)
+- frontend/src/api/recentlyDeleted.ts: useRecentlyDeleted + useRestoreItem hooks with RESTORE_PATHS mapping
+- frontend/src/pages/RecentlyDeleted.tsx: tabbed view over 8 entity types with count badges, item rows with Restore buttons, 30-day expiry note
+- frontend/src/router.tsx: /recently-deleted route added
+- frontend/src/test/handlers.ts: recently-deleted GET + per-entity restore POST handlers
+- 7 Vitest frontend tests; 261 total passing
+
+## Milestone 13: PWA & Polish — COMPLETE
+
 ### Task 11.2: Schema Reference Endpoint
 - backend/app/routers/reports.py: GET /reports/schema — hand-curated 19-table schema with column types, descriptions, FK metadata
 - backend/app/schemas/reports.py: ColumnInfo, TableInfo, SchemaResponse schemas

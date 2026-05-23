@@ -32,6 +32,7 @@ import Reports from './pages/Reports'
 import ReportDashboard from './pages/ReportDashboard'
 import SettingsDataExport from './pages/SettingsDataExport'
 import SettingsDataImport from './pages/SettingsDataImport'
+import RecentlyDeleted from './pages/RecentlyDeleted'
 
 const rootRoute = createRootRoute({ component: AppLayout })
 
@@ -245,6 +246,12 @@ const settingsDataImportRoute = createRoute({
   component: SettingsDataImport,
 })
 
+const recentlyDeletedRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/recently-deleted',
+  component: RecentlyDeleted,
+})
+
 const routeTree = rootRoute.addChildren([
   indexRoute,
   setupRoute,
@@ -281,6 +288,7 @@ const routeTree = rootRoute.addChildren([
   reportDashboardRoute,
   settingsDataExportRoute,
   settingsDataImportRoute,
+  recentlyDeletedRoute,
 ])
 
 export const router = createRouter({ routeTree })

@@ -939,4 +939,18 @@ export const handlers = [
     const body = await request.json() as Record<string, unknown>
     return HttpResponse.json({ ...TAGS_RESPONSE[0], ...body })
   }),
+
+  // Recently deleted
+  http.get('/api/v1/recently-deleted', () =>
+    HttpResponse.json({
+      items: [
+        { id: 'acc-deleted-1', entity_type: 'accounts', label: 'Old Bank', deleted_at: '2026-05-20T10:00:00Z' },
+        { id: 'payee-deleted-1', entity_type: 'payees', label: 'Old Payee', deleted_at: '2026-05-19T10:00:00Z' },
+        { id: 'txn-deleted-1', entity_type: 'transactions', label: 'expense 500.00', deleted_at: '2026-05-18T10:00:00Z' },
+      ],
+    }),
+  ),
+  http.post('/api/v1/accounts/:id/restore', () => HttpResponse.json({ id: 'acc-deleted-1', deleted_at: null })),
+  http.post('/api/v1/payees/:id/restore', () => HttpResponse.json({ id: 'payee-deleted-1', deleted_at: null })),
+  http.post('/api/v1/transactions/:id/restore', () => HttpResponse.json({ id: 'txn-deleted-1', deleted_at: null })),
 ]

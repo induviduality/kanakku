@@ -478,10 +478,10 @@
 - [x] Playwright snapshots at 360px
 
 ### Task 13.3: Soft Delete Recovery UI
-- [ ] pages/RecentlyDeleted.tsx
-- [ ] Restore endpoints on all entities (audit)
-- [ ] Daily purge job
-- [ ] Tests
+- [x] pages/RecentlyDeleted.tsx
+- [x] Restore endpoints on all entities (audit)
+- [x] Daily purge job
+- [x] Tests
 
 ---
 
