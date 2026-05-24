@@ -412,16 +412,21 @@ export const DASHBOARD_RESPONSE = {
     { category_id: 'cat-1', name: 'Food & Dining', amount: '1410.00', percentage: 100.0 },
   ],
   recent_transactions: [
+    // Jan
     { id: 'txn-1',  type: 'expense',  transacted_at: '2026-01-08T09:15:00Z', amount: '320.00',   currency: 'INR', description: 'Grocery run',        account_id: 'acc-1', payee_id: 'payee-1', category_ids: ['cat-1'] },
     { id: 'txn-2',  type: 'income',   transacted_at: '2026-01-31T18:00:00Z', amount: '85000.00', currency: 'INR', description: 'January salary',     account_id: 'acc-1', payee_id: null,      category_ids: [] },
+    // Feb
     { id: 'txn-3',  type: 'expense',  transacted_at: '2026-02-14T20:30:00Z', amount: '2200.00',  currency: 'INR', description: "Valentine's dinner",  account_id: 'acc-1', payee_id: 'payee-2', category_ids: ['cat-1'] },
     { id: 'txn-4',  type: 'income',   transacted_at: '2026-02-28T18:00:00Z', amount: '85000.00', currency: 'INR', description: 'February salary',    account_id: 'acc-1', payee_id: null,      category_ids: [] },
+    // Mar
     { id: 'txn-5',  type: 'expense',  transacted_at: '2026-03-05T11:00:00Z', amount: '1450.00',  currency: 'INR', description: 'Electricity bill',   account_id: 'acc-1', payee_id: 'payee-3', category_ids: ['cat-2'] },
     { id: 'txn-6',  type: 'transfer', transacted_at: '2026-03-15T10:00:00Z', amount: '10000.00', currency: 'INR', description: 'Savings transfer',   account_id: 'acc-1', payee_id: null,      category_ids: [] },
     { id: 'txn-7',  type: 'income',   transacted_at: '2026-03-31T18:00:00Z', amount: '85000.00', currency: 'INR', description: 'March salary',       account_id: 'acc-1', payee_id: null,      category_ids: [] },
+    // Apr
     { id: 'txn-8',  type: 'expense',  transacted_at: '2026-04-03T14:00:00Z', amount: '580.00',   currency: 'INR', description: 'Swiggy order',       account_id: 'acc-1', payee_id: 'payee-1', category_ids: ['cat-1'] },
     { id: 'txn-9',  type: 'expense',  transacted_at: '2026-04-20T16:45:00Z', amount: '3200.00',  currency: 'INR', description: 'Phone repair',       account_id: 'acc-1', payee_id: 'payee-4', category_ids: ['cat-3'] },
     { id: 'txn-10', type: 'income',   transacted_at: '2026-04-30T18:00:00Z', amount: '85000.00', currency: 'INR', description: 'April salary',       account_id: 'acc-1', payee_id: null,      category_ids: [] },
+    // May
     { id: 'txn-11', type: 'expense',  transacted_at: '2026-05-02T08:30:00Z', amount: '760.00',   currency: 'INR', description: 'Zomato weekend',     account_id: 'acc-1', payee_id: 'payee-1', category_ids: ['cat-1'] },
     { id: 'txn-12', type: 'expense',  transacted_at: '2026-05-10T12:00:00Z', amount: '649.00',   currency: 'INR', description: 'Netflix',            account_id: 'acc-1', payee_id: 'payee-5', category_ids: ['cat-4'] },
     { id: 'txn-13', type: 'expense',  transacted_at: '2026-05-18T10:00:00Z', amount: '420.00',   currency: 'INR', description: 'Dinner order',       account_id: 'acc-1', payee_id: 'payee-1', category_ids: ['cat-1'] },
@@ -472,10 +477,9 @@ export const handlers = [
     const endDate   = url.searchParams.get('end_date')   ?? DASHBOARD_RESPONSE.period_end
 
     // Filter mock transactions to those within the requested window
-    const filteredTxns = DASHBOARD_RESPONSE.recent_transactions.filter((t) => {
-      const d = t.transacted_at.slice(0, 10)
-      return d >= startDate && d <= endDate
-    })
+    const filteredTxns = DASHBOARD_RESPONSE.recent_transactions
+      .filter((t) => { const d = t.transacted_at.slice(0, 10); return d >= startDate && d <= endDate })
+      .slice(-5)  // most recent 5 within the window
 
     return HttpResponse.json({
       ...DASHBOARD_RESPONSE,

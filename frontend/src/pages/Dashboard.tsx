@@ -151,7 +151,7 @@ function BalanceCard({ totalBalance }: { totalBalance: number }) {
 
 export default function Dashboard() {
   const { dashboardParams, label } = usePeriod()
-  const { data, isLoading, isError } = useGetDashboard(dashboardParams)
+  const { data, isLoading, isFetching, isError } = useGetDashboard(dashboardParams)
 
   if (isLoading) return <DashboardSkeleton />
   if (isError || !data) {
@@ -170,7 +170,7 @@ export default function Dashboard() {
       : null
 
   return (
-    <div className="p-4 md:p-6 space-y-6 max-w-5xl mx-auto">
+    <div className={`p-4 md:p-6 space-y-6 max-w-5xl mx-auto transition-opacity duration-200 ${isFetching ? 'opacity-50' : 'opacity-100'}`}>
 
       {/* Row 1 — summary stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">

@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query'
+import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import { apiGet } from '../lib/api-client'
 
 export type DashboardPeriod = 'month' | 'quarter' | 'year' | 'custom'
@@ -112,5 +112,6 @@ export function useGetDashboard(params: DashboardParams = {}) {
   return useQuery<DashboardData>({
     queryKey: ['dashboard', period, start_date, end_date],
     queryFn: () => apiGet<DashboardData>(`/dashboard/home?${qs}`),
+    placeholderData: keepPreviousData,
   })
 }

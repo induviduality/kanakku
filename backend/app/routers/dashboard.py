@@ -311,7 +311,7 @@ async def _recent_transactions(
                 Transaction.transacted_at < period_end,
             )
             .order_by(Transaction.transacted_at.desc(), Transaction.id.desc())
-            .limit(10)
+            .limit(5)
         )
     ).scalars().all()
 
