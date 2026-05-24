@@ -74,7 +74,7 @@ When `DEV_MODE_BACKEND=true`:
 
 To use in requests:
 ```bash
-curl -H "X-Dev-User-ID: 11111111-1111-1111-1111-111111111111" http://localhost:8000/api/v1/me
+curl -H "X-Dev-User-ID: 11111111-1111-1111-1111-111111111111" http://localhost:8765/api/v1/me
 ```
 
 Or log in normally with dev@kanakku.local / dev-password.

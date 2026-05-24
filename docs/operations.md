@@ -114,7 +114,7 @@ docker compose restart api
 
 The API exposes a health endpoint:
 ```bash
-curl http://localhost:8000/health
+curl http://localhost:8765/health
 # → {"status": "ok"}
 ```
 

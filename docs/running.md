@@ -71,7 +71,7 @@ alembic upgrade head
 uvicorn app.main:app --reload --port 8000
 ```
 
-API is now at `http://localhost:8000`. Docs at `http://localhost:8000/docs`.
+API is now at `http://localhost:8765`. Docs at `http://localhost:8765/docs`.
 
 To also run the ARQ background worker (needed for PDF imports, exports):
 ```bash
@@ -120,7 +120,7 @@ LLM_BACKEND=none
 OLLAMA_HOST=http://localhost:11434
 LLM_MODEL=qwen2.5:1.5b
 REDIS_URL=redis://localhost:6379
-PUBLIC_BASE_URL=http://localhost:8000
+PUBLIC_BASE_URL=http://localhost:8765
 DEBUG=true
 ```
 
@@ -181,8 +181,8 @@ Services and their ports:
 
 | Service | URL |
 |---------|-----|
-| API | `http://localhost:8000` |
-| API docs | `http://localhost:8000/docs` |
+| API | `http://localhost:8765` |
+| API docs | `http://localhost:8765/docs` |
 | Frontend | `http://localhost:5173` |
 | PostgreSQL | `localhost:5432` |
 | Redis | `localhost:6379` |
@@ -340,7 +340,7 @@ For a cloud VPS, you can point `OLLAMA_HOST` to the same compose Ollama service 
 | Run migrations | `alembic upgrade head` (in `backend/`, venv active) | `docker compose exec api alembic upgrade head` |
 | Run backend tests | `.venv/Scripts/pytest` (in `backend/`) | `docker compose exec api pytest` |
 | Run frontend tests | `bun run test` (in `frontend/`) | `docker compose exec frontend bun run test` |
-| View API docs | `http://localhost:8000/docs` | same |
+| View API docs | `http://localhost:8765/docs` | same |
 | View frontend | `http://localhost:5173` | `http://localhost:5173` |
 | Restart after code change | Uvicorn hot-reloads automatically | `docker compose build && docker compose up -d` |
 

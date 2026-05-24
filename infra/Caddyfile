@@ -26,14 +26,14 @@ http://{$PUBLIC_DOMAIN:localhost}:{$CADDY_PORT:8081} {
     header /*.css Cache-Control "public, max-age=3600"
 
     # API → FastAPI backend
-    reverse_proxy /api/* api:8000 {
+    reverse_proxy /api/* api:8765 {
         header_up X-Forwarded-Proto {scheme}
         health_uri /health
         health_interval 15s
     }
 
     # Health check pass-through
-    reverse_proxy /health api:8000
+    reverse_proxy /health api:8765
 
     # Everything else → Nginx-served frontend static files
     reverse_proxy * frontend:80

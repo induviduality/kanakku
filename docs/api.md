@@ -10,9 +10,9 @@ When the API is running, FastAPI serves interactive documentation automatically:
 
 | URL | Description |
 |-----|-------------|
-| `http://localhost:8000/docs` | Swagger UI — try endpoints in browser |
-| `http://localhost:8000/redoc` | ReDoc — clean read-only reference |
-| `http://localhost:8000/openapi.json` | Raw OpenAPI 3.x schema |
+| `http://localhost:8765/docs` | Swagger UI — try endpoints in browser |
+| `http://localhost:8765/redoc` | ReDoc — clean read-only reference |
+| `http://localhost:8765/openapi.json` | Raw OpenAPI 3.x schema |
 
 Via Caddy (full stack):
 
