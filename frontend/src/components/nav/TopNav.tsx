@@ -1,48 +1,51 @@
-import { useRouterState } from '@tanstack/react-router'
+import { Link, useRouterState } from '@tanstack/react-router'
 import { usePeriod } from '../../lib/period-context'
+import { buildBreadcrumbs } from '../../lib/breadcrumbs'
 import PeriodPicker from './PeriodPicker'
-
-const ROUTE_TITLES: Record<string, string> = {
-  '/': 'Dashboard',
-  '/transactions': 'Transactions',
-  '/accounts': 'Accounts',
-  '/budgets': 'Budgets',
-  '/subscriptions': 'Subscriptions',
-  '/piggy-banks': 'Savings Goals',
-  '/splits': 'Splits',
-  '/categories': 'Categories',
-  '/payees': 'Payees',
-  '/tags': 'Tags',
-  '/imports': 'Import',
-  '/reports': 'Reports',
-  '/settings': 'Settings',
-  '/recently-deleted': 'Recently Deleted',
-}
-
-function getTitle(pathname: string): string {
-  if (ROUTE_TITLES[pathname]) return ROUTE_TITLES[pathname]
-  // prefix match for detail pages
-  for (const [prefix, label] of Object.entries(ROUTE_TITLES)) {
-    if (prefix !== '/' && pathname.startsWith(prefix)) return label
-  }
-  return 'Kanakku'
-}
 
 export default function TopNav() {
   const routerState = useRouterState()
   const path = routerState.location.pathname
-  const title = getTitle(path)
+  const crumbs = buildBreadcrumbs(path)
   const { selection, setSelection, shortLabel } = usePeriod()
 
   return (
     <header className="sticky top-0 z-30 h-12 flex items-center px-4 md:px-6 border-b border-border bg-topbar">
-      {/* Left: page title */}
-      <div className="flex-1 min-w-0">
-        <span className="text-sm font-semibold text-fg truncate">{title}</span>
-      </div>
 
-      {/* Right: period picker */}
-      <div className="shrink-0">
+      {/* Breadcrumbs */}
+      <nav aria-label="Breadcrumb" className="flex-1 min-w-0 flex items-center gap-1.5 text-sm">
+        {crumbs.length === 0 ? (
+          <span className="font-semibold text-fg">Dashboard</span>
+        ) : (
+          crumbs.map((crumb, i) => {
+            const isLast = i === crumbs.length - 1
+            return (
+              <span key={i} className="flex items-center gap-1.5 min-w-0">
+                {i > 0 && (
+                  <svg className="w-3 h-3 text-fg-faint shrink-0" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                  </svg>
+                )}
+                {isLast || !crumb.href ? (
+                  <span className={`truncate ${isLast ? 'font-semibold text-fg' : 'text-fg-muted'}`}>
+                    {crumb.label}
+                  </span>
+                ) : (
+                  <Link
+                    to={crumb.href as any}
+                    className="truncate text-fg-muted hover:text-fg transition-colors"
+                  >
+                    {crumb.label}
+                  </Link>
+                )}
+              </span>
+            )
+          })
+        )}
+      </nav>
+
+      {/* Period picker */}
+      <div className="shrink-0 ml-4">
         <PeriodPicker
           selection={selection}
           shortLabel={shortLabel}
