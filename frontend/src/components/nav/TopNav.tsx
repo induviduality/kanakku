@@ -10,10 +10,26 @@ export default function TopNav() {
   const { selection, setSelection, shortLabel } = usePeriod()
 
   return (
-    <header className="sticky top-0 z-30 h-12 flex items-center px-4 md:px-6 border-b border-border bg-topbar">
+    <header className="sticky top-0 z-30 h-12 flex items-center border-b border-border bg-topbar">
+
+      {/* Brand — matches SideNav width on desktop */}
+      <Link
+        to="/"
+        className="hidden md:flex items-center justify-center w-52 shrink-0 h-full border-r border-border/60 hover:bg-surface-2 transition-colors"
+        aria-label="Home"
+      >
+        <span className="text-base font-bold text-fg tracking-tight" style={{ fontFamily: 'var(--kk-font-sans)' }}>
+          கணக்கு.
+        </span>
+      </Link>
+
+      {/* Mobile brand */}
+      <Link to="/" className="md:hidden flex items-center pl-4 h-full" aria-label="Home">
+        <span className="text-base font-bold text-fg">கணக்கு.</span>
+      </Link>
 
       {/* Breadcrumbs */}
-      <nav aria-label="Breadcrumb" className="flex-1 min-w-0 flex items-center gap-1.5 text-sm">
+      <nav aria-label="Breadcrumb" className="flex-1 min-w-0 flex items-center gap-1.5 text-sm px-4 md:px-6">
         {crumbs.length === 0 ? (
           <span className="font-semibold text-fg">Dashboard</span>
         ) : (
@@ -45,7 +61,7 @@ export default function TopNav() {
       </nav>
 
       {/* Period picker */}
-      <div className="shrink-0 ml-4">
+      <div className="shrink-0 pr-4 md:pr-6">
         <PeriodPicker
           selection={selection}
           shortLabel={shortLabel}
