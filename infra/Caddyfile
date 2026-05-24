@@ -17,7 +17,7 @@
     }
 }
 
-{$PUBLIC_DOMAIN:localhost}:{$CADDY_PORT:8081} {
+http://{$PUBLIC_DOMAIN:localhost}:{$CADDY_PORT:8081} {
     encode gzip
 
     # Compress and cache static assets
