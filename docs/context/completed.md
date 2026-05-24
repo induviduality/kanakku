@@ -2,6 +2,11 @@
 
 ## Milestone 14: Production Deployment — In Progress
 
+### Task 14.3: Documentation
+- README.md: full rewrite — quick start (5-step clone-to-running), architecture diagram, Pi 5 and VPS deployment sections, backup/restore commands, adding a new bank parser guide, docs table, contributing section
+- docs/api.md: new — OpenAPI UI URLs, authentication requirements, all endpoint groups, pagination, soft-delete recovery, reports/query constraints
+- docs/operations.md: already created in Task 14.2 (backup, logs, health checks, updates, Tailscale)
+
 ### Task 14.2: Backup Automation
 - infra/scripts/auto-backup.sh: nightly script with 7/4/12 daily/weekly/monthly rotation; DRY_RUN=1 and DOW/DOM env var overrides for deterministic testing; cron entry documented
 - docs/operations.md: new runbook — manual backup/restore, auto-backup cron entry, Docker log access, health checks, update procedure, common issues, Tailscale setup

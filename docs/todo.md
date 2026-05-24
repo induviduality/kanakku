@@ -501,11 +501,11 @@
 - [x] Tests
 
 ### Task 14.3: Documentation
-- [ ] README with quick start
-- [ ] docs/operations.md runbook
-- [ ] docs/tdd.md (already there)
-- [ ] docs/api.md
-- [ ] Tailscale or VPN approach documented
+- [x] README with quick start
+- [x] docs/operations.md runbook
+- [x] docs/tdd.md (already there)
+- [x] docs/api.md
+- [x] Tailscale or VPN approach documented
 - [ ] Markdown lint clean
 
 ### Task 14.4: End-to-End Tests

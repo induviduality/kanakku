@@ -55,6 +55,7 @@
 ## Completed Tasks
 - 14.1 Caddyfile & Production Compose (docker-compose.yml production-ready, override.yml for dev, resource limits, healthchecks, PUBLIC_DOMAIN) — DONE
 - 14.2 Backup Automation (auto-backup.sh with rotation, operations.md runbook, 7 tests) — DONE
+- 14.3 Documentation (README full rewrite, docs/api.md, docs/operations.md) — DONE
 
 ## Next Task
-- 14.3 Documentation
+- 14.4 End-to-End Tests
