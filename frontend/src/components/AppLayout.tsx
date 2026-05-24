@@ -1,5 +1,7 @@
 import { Outlet, useRouterState } from '@tanstack/react-router'
 import MobileNav from './MobileNav'
+import TopNav from './nav/TopNav'
+import { PeriodProvider } from '../lib/period-context'
 
 const GUEST_PATHS = ['/login', '/setup', '/accept-invite']
 
@@ -23,10 +25,15 @@ export default function AppLayout() {
       )}
 
       {/* Main content sits above the atmospheric layers */}
-      <div className={`relative z-[2] min-h-svh${isGuest ? '' : ' pb-14 md:pb-0'}`}>
-        <Outlet />
-        {!isGuest && <MobileNav />}
-      </div>
+      <PeriodProvider>
+        <div className={`relative z-[2] min-h-svh flex flex-col${isGuest ? '' : ' pb-14 md:pb-0'}`}>
+          {!isGuest && <TopNav />}
+          <div className="flex-1">
+            <Outlet />
+          </div>
+          {!isGuest && <MobileNav />}
+        </div>
+      </PeriodProvider>
     </>
   )
 }
