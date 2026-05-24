@@ -15,10 +15,10 @@ const ROOT_LABELS: Record<string, string> = {
   reports:          'Reports',
   gpay:             'GPay',
   splits:           'Splits',
+  'recently-deleted': 'Recently Deleted',
   payees:           'Payees',
   categories:       'Categories',
   tags:             'Tags',
-  'recently-deleted': 'Recently Deleted',
 }
 
 // Known static sub-paths → label for the leaf crumb

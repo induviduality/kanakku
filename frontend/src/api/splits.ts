@@ -57,6 +57,13 @@ export interface SettleRequest {
   settlement_transaction_id: string
 }
 
+export function useListSplits() {
+  return useQuery({
+    queryKey: ['splits'],
+    queryFn: () => apiGet<Split[]>('/splits'),
+  })
+}
+
 export function useGetSplit(splitId: string | null) {
   return useQuery({
     queryKey: ['splits', splitId],

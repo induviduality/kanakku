@@ -43,6 +43,7 @@
   --color-surface-3: var(--kk-bg-3);
   --color-surface-4: var(--kk-bg-4);
   --color-topbar:    var(--kk-topbar-bg);
+  --color-rail:      var(--kk-rail-bg);
 
   /* Borders */
   --color-border:        var(--kk-border);

@@ -1,6 +1,7 @@
 import { Outlet, useRouterState } from '@tanstack/react-router'
 import MobileNav from './MobileNav'
 import TopNav from './nav/TopNav'
+import SideNav from './nav/SideNav'
 import { PeriodProvider } from '../lib/period-context'
 
 const GUEST_PATHS = ['/login', '/setup', '/accept-invite']
@@ -12,8 +13,6 @@ export default function AppLayout() {
 
   return (
     <>
-      {/* Atmospheric background — only rendered for authenticated pages.
-          Purely decorative; aria-hidden keeps them out of the a11y tree. */}
       {!isGuest && (
         <>
           <div className="kk-ambient" aria-hidden="true">
@@ -24,13 +23,17 @@ export default function AppLayout() {
         </>
       )}
 
-      {/* Main content sits above the atmospheric layers */}
       <PeriodProvider>
         <div className={`relative z-[2] min-h-svh flex flex-col${isGuest ? '' : ' pb-14 md:pb-0'}`}>
           {!isGuest && <TopNav />}
-          <div className="flex-1">
-            <Outlet />
+
+          <div className="flex flex-1 min-h-0">
+            {!isGuest && <SideNav />}
+            <main className="flex-1 min-w-0 overflow-y-auto">
+              <Outlet />
+            </main>
           </div>
+
           {!isGuest && <MobileNav />}
         </div>
       </PeriodProvider>

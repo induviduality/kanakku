@@ -27,6 +27,7 @@ import Imports from './pages/Imports'
 import ImportUpload from './pages/ImportUpload'
 import ImportReview from './pages/ImportReview'
 import SettingsLLMActivity from './pages/SettingsLLMActivity'
+import Splits from './pages/Splits'
 import GPayImport from './pages/GPayImport'
 import GPayResolve from './pages/GPayResolve'
 import GPayOrphans from './pages/GPayOrphans'
@@ -127,6 +128,12 @@ const transactionNewRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/transactions/new',
   component: TransactionFormPage,
+})
+
+const splitsRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/splits',
+  component: Splits,
 })
 
 const splitDetailRoute = createRoute({
@@ -291,6 +298,7 @@ const routeTree = rootRoute.addChildren([
   tagsRoute,
   transactionsRoute,
   transactionNewRoute,
+  splitsRoute,
   splitDetailRoute,
   budgetsRoute,
   budgetNewRoute,

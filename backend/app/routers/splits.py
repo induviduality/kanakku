@@ -272,6 +272,30 @@ async def bundle_split(
     return _build_response(split, share_rows)
 
 
+@router.get("", response_model=list[SplitResponse])
+async def list_splits(
+    user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+) -> list[SplitResponse]:
+    splits = (
+        await session.execute(
+            select(Split)
+            .where(Split.user_id == user.id, Split.deleted_at.is_(None))
+            .order_by(Split.created_at.desc())
+        )
+    ).scalars().all()
+
+    result = []
+    for split in splits:
+        shares = (
+            await session.execute(
+                select(SplitShare).where(SplitShare.split_id == split.id)
+            )
+        ).scalars().all()
+        result.append(_build_response(split, list(shares)))
+    return result
+
+
 @router.get("/{split_id}", response_model=SplitResponse)
 async def get_split(
     split_id: uuid.UUID,
