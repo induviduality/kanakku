@@ -1,10 +1,11 @@
 import { useState } from 'react'
 import { useNavigate } from '@tanstack/react-router'
 import { useLogin } from '../api/auth'
+import { DEV_MODE } from '../lib/dev-mode'
 
 export default function Login() {
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
+  const [email, setEmail] = useState(DEV_MODE === 'seeded' ? 'dev@kanakku.local' : '')
+  const [password, setPassword] = useState(DEV_MODE === 'seeded' ? 'dev-password' : '')
   const navigate = useNavigate()
   const login = useLogin()
 
@@ -22,6 +23,12 @@ export default function Login() {
     <main className="min-h-screen flex items-center justify-center bg-gray-50">
       <div className="w-full max-w-sm space-y-6 p-8 bg-white rounded-xl shadow">
         <h1 className="text-2xl font-bold text-gray-900">Sign in</h1>
+
+        {DEV_MODE === 'seeded' && (
+          <p className="rounded-md bg-amber-50 border border-amber-200 px-3 py-2 text-xs text-amber-800">
+            Dev mode — credentials pre-filled
+          </p>
+        )}
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>

@@ -1,6 +1,7 @@
 import { createRootRoute, createRoute, createRouter, redirect } from '@tanstack/react-router'
 import AppLayout from './components/AppLayout'
 import { isAuthenticated } from './lib/auth-storage'
+import { DEV_MODE } from './lib/dev-mode'
 import Dashboard from './pages/Dashboard'
 import Login from './pages/Login'
 import Setup from './pages/Setup'
@@ -63,6 +64,9 @@ const setupRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/setup',
   component: Setup,
+  beforeLoad: () => {
+    if (DEV_MODE !== 'none') throw redirect({ to: '/login' })
+  },
 })
 
 const loginRoute = createRoute({
@@ -78,6 +82,9 @@ const acceptInviteRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/accept-invite',
   component: AcceptInvite,
+  beforeLoad: () => {
+    if (DEV_MODE !== 'none') throw redirect({ to: '/login' })
+  },
 })
 
 const settingsRoute = createRoute({

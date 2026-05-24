@@ -4,22 +4,12 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import './index.css'
 import App from './App.tsx'
 import { clearAuth, getRefreshToken, storeTokens } from './lib/auth-storage'
+import { DEV_MODE } from './lib/dev-mode'
 
 const queryClient = new QueryClient()
 
-/**
- * Auth bootstrap — runs once before React mounts.
- *
- * Goal: ensure isAuthenticated() returns an accurate value before any route's
- * beforeLoad fires, so the router can redirect synchronously without a flash.
- *
- * Dev mode  → call /api/v1/auth/dev-login (no credentials needed).
- * Prod mode → if a refresh token exists in localStorage, exchange it for a
- *             fresh access token.  If the exchange fails (expired, revoked)
- *             the stale token is cleared so the user lands on /login cleanly.
- */
 async function initAuth(): Promise<void> {
-  if (import.meta.env.DEV || import.meta.env.VITE_DEV_MODE === 'true') {
+  if (DEV_MODE === 'bypass-auth') {
     try {
       const res = await fetch('/api/v1/auth/dev-login')
       if (res.ok) {
@@ -27,11 +17,12 @@ async function initAuth(): Promise<void> {
         storeTokens(data.access_token, data.refresh_token)
       }
     } catch {
-      // backend unreachable in dev — fall through to login page
+      // backend unreachable — fall through to login page
     }
     return
   }
 
+  // seeded or unset: normal refresh-token flow
   const refreshToken = getRefreshToken()
   if (!refreshToken) return
 
