@@ -96,11 +96,11 @@ TXN_CC_PAYMENT  = uuid.UUID("f6000001-0000-0000-0000-000000000014")
 
 # Budgets
 # Scenario: food budget with spending (transactions match via category)
-BUD_FOOD_CURR   = uuid.UUID("g7000001-0000-0000-0000-000000000001")
+BUD_FOOD_CURR   = uuid.UUID("b7000001-0000-0000-0000-000000000001")
 # Scenario: transport budget, month just started — no spending yet (empty state)
-BUD_TRANSPORT   = uuid.UUID("g7000001-0000-0000-0000-000000000002")
+BUD_TRANSPORT   = uuid.UUID("b7000001-0000-0000-0000-000000000002")
 # Scenario: recurring entertainment budget (has parent/child structure)
-BUD_ENTERTAIN   = uuid.UUID("g7000001-0000-0000-0000-000000000003")
+BUD_ENTERTAIN   = uuid.UUID("b7000001-0000-0000-0000-000000000003")
 
 # Subscriptions
 # Scenario: upcoming (far away)
