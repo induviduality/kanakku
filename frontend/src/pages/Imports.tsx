@@ -32,7 +32,7 @@ function BatchRow({ batch }: { batch: ImportBatch }) {
           </p>
         </div>
         <Link
-          to={`/imports/${batch.id}`}
+          to={`/imports/${batch.id}` as any}
           className="shrink-0 text-sm text-indigo-600 hover:underline"
         >
           Review

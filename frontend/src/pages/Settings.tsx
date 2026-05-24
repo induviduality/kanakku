@@ -26,7 +26,7 @@ export default function Settings() {
       <h1 className="text-2xl font-bold text-gray-900 mb-6">Settings</h1>
       <SettingsForm
         settings={data}
-        onSave={(p) => patch.mutateAsync(p)}
+        onSave={(p) => patch.mutateAsync(p).then(() => {})}
         isSaving={patch.isPending}
       />
     </main>

@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { apiDelete, apiGet, apiPatch, apiPost } from '../lib/api-client'
+import { apiGet, apiPatch, apiPost } from '../lib/api-client'
 
 export type ImportSource = 'pdf' | 'gpay_takeout' | 'manual'
 export type ImportBatchStatus = 'pending' | 'processing' | 'completed' | 'failed'

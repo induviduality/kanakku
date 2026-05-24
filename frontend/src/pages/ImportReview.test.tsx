@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { RouterProvider, createRouter, createRootRoute, createRoute } from '@tanstack/react-router'
+import { RouterProvider, createRouter, createRootRoute, createRoute, createMemoryHistory } from '@tanstack/react-router'
 import ImportReview from './ImportReview'
 
 function renderPage(batchId = 'batch-1') {
@@ -23,11 +23,6 @@ function renderPage(batchId = 'batch-1') {
   )
 }
 
-// createMemoryHistory helper
-function createMemoryHistory({ initialEntries }: { initialEntries: string[] }) {
-  const { createMemoryHistory } = require('@tanstack/react-router')
-  return createMemoryHistory({ initialEntries })
-}
 
 describe('ImportReview', () => {
   it('shows loading then batch info', async () => {

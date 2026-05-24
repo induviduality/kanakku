@@ -6,15 +6,6 @@ import { test, expect } from '@playwright/test'
 
 const VIEWPORT = { width: 360, height: 780 }
 
-// Seed a fake auth token so pages don't redirect to login
-async function injectAuth(page: import('@playwright/test').Page) {
-  await page.goto('/', { waitUntil: 'domcontentloaded' })
-  await page.evaluate(() => {
-    localStorage.setItem('refresh_token', 'test-token')
-    sessionStorage.setItem('access_token', 'test-token')
-  })
-}
-
 test.describe('Mobile layout at 360px', () => {
   test.use({ viewport: VIEWPORT })
 

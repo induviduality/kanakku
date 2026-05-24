@@ -187,7 +187,7 @@ export default function PiggyBanks() {
                 <ProgressRing pct={pig.progress_pct} />
                 <div className="min-w-0 flex-1">
                   <Link
-                    to={`/piggy-banks/${pig.id}`}
+                    to={`/piggy-banks/${pig.id}` as any}
                     className="font-medium text-indigo-700 hover:underline"
                   >
                     {pig.name}
@@ -207,7 +207,7 @@ export default function PiggyBanks() {
               </div>
               <div className="mt-3 flex justify-end gap-2">
                 <Link
-                  to={`/piggy-banks/${pig.id}/edit`}
+                  to={`/piggy-banks/${pig.id}/edit` as any}
                   className="text-sm text-gray-500 hover:text-gray-800"
                 >
                   Edit

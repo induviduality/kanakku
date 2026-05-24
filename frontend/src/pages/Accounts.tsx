@@ -171,13 +171,6 @@ export default function Accounts() {
     setEditTarget(null)
   }
 
-  const columns: Column<Account>[] = [
-    { key: 'name', header: 'Name', render: (a) => a.name },
-    { key: 'type', header: 'Type', render: (a) => a.type.replace('_', ' ') },
-    { key: 'balance', header: 'Balance', render: (a) => `${a.currency} ${a.current_balance}` },
-    { key: 'status', header: 'Status', render: (a) => (a.is_active ? 'Active' : 'Inactive') },
-  ]
-
   return (
     <main className="p-6 max-w-4xl">
       <div className="flex items-center justify-between mb-6">

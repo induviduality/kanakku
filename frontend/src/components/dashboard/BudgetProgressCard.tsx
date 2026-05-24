@@ -16,7 +16,7 @@ export default function BudgetProgressCard({ budget }: { budget: BudgetSummaryIt
   return (
     <div className="flex flex-col gap-1">
       <div className="flex items-center justify-between text-sm">
-        <Link to={`/budgets/${budget.id}`} className="font-medium text-gray-800 hover:text-indigo-600 truncate">
+        <Link to={`/budgets/${budget.id}` as any} className="font-medium text-gray-800 hover:text-indigo-600 truncate">
           {budget.name}
         </Link>
         <span

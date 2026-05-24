@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { RouterProvider, createRouter, createRootRoute, createRoute } from '@tanstack/react-router'
+import { RouterProvider, createRouter, createRootRoute } from '@tanstack/react-router'
 import Imports from './Imports'
 
 function renderWithProviders(ui: React.ReactElement) {

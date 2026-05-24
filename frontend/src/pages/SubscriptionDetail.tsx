@@ -57,7 +57,7 @@ export default function SubscriptionDetail() {
 
         <div className="mt-4 flex gap-2">
           <Link
-            to={`/subscriptions/${sub.id}/edit`}
+            to={`/subscriptions/${sub.id}/edit` as any}
             className="rounded bg-indigo-50 px-3 py-1.5 text-sm text-indigo-700 hover:bg-indigo-100"
           >
             Edit

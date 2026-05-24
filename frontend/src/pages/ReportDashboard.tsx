@@ -165,7 +165,7 @@ export default function ReportDashboard() {
           <GridLayout
             className="layout"
             layout={layout}
-            cols={12}
+            {...({ cols: 12 } as any)}
             rowHeight={60}
             width={1200}
             onLayoutChange={(newLayout) => {

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { screen, waitFor, fireEvent } from '@testing-library/react'
+import { screen, waitFor } from '@testing-library/react'
 import RecentlyDeleted from './RecentlyDeleted'
 import { renderWithQuery } from '../test/render-utils'
 

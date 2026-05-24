@@ -179,7 +179,7 @@ export default function PiggyBankDetail() {
         {pig.notes && <p className="mt-3 text-sm text-gray-500">{pig.notes}</p>}
         <div className="mt-4 flex gap-2">
           <Link
-            to={`/piggy-banks/${pig.id}/edit`}
+            to={`/piggy-banks/${pig.id}/edit` as any}
             className="rounded bg-indigo-50 px-3 py-1.5 text-sm text-indigo-700 hover:bg-indigo-100"
           >
             Edit

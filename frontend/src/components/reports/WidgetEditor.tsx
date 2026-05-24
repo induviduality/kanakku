@@ -50,7 +50,7 @@ export default function WidgetEditor({ initial, onSave, onCancel }: WidgetEditor
         try {
           const body = await err.json()
           msg = body.detail ?? msg
-        } catch {}
+        } catch (_e) { /* empty */ }
       }
       setPreviewError(msg)
     }
@@ -60,7 +60,7 @@ export default function WidgetEditor({ initial, onSave, onCancel }: WidgetEditor
     let parsedConfig: Record<string, unknown> = {}
     try {
       parsedConfig = JSON.parse(vizConfig)
-    } catch {}
+    } catch (_e) { /* empty */ }
     onSave({
       title,
       query,

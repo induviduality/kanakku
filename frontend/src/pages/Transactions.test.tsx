@@ -5,7 +5,6 @@ import { http, HttpResponse } from 'msw'
 import Transactions from './Transactions'
 import { renderWithQuery } from '../test/render-utils'
 import { server } from '../test/server'
-import { TRANSACTIONS_RESPONSE } from '../test/handlers'
 
 // Mock navigate to avoid needing router context
 vi.mock('@tanstack/react-router', async () => {

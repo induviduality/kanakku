@@ -46,7 +46,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: astral-sh/setup-uv@v4
+      - uses: astral-sh/setup-uv@v5
         with:
           version: latest
 
@@ -54,22 +54,26 @@ jobs:
         run: uv python install 3.12
 
       - name: Install dependencies
-        run: uv pip install --system -e "./backend[dev]"
+        run: uv sync --extra dev
+        working-directory: backend
 
       - name: Ruff lint
-        run: ruff check backend/app/
+        run: uv run ruff check app/
+        working-directory: backend
 
       - name: Mypy
-        run: mypy backend/app/
+        run: uv run mypy app/
+        working-directory: backend
 
       - name: Pytest
-        run: pytest backend/ --cov=app --cov-report=xml -v
+        run: uv run pytest . --cov=app --cov-report=xml -v
+        working-directory: backend
 
       - name: Upload coverage
         uses: actions/upload-artifact@v4
         with:
           name: coverage-backend
-          path: coverage.xml
+          path: backend/coverage.xml
 
   frontend:
     name: Frontend (lint + test + build)
@@ -79,6 +83,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - uses: oven-sh/setup-bun@v2
+
         with:
           bun-version: latest
 

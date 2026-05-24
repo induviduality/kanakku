@@ -1,11 +1,9 @@
 import { screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, it, expect, vi } from 'vitest'
-import { http, HttpResponse } from 'msw'
 import TransactionFormComponent from '../components/forms/TransactionForm'
 import { renderWithQuery } from '../test/render-utils'
-import { server } from '../test/server'
-import { ACCOUNTS_RESPONSE, CATEGORIES_RESPONSE, TAGS_RESPONSE, PAYEES_RESPONSE } from '../test/handlers'
+import { ACCOUNTS_RESPONSE, CATEGORIES_RESPONSE } from '../test/handlers'
 
 describe('TransactionForm component', () => {
   it('renders all core fields', async () => {

@@ -214,7 +214,7 @@ export default function Subscriptions() {
               <div className="flex items-start justify-between gap-4">
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <Link to={`/subscriptions/${sub.id}`} className="font-medium text-indigo-700 hover:underline">
+                    <Link to={`/subscriptions/${sub.id}` as any} className="font-medium text-indigo-700 hover:underline">
                       {sub.name}
                     </Link>
                     <StatusBadge status={sub.status} />
@@ -226,7 +226,7 @@ export default function Subscriptions() {
                 </div>
                 <div className="flex gap-2 shrink-0">
                   <Link
-                    to={`/subscriptions/${sub.id}/edit`}
+                    to={`/subscriptions/${sub.id}/edit` as any}
                     className="text-sm text-gray-500 hover:text-gray-800"
                   >
                     Edit

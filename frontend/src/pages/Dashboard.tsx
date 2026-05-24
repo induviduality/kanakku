@@ -150,7 +150,7 @@ export default function Dashboard() {
               <div key={s.id} className="flex items-center justify-between py-2.5 first:pt-0 last:pb-0">
                 <div className="min-w-0">
                   <Link
-                    to={`/subscriptions/${s.id}`}
+                    to={`/subscriptions/${s.id}` as any}
                     className="text-sm font-medium text-gray-800 hover:text-indigo-600"
                   >
                     {s.name}
@@ -180,7 +180,7 @@ export default function Dashboard() {
           ) : (
             <div className="space-y-4">
               {data.piggy_banks_summary.map((p) => (
-                <Link key={p.id} to={`/piggy-banks/${p.id}`} className="block hover:opacity-80">
+                <Link key={p.id} to={`/piggy-banks/${p.id}` as any} className="block hover:opacity-80">
                   <PiggyBankProgressRing piggyBank={p} />
                 </Link>
               ))}

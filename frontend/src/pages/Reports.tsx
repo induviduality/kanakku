@@ -22,7 +22,7 @@ function DashboardCard({ dashboard, onDelete }: { dashboard: Dashboard; onDelete
         </button>
       </div>
       <Link
-        to={`/reports/${dashboard.id}`}
+        to={`/reports/${dashboard.id}` as any}
         className="inline-flex items-center gap-1 text-sm text-indigo-600 hover:underline font-medium"
       >
         Open dashboard →
