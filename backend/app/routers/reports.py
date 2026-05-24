@@ -85,7 +85,7 @@ async def run_query(
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
 
-    bind_params: dict[str, Any] = {**(req.params or {}), "user_id": str(user.id)}
+    bind_params: dict[str, Any] = {**(req.params or {}), "user_id": user.id}
 
     try:
         async with get_readonly_engine().begin() as conn:
