@@ -1,11 +1,11 @@
 import { useState } from 'react'
 import { useNavigate } from '@tanstack/react-router'
 import { useLogin } from '../api/auth'
-import { DEV_MODE } from '../lib/dev-mode'
+import { DEV_MODE, DEV_EMAIL, DEV_PASSWORD } from '../lib/dev-mode'
 
 export default function Login() {
-  const [email, setEmail] = useState(DEV_MODE === 'seeded' ? 'dev@kanakku.local' : '')
-  const [password, setPassword] = useState(DEV_MODE === 'seeded' ? 'dev-password' : '')
+  const [email, setEmail] = useState(DEV_MODE === 'seeded' ? DEV_EMAIL : '')
+  const [password, setPassword] = useState(DEV_MODE === 'seeded' ? DEV_PASSWORD : '')
   const navigate = useNavigate()
   const login = useLogin()
 
