@@ -462,8 +462,25 @@ export const DASHBOARD_RESPONSE = {
 }
 
 export const handlers = [
-  // Dashboard
-  http.get('/api/v1/dashboard/home', () => HttpResponse.json(DASHBOARD_RESPONSE)),
+  // Dashboard — reflect selected period in the response so the UI reacts to picker changes
+  http.get('/api/v1/dashboard/home', ({ request }) => {
+    const url = new URL(request.url)
+    const startDate = url.searchParams.get('start_date') ?? DASHBOARD_RESPONSE.period_start
+    const endDate   = url.searchParams.get('end_date')   ?? DASHBOARD_RESPONSE.period_end
+
+    // Filter mock transactions to those within the requested window
+    const filteredTxns = DASHBOARD_RESPONSE.recent_transactions.filter((t) => {
+      const d = t.transacted_at.slice(0, 10)
+      return d >= startDate && d <= endDate
+    })
+
+    return HttpResponse.json({
+      ...DASHBOARD_RESPONSE,
+      period_start: startDate,
+      period_end: endDate,
+      recent_transactions: filteredTxns,
+    })
+  }),
 
   http.post('/api/v1/auth/setup', () => HttpResponse.json(TOKEN_RESPONSE, { status: 201 })),
   http.post('/api/v1/auth/login', () => HttpResponse.json(TOKEN_RESPONSE)),

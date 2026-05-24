@@ -298,6 +298,8 @@ async def _category_breakdown(
 async def _recent_transactions(
     session: AsyncSession,
     user_id: uuid.UUID,
+    period_start: datetime,
+    period_end: datetime,
 ) -> list[RecentTransaction]:
     txns = (
         await session.execute(
@@ -305,6 +307,8 @@ async def _recent_transactions(
             .where(
                 Transaction.user_id == user_id,
                 Transaction.deleted_at.is_(None),
+                Transaction.transacted_at >= period_start,
+                Transaction.transacted_at < period_end,
             )
             .order_by(Transaction.transacted_at.desc(), Transaction.id.desc())
             .limit(10)
@@ -492,7 +496,7 @@ async def home_dashboard(
     prev_spent, prev_income = await _monthly_totals(session, user.id, prev_start, prev_end)
     budgets = await _budgets_summary(session, user.id, period_start, period_end)
     cats = await _category_breakdown(session, user.id, period_start, period_end, total_spent)
-    recent = await _recent_transactions(session, user.id)
+    recent = await _recent_transactions(session, user.id, period_start, period_end)
     splits = await _pending_splits_summary(session, user.id)
     pigs = await _piggy_banks_summary(session, user.id)
     accounts = await _account_balances(session, user.id)
