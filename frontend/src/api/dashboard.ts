@@ -1,6 +1,8 @@
 import { useQuery } from '@tanstack/react-query'
 import { apiGet } from '../lib/api-client'
 
+export type DashboardPeriod = 'month' | 'quarter' | 'year' | 'custom'
+
 export interface BudgetSummaryItem {
   id: string
   name: string
@@ -70,9 +72,22 @@ export interface RecentTransaction {
 }
 
 export interface DashboardData {
+  // legacy
   month: string
   total_spent_net: string
   total_income: string
+  // period-aware
+  period: DashboardPeriod
+  period_start: string
+  period_end: string
+  total_balance: string
+  inflow: string
+  outflow: string
+  savings_rate: number | null
+  prev_inflow: string
+  prev_outflow: string
+  prev_savings_rate: number | null
+  // collections
   budgets_summary: BudgetSummaryItem[]
   category_breakdown: CategoryBreakdownItem[]
   recent_transactions: RecentTransaction[]
@@ -82,9 +97,20 @@ export interface DashboardData {
   active_subscriptions: ActiveSubscriptionItem[]
 }
 
-export function useGetDashboard() {
+export interface DashboardParams {
+  period?: DashboardPeriod
+  start_date?: string
+  end_date?: string
+}
+
+export function useGetDashboard(params: DashboardParams = {}) {
+  const { period = 'month', start_date, end_date } = params
+  const qs = new URLSearchParams({ period })
+  if (start_date) qs.set('start_date', start_date)
+  if (end_date) qs.set('end_date', end_date)
+
   return useQuery<DashboardData>({
-    queryKey: ['dashboard'],
-    queryFn: () => apiGet<DashboardData>('/dashboard/home'),
+    queryKey: ['dashboard', period, start_date, end_date],
+    queryFn: () => apiGet<DashboardData>(`/dashboard/home?${qs}`),
   })
 }

@@ -1,11 +1,13 @@
 from __future__ import annotations
 
 import uuid
-from datetime import UTC, date, datetime
+from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
+from enum import Enum
+from typing import Optional
 
 import sqlalchemy as sa
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.session import get_session
@@ -40,6 +42,13 @@ from app.services.subscription_dates import compute_next_billing_date, subscript
 router = APIRouter(prefix="/dashboard", tags=["dashboard"])
 
 
+class DashboardPeriod(str, Enum):
+    month = "month"
+    quarter = "quarter"
+    year = "year"
+    custom = "custom"
+
+
 def _month_window(today: date) -> tuple[datetime, datetime]:
     start = datetime(today.year, today.month, 1, tzinfo=UTC)
     if today.month == 12:
@@ -47,6 +56,70 @@ def _month_window(today: date) -> tuple[datetime, datetime]:
     else:
         end = datetime(today.year, today.month + 1, 1, tzinfo=UTC)
     return start, end
+
+
+def _period_window(
+    period: DashboardPeriod,
+    today: date,
+    start_date: Optional[date],
+    end_date: Optional[date],
+) -> tuple[datetime, datetime]:
+    """Return (period_start, period_end) as UTC datetimes (end is exclusive)."""
+    if period == DashboardPeriod.month:
+        return _month_window(today)
+    if period == DashboardPeriod.quarter:
+        q_start_month = ((today.month - 1) // 3) * 3 + 1
+        start = datetime(today.year, q_start_month, 1, tzinfo=UTC)
+        end_month = q_start_month + 3
+        if end_month > 12:
+            end = datetime(today.year + 1, end_month - 12, 1, tzinfo=UTC)
+        else:
+            end = datetime(today.year, end_month, 1, tzinfo=UTC)
+        return start, end
+    if period == DashboardPeriod.year:
+        return (
+            datetime(today.year, 1, 1, tzinfo=UTC),
+            datetime(today.year + 1, 1, 1, tzinfo=UTC),
+        )
+    # custom
+    if not start_date or not end_date:
+        raise HTTPException(status_code=422, detail="start_date and end_date required for custom period")
+    return (
+        datetime(start_date.year, start_date.month, start_date.day, tzinfo=UTC),
+        datetime(end_date.year, end_date.month, end_date.day, tzinfo=UTC) + timedelta(days=1),
+    )
+
+
+def _prev_window(
+    period: DashboardPeriod,
+    curr_start: datetime,
+    curr_end: datetime,
+) -> tuple[datetime, datetime]:
+    """Return the previous period window of the same duration."""
+    if period == DashboardPeriod.month:
+        # previous calendar month
+        m = curr_start.month - 1
+        y = curr_start.year
+        if m == 0:
+            m, y = 12, y - 1
+        prev_start = datetime(y, m, 1, tzinfo=UTC)
+        prev_end = curr_start  # curr_start IS the first of current month
+        return prev_start, prev_end
+    if period == DashboardPeriod.quarter:
+        # shift back by 3 months
+        m = curr_start.month - 3
+        y = curr_start.year
+        if m <= 0:
+            m += 12
+            y -= 1
+        prev_start = datetime(y, m, 1, tzinfo=UTC)
+        return prev_start, curr_start
+    if period == DashboardPeriod.year:
+        prev_start = datetime(curr_start.year - 1, 1, 1, tzinfo=UTC)
+        return prev_start, curr_start
+    # custom — slide back by same duration
+    duration = curr_end - curr_start
+    return curr_start - duration, curr_start
 
 
 def _budget_status(spent: Decimal, amount: Decimal) -> str:
@@ -395,29 +468,52 @@ async def _active_subscriptions(
     return result
 
 
+def _savings_rate(inflow: Decimal, outflow: Decimal) -> float | None:
+    if inflow <= 0:
+        return None
+    return round(float((inflow - outflow) / inflow * 100), 1)
+
+
 @router.get("/home", response_model=DashboardResponse)
 async def home_dashboard(
+    period: DashboardPeriod = Query(DashboardPeriod.month),
+    start_date: Optional[date] = Query(None),
+    end_date: Optional[date] = Query(None),
     user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ) -> DashboardResponse:
     today = date.today()
-    month_start, month_end = _month_window(today)
+    period_start, period_end = _period_window(period, today, start_date, end_date)
+    prev_start, prev_end = _prev_window(period, period_start, period_end)
 
     # Sub-queries run sequentially (shared session; asyncio.gather offers no
     # real parallelism here since the connection is not re-entrant).
-    total_spent, total_income = await _monthly_totals(session, user.id, month_start, month_end)
-    budgets = await _budgets_summary(session, user.id, month_start, month_end)
-    cats = await _category_breakdown(session, user.id, month_start, month_end, total_spent)
+    total_spent, total_income = await _monthly_totals(session, user.id, period_start, period_end)
+    prev_spent, prev_income = await _monthly_totals(session, user.id, prev_start, prev_end)
+    budgets = await _budgets_summary(session, user.id, period_start, period_end)
+    cats = await _category_breakdown(session, user.id, period_start, period_end, total_spent)
     recent = await _recent_transactions(session, user.id)
     splits = await _pending_splits_summary(session, user.id)
     pigs = await _piggy_banks_summary(session, user.id)
     accounts = await _account_balances(session, user.id)
     subs = await _active_subscriptions(session, user.id)
 
+    total_balance = sum((Decimal(a.current_balance) for a in accounts), Decimal("0"))
+
     return DashboardResponse(
         month=today.strftime("%Y-%m"),
         total_spent_net=total_spent,
         total_income=total_income,
+        period=period.value,
+        period_start=period_start.date(),
+        period_end=(period_end - timedelta(days=1)).date(),
+        total_balance=total_balance,
+        inflow=total_income,
+        outflow=total_spent,
+        savings_rate=_savings_rate(total_income, total_spent),
+        prev_inflow=prev_income,
+        prev_outflow=prev_spent,
+        prev_savings_rate=_savings_rate(prev_income, prev_spent),
         budgets_summary=budgets,
         category_breakdown=cats,
         recent_transactions=recent,

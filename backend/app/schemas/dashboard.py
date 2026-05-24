@@ -79,9 +79,23 @@ class RecentTransaction(BaseModel):
 
 
 class DashboardResponse(BaseModel):
+    # legacy fields kept for backward compat
     month: str
     total_spent_net: Decimal
     total_income: Decimal
+
+    # period-aware fields
+    period: str  # "month" | "quarter" | "year" | "custom"
+    period_start: date
+    period_end: date
+    total_balance: Decimal
+    inflow: Decimal
+    outflow: Decimal
+    savings_rate: float | None  # (inflow - outflow) / inflow * 100, None if inflow == 0
+    prev_inflow: Decimal
+    prev_outflow: Decimal
+    prev_savings_rate: float | None
+
     budgets_summary: list[BudgetSummaryItem]
     category_breakdown: list[CategoryBreakdownItem]
     recent_transactions: list[RecentTransaction]

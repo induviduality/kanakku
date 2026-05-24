@@ -387,6 +387,16 @@ export const DASHBOARD_RESPONSE = {
   month: '2026-05',
   total_spent_net: '1410.00',
   total_income: '85000.00',
+  period: 'month',
+  period_start: '2026-05-01',
+  period_end: '2026-05-31',
+  total_balance: '87430.00',
+  inflow: '85000.00',
+  outflow: '1410.00',
+  savings_rate: 98.3,
+  prev_inflow: '80000.00',
+  prev_outflow: '2100.00',
+  prev_savings_rate: 97.4,
   budgets_summary: [
     {
       id: 'budget-1',
