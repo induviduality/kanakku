@@ -5,6 +5,10 @@ import { usePeriod } from '../lib/period-context'
 import { EmptyState } from '../components/EmptyState'
 import { SplitDrawer } from '../components/drawers/SplitDrawer'
 
+interface Props {
+  mode: 'pending' | 'all'
+}
+
 function StatusBadge({ status }: { status: SplitShareStatus }) {
   const styles: Record<SplitShareStatus, string> = {
     pending:  'bg-warning/15 text-warning-dim',
@@ -18,7 +22,7 @@ function StatusBadge({ status }: { status: SplitShareStatus }) {
   )
 }
 
-function SplitCard({ split, onSelect }: { split: Split; onSelect: (id: string) => void }) {
+function SplitRow({ split, onSelect }: { split: Split; onSelect: (id: string) => void }) {
   const pending  = split.shares.filter(s => s.status === 'pending')
   const settled  = split.shares.filter(s => s.status === 'settled')
   const forgiven = split.shares.filter(s => s.status === 'forgiven')
@@ -64,26 +68,21 @@ function SplitCard({ split, onSelect }: { split: Split; onSelect: (id: string) =
   )
 }
 
-function SectionHeader({ title, viewAllTo }: { title: string; viewAllTo: string }) {
-  return (
-    <div className="flex items-center justify-between mb-3">
-      <h2 className="text-sm font-semibold text-fg-muted uppercase tracking-wide">{title}</h2>
-      <Link to={viewAllTo as any} className="text-xs text-accent hover:underline">
-        View all →
-      </Link>
-    </div>
-  )
-}
-
-export default function Splits() {
+export default function SplitsAll({ mode }: Props) {
   const { data, isLoading, isError } = useListSplits()
   const { dashboardParams, shortLabel } = usePeriod()
   const [selectedSplitId, setSelectedSplitId] = useState<string | null>(null)
 
+  const title      = mode === 'pending' ? 'Unsettled Splits' : 'All Splits'
+  const emptyTitle = mode === 'pending' ? 'No unsettled splits' : 'No splits in this period'
+  const emptyDesc  = mode === 'pending'
+    ? `All splits in ${shortLabel} are settled.`
+    : 'Splits are created from the transaction detail page.'
+
   if (isLoading) {
     return (
       <div className="p-4 md:p-6 space-y-3 max-w-3xl mx-auto">
-        {[0, 1, 2].map(i => (
+        {[0, 1, 2, 3, 4].map(i => (
           <div key={i} className="h-20 animate-pulse bg-surface-2 rounded-xl" />
         ))}
       </div>
@@ -96,7 +95,6 @@ export default function Splits() {
 
   const allSplits = data ?? []
 
-  // Client-side period filter on split.created_at
   const start = dashboardParams.start_date ?? ''
   const end   = dashboardParams.end_date ?? ''
   const inPeriod = (s: Split) => {
@@ -104,58 +102,42 @@ export default function Splits() {
     return d >= start && d <= end
   }
 
-  const periodSplits  = allSplits.filter(inPeriod)
-  const unsettled     = periodSplits.filter(s => s.shares.some(sh => sh.status === 'pending'))
+  const periodSplits = allSplits.filter(inPeriod)
+  const displayed    = mode === 'pending'
+    ? periodSplits.filter(s => s.shares.some(sh => sh.status === 'pending'))
+    : periodSplits
 
   return (
-    <div className="p-4 md:p-6 max-w-3xl mx-auto space-y-8">
-      {/* Unsettled section */}
-      <section>
-        <SectionHeader title="Unsettled" viewAllTo="/splits/pending" />
-        {unsettled.length === 0 ? (
-          <EmptyState
-            title="No unsettled splits"
-            description={`All splits in ${shortLabel} are settled.`}
-          />
-        ) : (
-          <>
-            <div className="space-y-3">
-              {unsettled.slice(0, 5).map(s => <SplitCard key={s.id} split={s} onSelect={setSelectedSplitId} />)}
-            </div>
-            {unsettled.length > 5 && (
-              <p className="mt-3 text-xs text-fg-faint text-center">
-                +{unsettled.length - 5} more &mdash;{' '}
-                <Link to="/splits/pending" className="text-accent hover:underline">view all</Link>
-              </p>
-            )}
-          </>
-        )}
-      </section>
+    <div className="p-4 md:p-6 max-w-3xl mx-auto">
+      <div className="flex items-center gap-3 mb-6">
+        <Link to="/splits" className="text-xs text-fg-muted hover:text-fg">← Splits</Link>
+        <h1 className="text-base font-semibold text-fg">{title}</h1>
+        <span className="text-xs text-fg-faint">{shortLabel}</span>
+      </div>
 
-      {/* All splits section */}
-      <section>
-        <SectionHeader title={`All Splits — ${shortLabel}`} viewAllTo="/splits/history" />
-        {periodSplits.length === 0 ? (
-          <EmptyState
-            title="No splits in this period"
-            description="Splits are created from the transaction detail page."
-          />
-        ) : (
-          <>
-            <div className="space-y-3">
-              {periodSplits.slice(0, 5).map(s => <SplitCard key={s.id} split={s} onSelect={setSelectedSplitId} />)}
-            </div>
-            {periodSplits.length > 5 && (
-              <p className="mt-3 text-xs text-fg-faint text-center">
-                +{periodSplits.length - 5} more &mdash;{' '}
-                <Link to="/splits/history" className="text-accent hover:underline">view all</Link>
-              </p>
-            )}
-          </>
-        )}
-      </section>
+      {displayed.length === 0 ? (
+        <EmptyState title={emptyTitle} description={emptyDesc} />
+      ) : (
+        <div className="space-y-3">
+          {displayed.map(s => <SplitRow key={s.id} split={s} onSelect={setSelectedSplitId} />)}
+        </div>
+      )}
+
+      {displayed.length > 0 && (
+        <p className="mt-4 text-xs text-fg-faint text-center">
+          {displayed.length} {displayed.length === 1 ? 'split' : 'splits'}
+        </p>
+      )}
+
+      <SplitDrawer splitId={selectedSplitId} onClose={() => setSelectedSplitId(null)} />
     </div>
-
-    <SplitDrawer splitId={selectedSplitId} onClose={() => setSelectedSplitId(null)} />
   )
+}
+
+export function SplitsPendingPage() {
+  return <SplitsAll mode="pending" />
+}
+
+export function SplitsHistoryPage() {
+  return <SplitsAll mode="all" />
 }

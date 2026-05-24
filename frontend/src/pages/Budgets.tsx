@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Pencil, Trash2 } from 'lucide-react'
 import { Link } from '@tanstack/react-router'
 import {
   useGetBudgets,
@@ -11,6 +12,8 @@ import {
 import { useCategories } from '../api/categories'
 import ConfirmDialog from '../components/ConfirmDialog'
 import EntityModal from '../components/EntityModal'
+import { EmptyState } from '../components/EmptyState'
+import { BudgetDrawer } from '../components/drawers/BudgetDrawer'
 
 function ProgressBar({ spent, amount }: { spent: number; amount: number }) {
   const pct = amount > 0 ? Math.min(100, (spent / amount) * 100) : 0
@@ -103,6 +106,7 @@ export default function Budgets() {
 
   const [createOpen, setCreateOpen] = useState(false)
   const [deleteTarget, setDeleteTarget] = useState<Budget | null>(null)
+  const [drawerBudgetId, setDrawerBudgetId] = useState<string | null>(null)
 
   // Create form state
   const [name, setName] = useState('')
@@ -162,7 +166,7 @@ export default function Budgets() {
   }
 
   return (
-    <main className="p-6 max-w-3xl">
+    <main className="p-6 max-w-3xl mx-auto">
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold text-gray-900">Budgets</h1>
         <button
@@ -176,39 +180,39 @@ export default function Budgets() {
       {isLoading ? (
         <p className="text-gray-500">Loading budgets…</p>
       ) : budgets.length === 0 ? (
-        <p className="text-gray-400">No budgets yet.</p>
+        <EmptyState title="No budgets yet" description="Create a budget to start tracking your spending limits." />
       ) : (
         <div className="space-y-4">
           {budgets.map((b) => (
-            <div key={b.id} className="border border-gray-200 rounded-lg p-4 bg-white shadow-sm">
+            <div
+              key={b.id}
+              className="border border-gray-200 rounded-lg p-4 bg-white shadow-sm cursor-pointer hover:border-indigo-200 transition-colors"
+              onClick={() => setDrawerBudgetId(b.id)}
+            >
               <div className="flex items-start justify-between mb-2">
                 <div>
-                  <Link
-                    to="/budgets/$budgetId"
-                    params={{ budgetId: b.id }}
-                    className="font-semibold text-indigo-600 hover:underline"
-                  >
-                    {b.name}
-                  </Link>
+                  <p className="font-semibold text-gray-900">{b.name}</p>
                   <p className="text-xs text-gray-400">
                     {b.type === 'recurring' ? `Recurring${b.period ? ` · ${b.period}` : ''}` : 'Ad-hoc'}
                     {!b.is_active && ' · Inactive'}
                   </p>
                 </div>
-                <div className="flex gap-2 text-sm">
+                <div className="flex gap-1" onClick={e => e.stopPropagation()}>
                   <Link
                     to="/budgets/$budgetId/edit"
                     params={{ budgetId: b.id }}
-                    className="text-gray-500 hover:text-gray-700"
+                    className="p-1.5 rounded text-fg-muted hover:text-fg hover:bg-surface-2 transition-colors"
+                    title="Edit"
                   >
-                    Edit
+                    <Pencil className="w-4 h-4" />
                   </Link>
                   <button
                     onClick={() => setDeleteTarget(b)}
-                    className="text-red-500 hover:text-red-700"
+                    className="p-1.5 rounded text-fg-muted hover:text-negative-dim hover:bg-negative/10 transition-colors"
+                    title="Delete"
                     aria-label={`Delete ${b.name}`}
                   >
-                    Delete
+                    <Trash2 className="w-4 h-4" />
                   </button>
                 </div>
               </div>
@@ -363,6 +367,8 @@ export default function Budgets() {
           onCancel={() => setDeleteTarget(null)}
         />
       )}
+
+      <BudgetDrawer budgetId={drawerBudgetId} onClose={() => setDrawerBudgetId(null)} />
     </main>
   )
 }

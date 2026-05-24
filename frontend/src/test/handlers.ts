@@ -588,6 +588,39 @@ export const handlers = [
   http.delete('/api/v1/transactions/:id', () => new HttpResponse(null, { status: 204 })),
 
   // Splits
+  http.get('/api/v1/splits', () =>
+    HttpResponse.json([
+      {
+        ...SPLIT_RESPONSE,
+        id: 'split-1',
+        notes: 'Dinner split',
+        created_at: '2026-05-10T10:00:00Z',
+        updated_at: '2026-05-10T10:00:00Z',
+        shares: [
+          { ...SPLIT_RESPONSE.shares[0], id: 'share-1', split_id: 'split-1', created_at: '2026-05-10T10:00:00Z', updated_at: '2026-05-10T10:00:00Z' },
+          { ...SPLIT_RESPONSE.shares[1], id: 'share-2', split_id: 'split-1', created_at: '2026-05-10T10:00:00Z', updated_at: '2026-05-10T10:00:00Z' },
+        ],
+      },
+      {
+        ...SPLIT_RESPONSE,
+        id: 'split-2',
+        notes: 'Lunch bill',
+        created_at: '2026-05-15T12:00:00Z',
+        updated_at: '2026-05-15T12:00:00Z',
+        shares: [
+          { ...SPLIT_RESPONSE.shares[0], id: 'share-3', split_id: 'split-2', status: 'settled', settled_at: '2026-05-20T10:00:00Z', created_at: '2026-05-15T12:00:00Z', updated_at: '2026-05-20T10:00:00Z' },
+          { ...SPLIT_RESPONSE.shares[1], id: 'share-4', split_id: 'split-2', status: 'forgiven', forgiven_at: '2026-05-20T10:00:00Z', created_at: '2026-05-15T12:00:00Z', updated_at: '2026-05-20T10:00:00Z' },
+        ],
+      },
+      {
+        ...SPLIT_RESPONSE,
+        id: 'split-3',
+        notes: 'Old dinner',
+        created_at: '2026-01-15T10:00:00Z',
+        updated_at: '2026-01-15T10:00:00Z',
+      },
+    ]),
+  ),
   http.post('/api/v1/splits', async ({ request }) => {
     const body = await request.json() as Record<string, unknown>
     return HttpResponse.json(

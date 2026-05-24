@@ -78,7 +78,7 @@ export default function GPayResolve() {
   const { data: matches, isLoading } = useGetPendingGPayMatches()
 
   return (
-    <main className="p-8 max-w-2xl">
+    <main className="p-8 max-w-2xl mx-auto">
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold text-gray-900">Pending GPay Matches</h1>
         <Link to="/gpay/import" className="text-sm text-indigo-600 hover:underline">

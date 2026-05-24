@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Pencil, Trash2 } from 'lucide-react'
 import {
   useCategories,
   useCreateCategory,
@@ -94,7 +95,7 @@ export default function Categories() {
   ]
 
   return (
-    <main className="p-6 max-w-4xl">
+    <main className="p-6 max-w-4xl mx-auto">
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold text-gray-900">Categories</h1>
         <div className="flex gap-2">
@@ -125,12 +126,12 @@ export default function Categories() {
           keyField="id"
           emptyMessage="No categories yet. Use 'Seed defaults' to get started."
           actions={(c) => (
-            <div className="flex gap-2">
-              <button onClick={() => openEdit(c)} className="text-sm text-gray-500 hover:text-gray-700">
-                Edit
+            <div className="flex gap-1">
+              <button onClick={() => openEdit(c)} className="p-1.5 rounded text-fg-muted hover:text-fg hover:bg-surface-2 transition-colors" title="Edit">
+                <Pencil className="w-4 h-4" />
               </button>
-              <button onClick={() => setDeleteTarget(c)} className="text-sm text-red-500 hover:text-red-700">
-                Delete
+              <button onClick={() => setDeleteTarget(c)} className="p-1.5 rounded text-fg-muted hover:text-negative-dim hover:bg-negative/10 transition-colors" title="Delete">
+                <Trash2 className="w-4 h-4" />
               </button>
             </div>
           )}

@@ -28,6 +28,7 @@ import ImportUpload from './pages/ImportUpload'
 import ImportReview from './pages/ImportReview'
 import SettingsLLMActivity from './pages/SettingsLLMActivity'
 import Splits from './pages/Splits'
+import { SplitsPendingPage, SplitsHistoryPage } from './pages/SplitsAll'
 import GPayImport from './pages/GPayImport'
 import GPayResolve from './pages/GPayResolve'
 import GPayOrphans from './pages/GPayOrphans'
@@ -134,6 +135,18 @@ const splitsRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/splits',
   component: Splits,
+})
+
+const splitsPendingRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/splits/pending',
+  component: SplitsPendingPage,
+})
+
+const splitsHistoryRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/splits/history',
+  component: SplitsHistoryPage,
 })
 
 const splitDetailRoute = createRoute({
@@ -299,6 +312,8 @@ const routeTree = rootRoute.addChildren([
   transactionsRoute,
   transactionNewRoute,
   splitsRoute,
+  splitsPendingRoute,
+  splitsHistoryRoute,
   splitDetailRoute,
   budgetsRoute,
   budgetNewRoute,

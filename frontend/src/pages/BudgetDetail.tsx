@@ -31,7 +31,7 @@ export default function BudgetDetail() {
   const barColor = pct >= 90 ? 'bg-red-500' : pct >= 70 ? 'bg-amber-400' : 'bg-green-500'
 
   return (
-    <main className="p-6 max-w-3xl">
+    <main className="p-6 max-w-3xl mx-auto">
       <div className="flex items-center gap-3 mb-1">
         <Link to="/budgets" className="text-sm text-indigo-600 hover:underline">
           ← Budgets

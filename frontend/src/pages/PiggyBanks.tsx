@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Pencil, Trash2 } from 'lucide-react'
 import { Link } from '@tanstack/react-router'
 import {
   useGetPiggyBanks,
@@ -8,6 +9,8 @@ import {
   type PiggyBankCreate,
 } from '../api/piggy_banks'
 import ConfirmDialog from '../components/ConfirmDialog'
+import { EmptyState } from '../components/EmptyState'
+import { PiggyBankDrawer } from '../components/drawers/PiggyBankDrawer'
 
 function ProgressRing({ pct }: { pct: number }) {
   const r = 36
@@ -147,6 +150,7 @@ export default function PiggyBanks() {
   const deleteMutation = useDeletePiggyBank()
   const [showForm, setShowForm] = useState(false)
   const [deleteTarget, setDeleteTarget] = useState<PiggyBank | null>(null)
+  const [drawerPiggyId, setDrawerPiggyId] = useState<string | null>(null)
 
   if (isLoading) return <p className="p-8 text-gray-500">Loading piggy banks…</p>
 
@@ -178,20 +182,19 @@ export default function PiggyBanks() {
       )}
 
       {(!piggyBanks || piggyBanks.length === 0) ? (
-        <p className="text-gray-500 text-center py-12">No piggy banks yet.</p>
+        <EmptyState title="No savings goals yet" description="Create a piggy bank to start saving towards a goal." />
       ) : (
         <ul className="grid gap-4 sm:grid-cols-2">
           {piggyBanks.map((pig) => (
-            <li key={pig.id} className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
+            <li
+              key={pig.id}
+              className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm cursor-pointer hover:border-indigo-200 transition-colors"
+              onClick={() => setDrawerPiggyId(pig.id)}
+            >
               <div className="flex items-center gap-4">
                 <ProgressRing pct={pig.progress_pct} />
                 <div className="min-w-0 flex-1">
-                  <Link
-                    to={`/piggy-banks/${pig.id}` as any}
-                    className="font-medium text-indigo-700 hover:underline"
-                  >
-                    {pig.name}
-                  </Link>
+                  <p className="font-medium text-gray-900">{pig.name}</p>
                   {pig.is_completed && (
                     <span className="ml-2 inline-block rounded-full bg-green-100 px-2 py-0.5 text-xs text-green-800">
                       Completed!
@@ -205,18 +208,20 @@ export default function PiggyBanks() {
                   )}
                 </div>
               </div>
-              <div className="mt-3 flex justify-end gap-2">
+              <div className="mt-3 flex justify-end gap-1" onClick={e => e.stopPropagation()}>
                 <Link
                   to={`/piggy-banks/${pig.id}/edit` as any}
-                  className="text-sm text-gray-500 hover:text-gray-800"
+                  className="p-1.5 rounded text-fg-muted hover:text-fg hover:bg-surface-2 transition-colors"
+                  title="Edit"
                 >
-                  Edit
+                  <Pencil className="w-4 h-4" />
                 </Link>
                 <button
                   onClick={() => setDeleteTarget(pig)}
-                  className="text-sm text-red-500 hover:text-red-700"
+                  className="p-1.5 rounded text-fg-muted hover:text-negative-dim hover:bg-negative/10 transition-colors"
+                  title="Delete"
                 >
-                  Delete
+                  <Trash2 className="w-4 h-4" />
                 </button>
               </div>
             </li>
@@ -237,6 +242,8 @@ export default function PiggyBanks() {
           onCancel={() => setDeleteTarget(null)}
         />
       )}
+
+      <PiggyBankDrawer piggyId={drawerPiggyId} onClose={() => setDrawerPiggyId(null)} />
     </div>
   )
 }

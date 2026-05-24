@@ -1,3 +1,4 @@
+import { Pencil } from 'lucide-react'
 import { useParams, Link } from '@tanstack/react-router'
 import { useGetSubscription, useGetSubscriptionHistory, type SubscriptionStatus } from '../api/subscriptions'
 
@@ -58,9 +59,10 @@ export default function SubscriptionDetail() {
         <div className="mt-4 flex gap-2">
           <Link
             to={`/subscriptions/${sub.id}/edit` as any}
-            className="rounded bg-indigo-50 px-3 py-1.5 text-sm text-indigo-700 hover:bg-indigo-100"
+            className="p-1.5 rounded text-fg-muted hover:text-fg hover:bg-surface-2 transition-colors"
+            title="Edit"
           >
-            Edit
+            <Pencil className="w-4 h-4" />
           </Link>
         </div>
       </div>

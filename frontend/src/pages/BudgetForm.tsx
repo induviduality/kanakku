@@ -159,7 +159,7 @@ export default function BudgetFormPage() {
   }
 
   return (
-    <main className="p-6 max-w-xl">
+    <main className="p-6 max-w-xl mx-auto">
       <h1 className="text-2xl font-bold text-gray-900 mb-6">
         {isEdit ? 'Edit budget' : 'New budget'}
       </h1>

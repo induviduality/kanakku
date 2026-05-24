@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Pencil, Trash2 } from 'lucide-react'
 import { useTags, useCreateTag, usePatchTag, useDeleteTag, type Tag } from '../api/tags'
 import DataTable, { type Column } from '../components/DataTable'
 import EntityModal from '../components/EntityModal'
@@ -67,7 +68,7 @@ export default function Tags() {
   ]
 
   return (
-    <main className="p-6 max-w-2xl">
+    <main className="p-6 max-w-2xl mx-auto">
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold text-gray-900">Tags</h1>
         <button
@@ -87,12 +88,12 @@ export default function Tags() {
           keyField="id"
           emptyMessage="No tags yet."
           actions={(t) => (
-            <div className="flex gap-2">
-              <button onClick={() => openEdit(t)} className="text-sm text-gray-500 hover:text-gray-700">
-                Edit
+            <div className="flex gap-1">
+              <button onClick={() => openEdit(t)} className="p-1.5 rounded text-fg-muted hover:text-fg hover:bg-surface-2 transition-colors" title="Edit">
+                <Pencil className="w-4 h-4" />
               </button>
-              <button onClick={() => setDeleteTarget(t)} className="text-sm text-red-500 hover:text-red-700">
-                Delete
+              <button onClick={() => setDeleteTarget(t)} className="p-1.5 rounded text-fg-muted hover:text-negative-dim hover:bg-negative/10 transition-colors" title="Delete">
+                <Trash2 className="w-4 h-4" />
               </button>
             </div>
           )}

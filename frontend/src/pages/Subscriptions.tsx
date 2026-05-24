@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Pencil, Trash2 } from 'lucide-react'
 import { Link } from '@tanstack/react-router'
 import {
   useGetSubscriptions,
@@ -10,6 +11,7 @@ import {
 } from '../api/subscriptions'
 import { useAccounts } from '../api/accounts'
 import ConfirmDialog from '../components/ConfirmDialog'
+import { EmptyState } from '../components/EmptyState'
 
 const STATUS_STYLES: Record<SubscriptionStatus, string> = {
   upcoming: 'bg-green-100 text-green-800',
@@ -206,7 +208,7 @@ export default function Subscriptions() {
       )}
 
       {(!subscriptions || subscriptions.length === 0) ? (
-        <p className="text-gray-500 text-center py-12">No subscriptions yet.</p>
+        <EmptyState title="No subscriptions yet" description="Add a subscription to track recurring payments." />
       ) : (
         <ul className="space-y-3">
           {subscriptions.map((sub) => (
@@ -224,18 +226,20 @@ export default function Subscriptions() {
                     {sub.next_billing_date ? ` · next: ${sub.next_billing_date}` : ''}
                   </p>
                 </div>
-                <div className="flex gap-2 shrink-0">
+                <div className="flex gap-1 shrink-0">
                   <Link
                     to={`/subscriptions/${sub.id}/edit` as any}
-                    className="text-sm text-gray-500 hover:text-gray-800"
+                    className="p-1.5 rounded text-fg-muted hover:text-fg hover:bg-surface-2 transition-colors"
+                    title="Edit"
                   >
-                    Edit
+                    <Pencil className="w-4 h-4" />
                   </Link>
                   <button
                     onClick={() => setDeleteTarget(sub)}
-                    className="text-sm text-red-500 hover:text-red-700"
+                    className="p-1.5 rounded text-fg-muted hover:text-negative-dim hover:bg-negative/10 transition-colors"
+                    title="Delete"
                   >
-                    Delete
+                    <Trash2 className="w-4 h-4" />
                   </button>
                 </div>
               </div>

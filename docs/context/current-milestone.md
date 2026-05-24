@@ -59,3 +59,12 @@
 - 14.4 End-to-End Tests (9 critical-path Playwright tests, playwright.config.ts update, e2e scripts) — DONE
 
 ## Milestone 14: Production Deployment — COMPLETE
+
+# UI Polish Sprint — COMPLETE
+
+All tasks finished:
+- Splits shimmer fix + page redesign (Unsettled + All sections, period filter, view-all pages)
+- EmptyState shared component wired everywhere
+- Page centering (mx-auto) on all content pages
+- Icon-only edit/delete buttons (lucide-react Pencil/Trash2/Plus/ChevronDown/ChevronRight)
+- Drawer system: 7 drawer components + wired into all 6 list pages

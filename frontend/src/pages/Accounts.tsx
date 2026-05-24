@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Pencil, Trash2, Plus, ChevronDown, ChevronRight } from 'lucide-react'
 import {
   useAccounts,
   useCreateAccount,
@@ -13,6 +14,8 @@ import {
 import DataTable, { type Column } from '../components/DataTable'
 import EntityModal from '../components/EntityModal'
 import ConfirmDialog from '../components/ConfirmDialog'
+import { EmptyState } from '../components/EmptyState'
+import { AccountDrawer } from '../components/drawers/AccountDrawer'
 
 // ── Payment methods sub-panel ────────────────────────────────────────────────
 
@@ -45,9 +48,10 @@ function PaymentMethodsPanel({ account }: { account: Account }) {
         <h3 className="text-sm font-medium text-gray-600">Payment methods</h3>
         <button
           onClick={() => setAddOpen(true)}
-          className="text-xs rounded bg-indigo-50 px-2 py-1 text-indigo-700 hover:bg-indigo-100"
+          className="p-1 rounded text-fg-muted hover:text-fg hover:bg-surface-2 transition-colors"
+          title="Add payment method"
         >
-          + Add
+          <Plus className="w-4 h-4" />
         </button>
       </div>
 
@@ -62,9 +66,10 @@ function PaymentMethodsPanel({ account }: { account: Account }) {
           actions={(pm) => (
             <button
               onClick={() => setDeleteTarget(pm)}
-              className="text-xs text-red-500 hover:text-red-700"
+              className="p-1.5 rounded text-fg-muted hover:text-negative-dim hover:bg-negative/10 transition-colors"
+              title="Delete"
             >
-              Delete
+              <Trash2 className="w-4 h-4" />
             </button>
           )}
         />
@@ -139,6 +144,7 @@ export default function Accounts() {
   const [editTarget, setEditTarget] = useState<Account | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<Account | null>(null)
   const [expandedId, setExpandedId] = useState<string | null>(null)
+  const [drawerAccount, setDrawerAccount] = useState<Account | null>(null)
 
   // Create form state
   const [name, setName] = useState('')
@@ -172,7 +178,7 @@ export default function Accounts() {
   }
 
   return (
-    <main className="p-6 max-w-4xl">
+    <main className="p-6 max-w-4xl mx-auto">
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold text-gray-900">Accounts</h1>
         <button
@@ -188,12 +194,15 @@ export default function Accounts() {
       ) : (
         <div className="space-y-4">
           {accounts.length === 0 && (
-            <p className="text-gray-500 py-8 text-center">No accounts yet.</p>
+            <EmptyState title="No accounts yet" description="Add your first account to start tracking finances." />
           )}
           {accounts.map((acc) => (
             <div key={acc.id} className="border border-gray-200 rounded-lg bg-white">
               <div className="flex items-center justify-between p-4">
-                <div>
+                <div
+                  className="cursor-pointer flex-1 min-w-0 mr-3"
+                  onClick={() => setDrawerAccount(acc)}
+                >
                   <p className="font-medium text-gray-900">{acc.name}</p>
                   <p className="text-sm text-gray-500">
                     {acc.type.replace('_', ' ')} · {acc.currency} {acc.current_balance}
@@ -204,23 +213,26 @@ export default function Accounts() {
                     onClick={() =>
                       setExpandedId(expandedId === acc.id ? null : acc.id)
                     }
-                    className="text-sm text-indigo-600 hover:text-indigo-800"
+                    className="p-1.5 rounded text-fg-muted hover:text-fg hover:bg-surface-2 transition-colors"
                     aria-expanded={expandedId === acc.id}
                     aria-label={`${expandedId === acc.id ? 'Hide' : 'Show'} payment methods for ${acc.name}`}
+                    title="Payment methods"
                   >
-                    {expandedId === acc.id ? 'Hide' : 'Payment methods'}
+                    {expandedId === acc.id ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
                   </button>
                   <button
                     onClick={() => openEdit(acc)}
-                    className="text-sm text-gray-500 hover:text-gray-700"
+                    className="p-1.5 rounded text-fg-muted hover:text-fg hover:bg-surface-2 transition-colors"
+                    title="Edit"
                   >
-                    Edit
+                    <Pencil className="w-4 h-4" />
                   </button>
                   <button
                     onClick={() => setDeleteTarget(acc)}
-                    className="text-sm text-red-500 hover:text-red-700"
+                    className="p-1.5 rounded text-fg-muted hover:text-negative-dim hover:bg-negative/10 transition-colors"
+                    title="Delete"
                   >
-                    Delete
+                    <Trash2 className="w-4 h-4" />
                   </button>
                 </div>
               </div>
@@ -341,6 +353,8 @@ export default function Accounts() {
         }}
         onCancel={() => setDeleteTarget(null)}
       />
+
+      <AccountDrawer account={drawerAccount} onClose={() => setDrawerAccount(null)} />
     </main>
   )
 }

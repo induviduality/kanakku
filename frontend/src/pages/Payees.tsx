@@ -1,8 +1,10 @@
 import { useState } from 'react'
+import { Eye, Pencil, Trash2 } from 'lucide-react'
 import { usePayees, useCreatePayee, usePatchPayee, useDeletePayee, type Payee } from '../api/payees'
 import DataTable, { type Column } from '../components/DataTable'
 import EntityModal from '../components/EntityModal'
 import ConfirmDialog from '../components/ConfirmDialog'
+import { PayeeDrawer } from '../components/drawers/PayeeDrawer'
 
 export default function Payees() {
   const [search, setSearch] = useState('')
@@ -14,6 +16,7 @@ export default function Payees() {
   const [createOpen, setCreateOpen] = useState(false)
   const [editTarget, setEditTarget] = useState<Payee | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<Payee | null>(null)
+  const [drawerPayee, setDrawerPayee] = useState<Payee | null>(null)
 
   const [name, setName] = useState('')
   const [type, setType] = useState<Payee['type']>('merchant')
@@ -52,7 +55,7 @@ export default function Payees() {
   ]
 
   return (
-    <main className="p-6 max-w-4xl">
+    <main className="p-6 max-w-4xl mx-auto">
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold text-gray-900">Payees</h1>
         <button
@@ -83,12 +86,15 @@ export default function Payees() {
           keyField="id"
           emptyMessage="No payees found."
           actions={(p) => (
-            <div className="flex gap-2">
-              <button onClick={() => openEdit(p)} className="text-sm text-gray-500 hover:text-gray-700">
-                Edit
+            <div className="flex gap-1">
+              <button onClick={() => setDrawerPayee(p)} className="p-1.5 rounded text-fg-muted hover:text-fg hover:bg-surface-2 transition-colors" title="View">
+                <Eye className="w-4 h-4" />
               </button>
-              <button onClick={() => setDeleteTarget(p)} className="text-sm text-red-500 hover:text-red-700">
-                Delete
+              <button onClick={() => openEdit(p)} className="p-1.5 rounded text-fg-muted hover:text-fg hover:bg-surface-2 transition-colors" title="Edit">
+                <Pencil className="w-4 h-4" />
+              </button>
+              <button onClick={() => setDeleteTarget(p)} className="p-1.5 rounded text-fg-muted hover:text-negative-dim hover:bg-negative/10 transition-colors" title="Delete">
+                <Trash2 className="w-4 h-4" />
               </button>
             </div>
           )}
@@ -189,6 +195,8 @@ export default function Payees() {
         }}
         onCancel={() => setDeleteTarget(null)}
       />
+
+      <PayeeDrawer payee={drawerPayee} onClose={() => setDrawerPayee(null)} />
     </main>
   )
 }

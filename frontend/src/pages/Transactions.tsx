@@ -13,6 +13,8 @@ import { useCategories } from '../api/categories'
 import { useTags } from '../api/tags'
 import ConfirmDialog from '../components/ConfirmDialog'
 import BundleAsSplitModal from '../components/BundleAsSplitModal'
+import { EmptyState } from '../components/EmptyState'
+import { TransactionDrawer } from '../components/drawers/TransactionDrawer'
 
 function formatAmount(t: Transaction): string {
   const sign = t.type === 'expense' ? '-' : t.type === 'income' ? '+' : '⇄'
@@ -60,6 +62,7 @@ export default function Transactions() {
   const [filters, setFilters] = useState<FiltersState>(EMPTY_FILTERS)
   const [activeFilters, setActiveFilters] = useState<TransactionFilters>({})
   const [deleteTarget, setDeleteTarget] = useState<Transaction | null>(null)
+  const [drawerTransaction, setDrawerTransaction] = useState<Transaction | null>(null)
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [showFilters, setShowFilters] = useState(false)
   const [bundleTarget, setBundleTarget] = useState<Transaction | null>(null)
@@ -286,9 +289,11 @@ export default function Transactions() {
 
       {/* Loading */}
       {isLoading ? (
-        <p className="text-gray-500 py-8 text-center">Loading transactions…</p>
+        <div className="space-y-3 py-4">
+          {[0,1,2,3].map(i => <div key={i} className="h-14 animate-pulse bg-surface-2 rounded-lg" />)}
+        </div>
       ) : allItems.length === 0 ? (
-        <p className="text-gray-500 py-8 text-center">No transactions yet.</p>
+        <EmptyState title="No transactions yet" description="Add your first transaction to get started." />
       ) : (
         <>
           {/* Desktop table */}
@@ -315,7 +320,7 @@ export default function Transactions() {
                     <tr
                       key={t.id}
                       className="hover:bg-gray-50 cursor-pointer"
-                      onClick={() => navigate({ to: '/transactions/new', search: { editId: t.id } })}
+                      onClick={() => setDrawerTransaction(t)}
                     >
                       <td className="px-3 py-2" onClick={(e) => e.stopPropagation()}>
                         <input
@@ -368,12 +373,14 @@ export default function Transactions() {
               return (
                 <div
                   key={`mobile-${t.id}`}
-                  className="rounded-lg border border-gray-200 bg-white p-3 flex gap-3"
+                  className="rounded-lg border border-gray-200 bg-white p-3 flex gap-3 cursor-pointer"
+                  onClick={() => setDrawerTransaction(t)}
                 >
                   <input
                     type="checkbox"
                     checked={selectedIds.has(t.id)}
                     onChange={() => toggleSelect(t.id)}
+                    onClick={e => e.stopPropagation()}
                     className="mt-1 flex-shrink-0"
                     aria-label={`Select ${t.description ?? t.id}`}
                   />
@@ -388,7 +395,7 @@ export default function Transactions() {
                         {formatAmount(t)}
                       </p>
                     </div>
-                    <div className="mt-2 flex gap-3">
+                    <div className="mt-2 flex gap-3" onClick={e => e.stopPropagation()}>
                       <button
                         onClick={() => navigate({ to: '/transactions/new', search: { editId: t.id } })}
                         className="text-xs text-gray-500 hover:text-gray-700"
@@ -440,6 +447,11 @@ export default function Transactions() {
           onSuccess={() => setSelectedIds(new Set())}
         />
       )}
+
+      <TransactionDrawer
+        transaction={drawerTransaction}
+        onClose={() => setDrawerTransaction(null)}
+      />
     </main>
   )
 }

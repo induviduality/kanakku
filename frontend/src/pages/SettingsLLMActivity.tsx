@@ -52,7 +52,7 @@ export default function SettingsLLMActivity() {
   })
 
   return (
-    <main className="p-8 max-w-5xl">
+    <main className="p-8 max-w-5xl mx-auto">
       <h1 className="text-2xl font-bold text-gray-900 mb-2">LLM Activity</h1>
       <p className="text-sm text-gray-500 mb-6">All local LLM calls recorded for transparency.</p>
 

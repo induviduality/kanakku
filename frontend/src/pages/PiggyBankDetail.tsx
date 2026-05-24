@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Pencil, Trash2 } from 'lucide-react'
 import { useParams, Link } from '@tanstack/react-router'
 import {
   useGetPiggyBank,
@@ -180,9 +181,10 @@ export default function PiggyBankDetail() {
         <div className="mt-4 flex gap-2">
           <Link
             to={`/piggy-banks/${pig.id}/edit` as any}
-            className="rounded bg-indigo-50 px-3 py-1.5 text-sm text-indigo-700 hover:bg-indigo-100"
+            className="p-1.5 rounded text-fg-muted hover:text-fg hover:bg-surface-2 transition-colors"
+            title="Edit"
           >
-            Edit
+            <Pencil className="w-4 h-4" />
           </Link>
         </div>
       </div>
@@ -220,9 +222,10 @@ export default function PiggyBankDetail() {
               </div>
               <button
                 onClick={() => setRemoveTarget(c.id)}
-                className="text-red-400 hover:text-red-600 text-xs"
+                className="p-1.5 rounded text-fg-muted hover:text-negative-dim hover:bg-negative/10 transition-colors"
+                title="Remove"
               >
-                Remove
+                <Trash2 className="w-4 h-4" />
               </button>
             </li>
           ))}

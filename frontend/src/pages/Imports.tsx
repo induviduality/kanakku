@@ -1,5 +1,6 @@
 import { Link } from '@tanstack/react-router'
 import { useGetImportBatches, type ImportBatch, type ImportBatchStatus } from '../api/imports'
+import { EmptyState } from '../components/EmptyState'
 
 const STATUS_STYLES: Record<ImportBatchStatus, string> = {
   pending: 'bg-yellow-100 text-yellow-800',
@@ -60,7 +61,7 @@ export default function Imports() {
       </div>
 
       {!batches || batches.length === 0 ? (
-        <p className="text-gray-500 text-center py-12">No imports yet. Upload a PDF bank statement to get started.</p>
+        <EmptyState title="No imports yet" description="Upload a PDF bank statement to get started." />
       ) : (
         <ul className="space-y-3">
           {batches.map((batch) => (

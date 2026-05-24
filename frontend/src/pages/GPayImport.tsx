@@ -24,7 +24,7 @@ export default function GPayImport() {
   }
 
   return (
-    <main className="p-8 max-w-xl">
+    <main className="p-8 max-w-xl mx-auto">
       <div className="flex items-center gap-4 mb-6">
         <h1 className="text-2xl font-bold text-gray-900">Import GPay Takeout</h1>
         <Link to="/gpay/orphans" className="ml-auto text-sm text-indigo-600 hover:underline">

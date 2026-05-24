@@ -1,5 +1,35 @@
 # Completed Milestones
 
+## UI Polish Sprint (post-M14)
+
+### Drawer system — drawer components + page wiring
+- `frontend/src/components/Drawer.tsx`: base drawer primitive using Radix Dialog, slides from right, `DrawerSection` + `DrawerRow` sub-components
+- `frontend/src/components/drawers/SplitDrawer.tsx`: summary (total + net expense), per-share settle/forgive/unsettle actions inline, ConfirmDialog for forgive
+- `frontend/src/components/drawers/TransactionDrawer.tsx`: hero amount, type chip, account/payee/category/tag lookups via cached hooks
+- `frontend/src/components/drawers/BudgetDrawer.tsx`: progress bar with color-coded fill, details, linked transactions list
+- `frontend/src/components/drawers/PiggyBankDrawer.tsx`: ProgressRing SVG, details, contributions list with remove action
+- `frontend/src/components/drawers/PayeeDrawer.tsx`: avatar initial + type chip, details panel
+- `frontend/src/components/drawers/AccountDrawer.tsx`: balance hero, details, payment methods list
+- Wired into: Splits.tsx, SplitsAll.tsx (cards → onClick + SplitDrawer), Transactions.tsx (row click → TransactionDrawer), Budgets.tsx (card click → BudgetDrawer), PiggyBanks.tsx (card click → PiggyBankDrawer), Payees.tsx (Eye icon → PayeeDrawer), Accounts.tsx (name area click → AccountDrawer)
+
+### Splits page redesign + shimmer fix
+- Added MSW handler for `GET /api/v1/splits` (root cause of infinite shimmer)
+- Splits.tsx rewritten: "Unsettled" + "All Splits — {period}" sections, top-5 each, "View all →" links
+- SplitsAll.tsx: full list page with mode='pending'|'all', period filtering client-side
+- Router: `/splits/pending` and `/splits/history` static routes added before dynamic `$splitId`
+
+### EmptyState component
+- `frontend/src/components/EmptyState.tsx`: shared empty state with title/description/action, used across Transactions, Accounts, Budgets, PiggyBanks, Subscriptions, Imports, Splits
+
+### Page centering
+- Added `mx-auto` to `max-w-*` containers on Accounts, Payees, Budgets, BudgetDetail, BudgetForm, Categories, Tags, Settings, SettingsLLMActivity, GPayImport, GPayOrphans, GPayResolve
+
+### Icon-only edit/delete buttons
+- Replaced text buttons with Pencil/Trash2 lucide icons on Payees, Categories, Tags, Accounts, Budgets, Subscriptions, PiggyBanks, PiggyBankDetail, SubscriptionDetail
+- Added ChevronDown/ChevronRight for payment methods expand toggle; Plus for add button
+
+
+
 ## Milestone 14: Production Deployment — In Progress
 
 ### Task 14.4: End-to-End Tests
