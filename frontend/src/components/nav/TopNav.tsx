@@ -35,7 +35,7 @@ export default function TopNav() {
   const { selection, setSelection, shortLabel } = usePeriod()
 
   return (
-    <header className="sticky top-0 z-30 h-12 flex items-center px-4 md:px-6 border-b border-border/60 bg-surface/80 backdrop-blur-md">
+    <header className="sticky top-0 z-30 h-12 flex items-center px-4 md:px-6 border-b border-border bg-topbar">
       {/* Left: page title */}
       <div className="flex-1 min-w-0">
         <span className="text-sm font-semibold text-fg truncate">{title}</span>
@@ -45,7 +45,6 @@ export default function TopNav() {
       <div className="shrink-0">
         <PeriodPicker
           selection={selection}
-          label={shortLabel}
           shortLabel={shortLabel}
           onChange={setSelection}
         />
