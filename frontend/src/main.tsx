@@ -4,7 +4,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import './index.css'
 import App from './App.tsx'
 import { clearAuth, getRefreshToken, storeTokens } from './lib/auth-storage'
-import { DEV_MODE } from './lib/dev-mode'
+import { DEV_MODE, MOCK_API } from './lib/dev-mode'
 
 const queryClient = new QueryClient()
 
@@ -44,6 +44,11 @@ async function initAuth(): Promise<void> {
 }
 
 async function bootstrap() {
+  if (MOCK_API) {
+    const { worker } = await import('./mocks/browser')
+    await worker.start({ onUnhandledRequest: 'warn' })
+  }
+
   await initAuth()
 
   createRoot(document.getElementById('root')!).render(

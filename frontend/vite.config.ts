@@ -56,6 +56,13 @@ export default defineConfig({
       },
     }),
   ],
+  server: {
+    // Proxy /api to a locally running backend (uvicorn on 8000).
+    // Only active when VITE_MOCK_API is not true — MSW handles requests otherwise.
+    proxy: {
+      '/api': 'http://localhost:8000',
+    },
+  },
   test: {
     globals: true,
     environment: 'jsdom',
