@@ -1,5 +1,9 @@
 import { defineConfig, devices } from '@playwright/test'
 
+// When E2E_BASE_URL is set (pointing at a running Docker Compose stack),
+// Playwright skips the built-in preview server and runs against the live stack.
+const liveStack = !!process.env.E2E_BASE_URL
+
 export default defineConfig({
   testDir: './e2e',
   fullyParallel: true,
@@ -24,11 +28,13 @@ export default defineConfig({
     {
       name: 'chromium',
       use: { ...devices['Desktop Chrome'] },
+      // Runs both snapshot tests and critical-path e2e tests
       testIgnore: /mobile\.spec\.ts/,
     },
   ],
-  // Run `bun run preview` before tests (no Docker needed for snapshot tests)
-  webServer: process.env.E2E_SKIP_SERVER
+  // webServer: start `bun run preview` for snapshot tests against the static build.
+  // Skipped when E2E_BASE_URL is set (full Docker stack is already running).
+  webServer: liveStack || process.env.E2E_SKIP_SERVER
     ? undefined
     : {
         command: 'bun run preview',

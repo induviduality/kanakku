@@ -71,3 +71,15 @@ migrate-down:
 
 ollama-init:
 	bash scripts/init-ollama.sh
+
+# ── Tests ──────────────────────────────────────────────────────────────────────
+
+test-backend:
+	docker compose exec api pytest
+
+test-frontend:
+	docker compose exec frontend bun run test
+
+# Run Playwright e2e tests against the running stack
+e2e:
+	cd ../frontend && E2E_BASE_URL=http://localhost E2E_SKIP_SERVER=1 bun run e2e

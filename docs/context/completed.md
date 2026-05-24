@@ -2,6 +2,12 @@
 
 ## Milestone 14: Production Deployment — In Progress
 
+### Task 14.4: End-to-End Tests
+- frontend/e2e/critical-paths.spec.ts: 9 critical-path Playwright tests (first-run setup, account/payee/transaction flow, PDF import UI, budget creation, split toggle, retroactive bundle, reports/dashboard, data export, mobile 360px flow)
+- frontend/playwright.config.ts: updated — liveStack detection skips preview server when E2E_BASE_URL set; chromium project now includes critical-paths tests
+- frontend/package.json: added `e2e` and `e2e:ui` scripts
+- infra/Makefile: added `test-backend`, `test-frontend`, `e2e` targets
+
 ### Task 14.3: Documentation
 - README.md: full rewrite — quick start (5-step clone-to-running), architecture diagram, Pi 5 and VPS deployment sections, backup/restore commands, adding a new bank parser guide, docs table, contributing section
 - docs/api.md: new — OpenAPI UI URLs, authentication requirements, all endpoint groups, pagination, soft-delete recovery, reports/query constraints

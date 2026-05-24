@@ -509,8 +509,8 @@
 - [ ] Markdown lint clean
 
 ### Task 14.4: End-to-End Tests
-- [ ] Playwright e2e suite (9 critical paths)
-- [ ] All passing in CI
+- [x] Playwright e2e suite (9 critical paths)
+- [ ] All passing in CI (requires running Docker stack)
 
 ---
 
