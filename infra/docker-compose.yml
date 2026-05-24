@@ -48,7 +48,7 @@ services:
       LLM_MODEL: ${LLM_MODEL:-qwen2.5:1.5b}
       REDIS_URL: ${REDIS_URL}
       PUBLIC_BASE_URL: ${PUBLIC_BASE_URL}
-      DEV_MODE: ${DEV_MODE_BACKEND:-false}
+      DEV_MODE: ${DEV_MODE:-false}
     depends_on:
       db:
         condition: service_healthy
@@ -95,7 +95,9 @@ services:
       context: ../frontend
       dockerfile: Dockerfile
       args:
-        VITE_DEV_MODE: ${DEV_MODE_FRONTEND:-false}
+        VITE_DEV_MODE: ${VITE_DEV_MODE:-}
+        VITE_DEV_EMAIL: ${VITE_DEV_EMAIL:-dev@kanakku.com}
+        VITE_DEV_PASSWORD: ${VITE_DEV_PASSWORD:-dev-password}
     restart: unless-stopped
     depends_on:
       - api

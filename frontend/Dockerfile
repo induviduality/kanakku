@@ -6,8 +6,12 @@ COPY package.json bun.lock ./
 RUN bun install --frozen-lockfile
 
 COPY . .
-ARG VITE_DEV_MODE=false
-ENV VITE_DEV_MODE=$VITE_DEV_MODE
+ARG VITE_DEV_MODE=
+ARG VITE_DEV_EMAIL=dev@kanakku.com
+ARG VITE_DEV_PASSWORD=dev-password
+ENV VITE_DEV_MODE=$VITE_DEV_MODE \
+    VITE_DEV_EMAIL=$VITE_DEV_EMAIL \
+    VITE_DEV_PASSWORD=$VITE_DEV_PASSWORD
 RUN bun run build
 
 
