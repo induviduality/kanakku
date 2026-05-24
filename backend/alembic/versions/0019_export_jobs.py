@@ -7,6 +7,7 @@ Create Date: 2026-05-23
 
 from alembic import op
 import sqlalchemy as sa
+from sqlalchemy.dialects import postgresql
 
 revision = "0019"
 down_revision = "0018"
@@ -34,7 +35,7 @@ def upgrade() -> None:
         ),
         sa.Column(
             "status",
-            sa.Enum("pending", "running", "done", "failed", name="exportjobstatus", create_type=False),
+            postgresql.ENUM("pending", "running", "done", "failed", name="exportjobstatus", create_type=False),
             nullable=False,
             server_default="pending",
         ),
