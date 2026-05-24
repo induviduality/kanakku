@@ -61,7 +61,7 @@ export interface ActiveSubscriptionItem {
 
 export interface RecentTransaction {
   id: string
-  type: 'expense' | 'income' | 'transfer'
+  type: 'expense' | 'income' | 'transfer' | 'opening_balance'
   transacted_at: string
   amount: string
   currency: string

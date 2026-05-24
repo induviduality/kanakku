@@ -1,6 +1,18 @@
 import { Drawer, DrawerSection, DrawerRow } from '../Drawer'
 import { useGetBudget, useGetBudgetTransactions } from '../../api/budgets'
 
+const RRULE_LABELS: Record<string, string> = {
+  'FREQ=DAILY':              'Daily',
+  'FREQ=WEEKLY':             'Weekly',
+  'FREQ=MONTHLY':            'Monthly',
+  'FREQ=MONTHLY;INTERVAL=3': 'Quarterly',
+  'FREQ=YEARLY':             'Yearly',
+}
+function rruleLabel(rule: string | null): string {
+  if (!rule) return ''
+  return RRULE_LABELS[rule] ?? rule
+}
+
 interface Props {
   budgetId: string | null
   onClose: () => void
@@ -42,7 +54,7 @@ export function BudgetDrawer({ budgetId, onClose }: Props) {
           <DrawerSection label="Details">
             <div className="kk-panel">
               <DrawerRow label="Type" value={budget.type === 'recurring' ? 'Recurring' : 'Ad-hoc'} />
-              {budget.period && <DrawerRow label="Period" value={budget.period} />}
+              {budget.recurrence_rule && <DrawerRow label="Recurrence" value={rruleLabel(budget.recurrence_rule)} />}
               {budget.start_date && <DrawerRow label="From" value={budget.start_date} />}
               {budget.end_date && <DrawerRow label="To" value={budget.end_date} />}
               <DrawerRow label="Amount" value={<span className="kk-mono">₹{total.toLocaleString('en-IN')}</span>} />

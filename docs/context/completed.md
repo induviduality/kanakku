@@ -1,5 +1,14 @@
 # Completed Milestones
 
+## Ad-hoc Fixes Sprint (post-M14)
+
+### Opening balance + budget NaN + dropdown styling + recurrence rule
+- `opening_balance` transaction type: backend enum + migration, liability-account guard in create/patch, frontend form (filtered accounts, type pill, no payee/category/tags), drawer chip, Transactions page display
+- Budget `current_spent` on list page: `_batch_spent` helper (single GROUP BY query), `BudgetResponse.current_spent` field, `Budgets.tsx` ProgressBar fixed from hardcoded 0
+- Global form element dark-theme: `base.css` overrides browser-default white backgrounds on `select/input/textarea`
+- Dashboard `opening_balance` display: `RecentTransaction.type` includes `'opening_balance'`, shows `+` prefix and `text-positive-dim` color
+- Recurrence rule: replaced free-text RRULE inputs with `<select>` dropdowns in `Budgets.tsx` create modal and `BudgetForm.tsx` edit page; `BudgetDrawer.tsx` shows human-readable label
+
 ## UI Polish Sprint (post-M14)
 
 ### Drawer system — drawer components + page wiring

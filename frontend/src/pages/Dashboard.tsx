@@ -203,11 +203,11 @@ export default function Dashboard() {
                       <p className="text-xs text-fg-faint">{dateStr}</p>
                     </div>
                     <span className={`text-sm font-semibold shrink-0 ml-4 kk-mono ${
-                      t.type === 'income' ? 'text-positive-dim'
+                      t.type === 'income' || t.type === 'opening_balance' ? 'text-positive-dim'
                         : t.type === 'transfer' ? 'text-accent'
                         : 'text-fg-dim'
                     }`}>
-                      {t.type === 'income' ? '+' : t.type === 'expense' ? '−' : '↔'}
+                      {t.type === 'income' || t.type === 'opening_balance' ? '+' : t.type === 'expense' ? '−' : '↔'}
                       ₹{parseFloat(t.amount).toLocaleString('en-IN')}
                     </span>
                   </div>

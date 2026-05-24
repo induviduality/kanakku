@@ -98,6 +98,19 @@ const INPUT_CLS =
   'mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500'
 const LABEL_CLS = 'block text-sm font-medium text-gray-700'
 
+const RRULE_OPTIONS: { value: string; label: string }[] = [
+  { value: 'FREQ=DAILY',              label: 'Daily' },
+  { value: 'FREQ=WEEKLY',             label: 'Weekly' },
+  { value: 'FREQ=MONTHLY',            label: 'Monthly' },
+  { value: 'FREQ=MONTHLY;INTERVAL=3', label: 'Quarterly' },
+  { value: 'FREQ=YEARLY',             label: 'Yearly' },
+]
+
+function rruleLabel(rule: string | null): string {
+  if (!rule) return ''
+  return RRULE_OPTIONS.find(o => o.value === rule)?.label ?? rule
+}
+
 export default function Budgets() {
   const { data: budgets = [], isLoading } = useGetBudgets(true)
   const { data: categories = [] } = useCategories()
@@ -113,7 +126,7 @@ export default function Budgets() {
   const [amount, setAmount] = useState('')
   const [currency, setCurrency] = useState('INR')
   const [type, setType] = useState<'adhoc' | 'recurring'>('adhoc')
-  const [rrule, setRrule] = useState('')
+  const [rrule, setRrule] = useState('FREQ=MONTHLY')
   const [startDate, setStartDate] = useState('')
   const [endDate, setEndDate] = useState('')
   const [selectedCats, setSelectedCats] = useState<string[]>([])
@@ -124,7 +137,7 @@ export default function Budgets() {
     setAmount('')
     setCurrency('INR')
     setType('adhoc')
-    setRrule('')
+    setRrule('FREQ=MONTHLY')
     setStartDate('')
     setEndDate('')
     setSelectedCats([])
@@ -193,7 +206,7 @@ export default function Budgets() {
                 <div>
                   <p className="font-semibold text-gray-900">{b.name}</p>
                   <p className="text-xs text-gray-400">
-                    {b.type === 'recurring' ? `Recurring${b.period ? ` · ${b.period}` : ''}` : 'Ad-hoc'}
+                    {b.type === 'recurring' ? `Recurring${b.recurrence_rule ? ` · ${rruleLabel(b.recurrence_rule)}` : ''}` : 'Ad-hoc'}
                     {!b.is_active && ' · Inactive'}
                   </p>
                 </div>
@@ -216,9 +229,9 @@ export default function Budgets() {
                   </button>
                 </div>
               </div>
-              <ProgressBar spent={0} amount={parseFloat(b.amount)} />
+              <ProgressBar spent={parseFloat(b.current_spent)} amount={parseFloat(b.amount)} />
               <p className="text-right text-xs text-gray-500 mt-1">
-                ₹0 / ₹{parseFloat(b.amount).toLocaleString('en-IN')}
+                ₹{parseFloat(b.current_spent).toLocaleString('en-IN')} / ₹{parseFloat(b.amount).toLocaleString('en-IN')}
               </p>
             </div>
           ))}
@@ -285,14 +298,17 @@ export default function Budgets() {
           </div>
           {type === 'recurring' && (
             <div>
-              <label htmlFor="budget-rrule" className={LABEL_CLS}>Recurrence rule (RRULE)</label>
-              <input
+              <label htmlFor="budget-rrule" className={LABEL_CLS}>Recurrence</label>
+              <select
                 id="budget-rrule"
                 value={rrule}
                 onChange={(e) => setRrule(e.target.value)}
-                placeholder="FREQ=MONTHLY"
                 className={INPUT_CLS}
-              />
+              >
+                {RRULE_OPTIONS.map(o => (
+                  <option key={o.value} value={o.value}>{o.label}</option>
+                ))}
+              </select>
             </div>
           )}
           <div className="grid grid-cols-2 gap-3">

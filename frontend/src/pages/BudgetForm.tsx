@@ -15,6 +15,14 @@ const INPUT_CLS =
   'mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500'
 const LABEL_CLS = 'block text-sm font-medium text-gray-700'
 
+const RRULE_OPTIONS: { value: string; label: string }[] = [
+  { value: 'FREQ=DAILY',              label: 'Daily' },
+  { value: 'FREQ=WEEKLY',             label: 'Weekly' },
+  { value: 'FREQ=MONTHLY',            label: 'Monthly' },
+  { value: 'FREQ=MONTHLY;INTERVAL=3', label: 'Quarterly' },
+  { value: 'FREQ=YEARLY',             label: 'Yearly' },
+]
+
 function ScopeDialog({
   open,
   onConfirm,
@@ -71,7 +79,7 @@ export default function BudgetFormPage() {
   const [amount, setAmount] = useState('')
   const [currency, setCurrency] = useState('INR')
   const [type, setType] = useState<'adhoc' | 'recurring'>('adhoc')
-  const [rrule, setRrule] = useState('')
+  const [rrule, setRrule] = useState('FREQ=MONTHLY')
   const [startDate, setStartDate] = useState('')
   const [endDate, setEndDate] = useState('')
   const [selectedCats, setSelectedCats] = useState<string[]>([])
@@ -85,7 +93,7 @@ export default function BudgetFormPage() {
       setAmount(existing.amount)
       setCurrency(existing.currency)
       setType(existing.type)
-      setRrule(existing.recurrence_rule ?? '')
+      setRrule(existing.recurrence_rule ?? 'FREQ=MONTHLY')
       setStartDate(existing.start_date ?? '')
       setEndDate(existing.end_date ?? '')
       setSelectedCats(existing.category_ids)
@@ -223,14 +231,17 @@ export default function BudgetFormPage() {
 
         {(type === 'recurring' || existing?.type === 'recurring') && (
           <div>
-            <label htmlFor="budget-rrule" className={LABEL_CLS}>Recurrence rule (RRULE)</label>
-            <input
+            <label htmlFor="budget-rrule" className={LABEL_CLS}>Recurrence</label>
+            <select
               id="budget-rrule"
               value={rrule}
               onChange={(e) => setRrule(e.target.value)}
-              placeholder="FREQ=MONTHLY"
               className={INPUT_CLS}
-            />
+            >
+              {RRULE_OPTIONS.map(o => (
+                <option key={o.value} value={o.value}>{o.label}</option>
+              ))}
+            </select>
           </div>
         )}
 

@@ -68,3 +68,14 @@ All tasks finished:
 - Page centering (mx-auto) on all content pages
 - Icon-only edit/delete buttons (lucide-react Pencil/Trash2/Plus/ChevronDown/ChevronRight)
 - Drawer system: 7 drawer components + wired into all 6 list pages
+
+# Ad-hoc Fixes Sprint
+
+## Completed Tasks
+- Bulk PDF importer pages (Imports, ImportUpload, ImportReview) + sidebar nav item
+- Split inline panel in Transactions page (proportional bars per share + stacked bar footer)
+- Opening balance transaction type (backend enum, migration, liability-account guard, frontend form/drawer/display)
+- Budget spending on list page (batch SQL query, `current_spent` in BudgetResponse)
+- Global dropdown/form dark-theme baseline (base.css overrides browser defaults)
+- Dashboard opening_balance display: type includes `opening_balance`, shows `+` prefix with positive color
+- Recurrence rule display: select dropdown in create/edit forms (Daily/Weekly/Monthly/Quarterly/Yearly), human-readable label in list and drawer
