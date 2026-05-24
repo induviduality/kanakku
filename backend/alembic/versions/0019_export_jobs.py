@@ -16,7 +16,7 @@ depends_on = None
 
 def upgrade() -> None:
     op.execute(
-        "CREATE TYPE exportjobstatus AS ENUM ('pending', 'running', 'done', 'failed')"
+        "CREATE TYPE IF NOT EXISTS exportjobstatus AS ENUM ('pending', 'running', 'done', 'failed')"
     )
     op.create_table(
         "export_jobs",
