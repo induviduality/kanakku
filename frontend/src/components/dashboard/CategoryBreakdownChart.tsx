@@ -37,9 +37,7 @@ export default function CategoryBreakdownChart({ items }: { items: CategoryBreak
           ))}
         </Pie>
         <Tooltip
-          formatter={(value: number | undefined) =>
-            value !== undefined ? `₹${value.toLocaleString('en-IN')}` : ''
-          }
+          formatter={((value: number) => `₹${value.toLocaleString('en-IN')}`) as any}
         />
         <Legend
           formatter={(value) => (
