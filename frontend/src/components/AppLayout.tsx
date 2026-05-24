@@ -9,9 +9,24 @@ export default function AppLayout() {
   const isGuest = GUEST_PATHS.some((p) => path === p || path.startsWith(p))
 
   return (
-    <div className={isGuest ? '' : 'pb-14 md:pb-0'}>
-      <Outlet />
-      {!isGuest && <MobileNav />}
-    </div>
+    <>
+      {/* Atmospheric background — only rendered for authenticated pages.
+          Purely decorative; aria-hidden keeps them out of the a11y tree. */}
+      {!isGuest && (
+        <>
+          <div className="kk-ambient" aria-hidden="true">
+            <div className="kk-ambient-glow" />
+            <div className="kk-ambient-glow kk-ambient-glow--b" />
+          </div>
+          <div className="kk-grain" aria-hidden="true" />
+        </>
+      )}
+
+      {/* Main content sits above the atmospheric layers */}
+      <div className={`relative z-[2] min-h-svh${isGuest ? '' : ' pb-14 md:pb-0'}`}>
+        <Outlet />
+        {!isGuest && <MobileNav />}
+      </div>
+    </>
   )
 }

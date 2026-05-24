@@ -75,7 +75,7 @@ export default function MobileNav() {
     <>
       <nav
         aria-label="Mobile navigation"
-        className="fixed bottom-0 left-0 right-0 z-40 md:hidden bg-white border-t border-gray-200 safe-area-pb"
+        className="fixed bottom-0 left-0 right-0 z-40 md:hidden bg-surface-1 border-t border-border"
         style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
       >
         <div className="flex items-center justify-around h-14">
@@ -84,8 +84,8 @@ export default function MobileNav() {
               key={to}
               to={to}
               aria-label={label}
-              className={`flex flex-col items-center justify-center min-w-[44px] min-h-[44px] px-3 gap-0.5 text-xs ${
-                isActive(to) ? 'text-violet-700' : 'text-gray-500'
+              className={`flex flex-col items-center justify-center min-w-[44px] min-h-[44px] px-3 gap-0.5 text-xs transition-colors ${
+                isActive(to) ? 'text-accent' : 'text-fg-muted'
               }`}
             >
               <Icon />
@@ -97,7 +97,7 @@ export default function MobileNav() {
           <Link
             to="/transactions/new"
             aria-label="Add transaction"
-            className="flex items-center justify-center w-12 h-12 rounded-full bg-violet-600 text-white shadow-lg -mt-4"
+            className="flex items-center justify-center w-12 h-12 rounded-full bg-accent-dim text-white -mt-4 shadow-accent"
           >
             <PlusIcon />
           </Link>
@@ -107,8 +107,8 @@ export default function MobileNav() {
               key={to}
               to={to}
               aria-label={label}
-              className={`flex flex-col items-center justify-center min-w-[44px] min-h-[44px] px-3 gap-0.5 text-xs ${
-                isActive(to) ? 'text-violet-700' : 'text-gray-500'
+              className={`flex flex-col items-center justify-center min-w-[44px] min-h-[44px] px-3 gap-0.5 text-xs transition-colors ${
+                isActive(to) ? 'text-accent' : 'text-fg-muted'
               }`}
             >
               <Icon />
@@ -121,7 +121,7 @@ export default function MobileNav() {
             type="button"
             aria-label="More navigation options"
             onClick={() => setMoreOpen(true)}
-            className="flex flex-col items-center justify-center min-w-[44px] min-h-[44px] px-3 gap-0.5 text-xs text-gray-500"
+            className="flex flex-col items-center justify-center min-w-[44px] min-h-[44px] px-3 gap-0.5 text-xs text-fg-muted"
           >
             <MenuIcon />
             <span>More</span>
@@ -132,19 +132,21 @@ export default function MobileNav() {
       {/* More sheet */}
       <Dialog.Root open={moreOpen} onOpenChange={setMoreOpen}>
         <Dialog.Portal>
-          <Dialog.Overlay className="fixed inset-0 z-50 bg-black/50 md:hidden" />
+          <Dialog.Overlay className="fixed inset-0 z-50 bg-black/60 md:hidden" />
           <Dialog.Content
             aria-label="More links"
-            className="fixed bottom-0 left-0 right-0 z-50 md:hidden bg-white rounded-t-2xl p-4 pb-8 shadow-xl"
+            className="fixed bottom-0 left-0 right-0 z-50 md:hidden bg-surface-1 border-t border-border rounded-t-2xl p-4 pb-8 shadow-lg"
           >
-            <Dialog.Title className="text-sm font-semibold text-gray-500 mb-3">More</Dialog.Title>
+            <Dialog.Title className="text-xs font-semibold text-fg-muted uppercase tracking-widest mb-3">
+              More
+            </Dialog.Title>
             <div className="grid grid-cols-3 gap-2">
               {MORE_LINKS.map(({ to, label }) => (
                 <Link
                   key={to}
                   to={to}
                   onClick={() => setMoreOpen(false)}
-                  className="flex items-center justify-center min-h-[44px] px-2 py-2 text-sm font-medium text-gray-700 bg-gray-50 rounded-xl hover:bg-violet-50 hover:text-violet-700 text-center"
+                  className="flex items-center justify-center min-h-[44px] px-2 py-2 text-sm font-medium text-fg-dim bg-surface-2 rounded-xl hover:bg-surface-3 hover:text-accent transition-colors text-center"
                 >
                   {label}
                 </Link>

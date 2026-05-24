@@ -1,3 +1,5 @@
+import NumberFlow from '@number-flow/react'
+import { useEffect, useState } from 'react'
 import { Link } from '@tanstack/react-router'
 import { useGetDashboard } from '../api/dashboard'
 import BudgetProgressCard from '../components/dashboard/BudgetProgressCard'
@@ -8,7 +10,7 @@ import SubscriptionStatusBadge from '../components/dashboard/SubscriptionStatusB
 // ── Skeleton ────────────────────────────────────────────────────────────────
 
 function Skeleton({ className = '' }: { className?: string }) {
-  return <div className={`animate-pulse bg-gray-200 rounded ${className}`} />
+  return <div className={`animate-pulse bg-surface-2 rounded-lg ${className}`} />
 }
 
 function DashboardSkeleton() {
@@ -16,7 +18,7 @@ function DashboardSkeleton() {
     <div className="p-4 md:p-6 space-y-6">
       <Skeleton className="h-8 w-48" />
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        {[0, 1, 2, 3].map((i) => <Skeleton key={i} className="h-20" />)}
+        {[0, 1, 2, 3].map((i) => <Skeleton key={i} className="h-24" />)}
       </div>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <Skeleton className="h-64" />
@@ -41,11 +43,11 @@ function Section({
   children: React.ReactNode
 }) {
   return (
-    <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 md:p-5">
+    <div className="kk-panel">
       <div className="flex items-center justify-between mb-4">
-        <h2 className="text-base font-semibold text-gray-900">{title}</h2>
+        <h2 className="text-sm font-semibold text-fg tracking-tight">{title}</h2>
         {linkTo && (
-          <Link to={linkTo} className="text-xs text-indigo-600 hover:underline">
+          <Link to={linkTo} className="text-xs text-accent hover:text-accent-dim transition-colors">
             {linkLabel ?? 'View all →'}
           </Link>
         )}
@@ -57,12 +59,35 @@ function Section({
 
 // ── Hero stat card ───────────────────────────────────────────────────────────
 
-function StatCard({ label, value, sub }: { label: string; value: string; sub?: string }) {
+const INR_FORMAT: Intl.NumberFormatOptions = {
+  style: 'currency',
+  currency: 'INR',
+  maximumFractionDigits: 0,
+}
+
+function StatCard({
+  label,
+  amount,
+  format,
+  sub,
+}: {
+  label: string
+  amount: number
+  format?: Intl.NumberFormatOptions
+  sub?: string
+}) {
+  const [displayed, setDisplayed] = useState(0)
+  useEffect(() => { setDisplayed(amount) }, [amount])
+
   return (
-    <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
-      <p className="text-xs text-gray-500 uppercase tracking-wide">{label}</p>
-      <p className="text-2xl font-bold text-gray-900 mt-1">{value}</p>
-      {sub && <p className="text-xs text-gray-400 mt-0.5">{sub}</p>}
+    <div className="kk-card">
+      <p className="kk-label">{label}</p>
+      <NumberFlow
+        value={displayed}
+        format={format}
+        className="text-2xl font-bold text-fg mt-2 kk-mono block"
+      />
+      {sub && <p className="text-xs text-fg-faint mt-1">{sub}</p>}
     </div>
   )
 }
@@ -75,7 +100,7 @@ export default function Dashboard() {
   if (isLoading) return <DashboardSkeleton />
   if (isError || !data) {
     return (
-      <div className="p-6 text-center text-red-600">Failed to load dashboard. Please refresh.</div>
+      <div className="p-6 text-center text-negative-dim">Failed to load dashboard. Please refresh.</div>
     )
   }
 
@@ -91,32 +116,16 @@ export default function Dashboard() {
     <div className="p-4 md:p-6 space-y-6 max-w-5xl mx-auto">
       {/* Title */}
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
-        <p className="text-sm text-gray-500 mt-0.5">{monthLabel}</p>
+        <h1 className="text-2xl font-bold text-fg tracking-tight">Dashboard</h1>
+        <p className="text-sm text-fg-muted mt-0.5">{monthLabel}</p>
       </div>
 
       {/* Hero stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
-        <StatCard
-          label="Spent"
-          value={`₹${spent.toLocaleString('en-IN')}`}
-          sub="this month"
-        />
-        <StatCard
-          label="Income"
-          value={`₹${income.toLocaleString('en-IN')}`}
-          sub="this month"
-        />
-        <StatCard
-          label="Net"
-          value={`₹${net.toLocaleString('en-IN')}`}
-          sub={net >= 0 ? 'surplus' : 'deficit'}
-        />
-        <StatCard
-          label="Accounts"
-          value={`${data.account_balances.length}`}
-          sub="active"
-        />
+        <StatCard label="Spent" amount={spent} format={INR_FORMAT} sub="this month" />
+        <StatCard label="Income" amount={income} format={INR_FORMAT} sub="this month" />
+        <StatCard label="Net" amount={net} format={INR_FORMAT} sub={net >= 0 ? 'surplus' : 'deficit'} />
+        <StatCard label="Accounts" amount={data.account_balances.length} sub="active" />
       </div>
 
       {/* 2-column grid */}
@@ -124,7 +133,7 @@ export default function Dashboard() {
         {/* Budgets */}
         <Section title="Budgets" linkTo="/budgets">
           {data.budgets_summary.length === 0 ? (
-            <p className="text-sm text-gray-400">No active budgets.</p>
+            <p className="text-sm text-fg-muted">No active budgets.</p>
           ) : (
             <div className="space-y-4">
               {data.budgets_summary.map((b) => (
@@ -143,24 +152,24 @@ export default function Dashboard() {
       {/* Subscriptions */}
       <Section title="Subscriptions" linkTo="/subscriptions">
         {data.active_subscriptions.length === 0 ? (
-          <p className="text-sm text-gray-400">No active subscriptions.</p>
+          <p className="text-sm text-fg-muted">No active subscriptions.</p>
         ) : (
-          <div className="divide-y divide-gray-50">
+          <div className="divide-y divide-border">
             {data.active_subscriptions.map((s) => (
               <div key={s.id} className="flex items-center justify-between py-2.5 first:pt-0 last:pb-0">
                 <div className="min-w-0">
                   <Link
                     to={`/subscriptions/${s.id}` as any}
-                    className="text-sm font-medium text-gray-800 hover:text-indigo-600"
+                    className="text-sm font-medium text-fg-dim hover:text-accent transition-colors"
                   >
                     {s.name}
                   </Link>
-                  <p className="text-xs text-gray-400">
+                  <p className="text-xs text-fg-faint">
                     {s.next_billing_date ?? '—'}
                   </p>
                 </div>
                 <div className="flex items-center gap-3 shrink-0">
-                  <span className="text-sm font-medium text-gray-700">
+                  <span className="text-sm font-medium text-fg kk-mono">
                     ₹{parseFloat(s.amount).toLocaleString('en-IN')}
                   </span>
                   <SubscriptionStatusBadge subscription={s} />
@@ -176,11 +185,11 @@ export default function Dashboard() {
         {/* Piggy banks */}
         <Section title="Savings Goals" linkTo="/piggy-banks">
           {data.piggy_banks_summary.length === 0 ? (
-            <p className="text-sm text-gray-400">No savings goals yet.</p>
+            <p className="text-sm text-fg-muted">No savings goals yet.</p>
           ) : (
             <div className="space-y-4">
               {data.piggy_banks_summary.map((p) => (
-                <Link key={p.id} to={`/piggy-banks/${p.id}` as any} className="block hover:opacity-80">
+                <Link key={p.id} to={`/piggy-banks/${p.id}` as any} className="block hover:opacity-80 transition-opacity">
                   <PiggyBankProgressRing piggyBank={p} />
                 </Link>
               ))}
@@ -191,18 +200,18 @@ export default function Dashboard() {
         {/* Pending splits */}
         <Section title="Pending Splits">
           {data.pending_splits_summary.count === 0 ? (
-            <p className="text-sm text-gray-400">No pending splits.</p>
+            <p className="text-sm text-fg-muted">No pending splits.</p>
           ) : (
             <div>
-              <p className="text-sm text-gray-600 mb-3">
-                <span className="font-semibold text-gray-900">{data.pending_splits_summary.count}</span> pending &mdash;
+              <p className="text-sm text-fg-dim mb-3">
+                <span className="font-semibold text-fg">{data.pending_splits_summary.count}</span> pending &mdash;
                 {' '}₹{parseFloat(data.pending_splits_summary.total_owed).toLocaleString('en-IN')} owed total
               </p>
               <div className="space-y-2">
                 {data.pending_splits_summary.by_payee.map((p, i) => (
                   <div key={i} className="flex justify-between text-sm">
-                    <span className="text-gray-700">{p.payee_name ?? 'Unknown'}</span>
-                    <span className="font-medium text-gray-900">
+                    <span className="text-fg-dim">{p.payee_name ?? 'Unknown'}</span>
+                    <span className="font-medium text-fg kk-mono">
                       ₹{parseFloat(p.total).toLocaleString('en-IN')}
                     </span>
                   </div>
@@ -216,7 +225,7 @@ export default function Dashboard() {
       {/* Account balances */}
       <Section title="Account Balances" linkTo="/accounts">
         {data.account_balances.length === 0 ? (
-          <p className="text-sm text-gray-400">No accounts yet.</p>
+          <p className="text-sm text-fg-muted">No accounts yet.</p>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             {data.account_balances.map((a) => {
@@ -224,15 +233,13 @@ export default function Dashboard() {
               return (
                 <div
                   key={a.id}
-                  className="flex items-center justify-between rounded-lg bg-gray-50 px-4 py-3"
+                  className="flex items-center justify-between rounded-lg bg-surface-2 border border-border px-4 py-3"
                 >
                   <div>
-                    <p className="text-sm font-medium text-gray-800">{a.name}</p>
-                    <p className="text-xs text-gray-400 capitalize">{a.type.replace('_', ' ')}</p>
+                    <p className="text-sm font-medium text-fg">{a.name}</p>
+                    <p className="text-xs text-fg-faint capitalize">{a.type.replace('_', ' ')}</p>
                   </div>
-                  <span
-                    className={`text-sm font-semibold ${bal < 0 ? 'text-red-600' : 'text-gray-900'}`}
-                  >
+                  <span className={`text-sm font-semibold kk-mono ${bal < 0 ? 'text-negative-dim' : 'text-fg'}`}>
                     {a.currency} {bal.toLocaleString('en-IN')}
                   </span>
                 </div>
@@ -245,9 +252,9 @@ export default function Dashboard() {
       {/* Recent transactions */}
       <Section title="Recent Transactions" linkTo="/transactions">
         {data.recent_transactions.length === 0 ? (
-          <p className="text-sm text-gray-400">No transactions yet.</p>
+          <p className="text-sm text-fg-muted">No transactions yet.</p>
         ) : (
-          <div className="divide-y divide-gray-50">
+          <div className="divide-y divide-border">
             {data.recent_transactions.map((t) => {
               const date = new Date(t.transacted_at).toLocaleDateString('en-IN', {
                 day: '2-digit', month: 'short',
@@ -255,18 +262,18 @@ export default function Dashboard() {
               return (
                 <div key={t.id} className="flex items-center justify-between py-2.5 first:pt-0 last:pb-0">
                   <div className="min-w-0">
-                    <p className="text-sm font-medium text-gray-800 truncate">
+                    <p className="text-sm font-medium text-fg truncate">
                       {t.description ?? t.type}
                     </p>
-                    <p className="text-xs text-gray-400">{date}</p>
+                    <p className="text-xs text-fg-faint">{date}</p>
                   </div>
                   <span
-                    className={`text-sm font-semibold shrink-0 ml-4 ${
+                    className={`text-sm font-semibold shrink-0 ml-4 kk-mono ${
                       t.type === 'income'
-                        ? 'text-green-600'
+                        ? 'text-positive-dim'
                         : t.type === 'transfer'
-                          ? 'text-blue-600'
-                          : 'text-gray-900'
+                          ? 'text-accent'
+                          : 'text-fg-dim'
                     }`}
                   >
                     {t.type === 'income' ? '+' : t.type === 'expense' ? '−' : '↔'}

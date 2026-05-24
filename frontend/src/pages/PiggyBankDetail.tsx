@@ -15,7 +15,7 @@ function ProgressRing({ pct }: { pct: number }) {
   const circ = 2 * Math.PI * r
   const clamped = Math.min(100, Math.max(0, pct))
   const offset = circ * (1 - clamped / 100)
-  const color = clamped >= 100 ? '#10b981' : clamped >= 50 ? '#3b82f6' : '#6366f1'
+  const color = clamped >= 100 ? 'var(--kk-positive)' : 'var(--kk-accent)'
   return (
     <svg
       width="88"
@@ -24,7 +24,7 @@ function ProgressRing({ pct }: { pct: number }) {
       role="img"
       aria-label={`${clamped.toFixed(0)}% progress`}
     >
-      <circle cx="44" cy="44" r={r} fill="none" stroke="#e5e7eb" strokeWidth="8" />
+      <circle cx="44" cy="44" r={r} fill="none" stroke="var(--kk-border-strong)" strokeWidth="8" />
       <circle
         cx="44"
         cy="44"
@@ -37,7 +37,7 @@ function ProgressRing({ pct }: { pct: number }) {
         strokeLinecap="round"
         transform="rotate(-90 44 44)"
       />
-      <text x="44" y="49" textAnchor="middle" fontSize="14" fontWeight="bold" fill="#374151">
+      <text x="44" y="49" textAnchor="middle" fontSize="14" fontWeight="bold" fill="var(--kk-fg)" fontFamily="var(--kk-font-mono)">
         {clamped.toFixed(0)}%
       </text>
     </svg>

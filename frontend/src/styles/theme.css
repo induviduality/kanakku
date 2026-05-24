@@ -1,0 +1,76 @@
+/*
+ * Kanakku Design System — Dark Theme
+ *
+ * THIS IS THE ONLY FILE YOU SWAP TO CHANGE THE THEME.
+ * All CSS custom properties defined here flow through to Tailwind utilities
+ * (bg-surface-1, text-fg, border-border, text-accent, etc.) and component
+ * classes (.kk-card, .kk-panel, .kk-btn-primary, etc.).
+ *
+ * To create a new theme:
+ *   1. Copy this file (e.g. theme-light.css, theme-ocean.css)
+ *   2. Change the values in :root
+ *   3. Update the @import in index.css to point to your new file
+ *
+ * Variable naming: --kk-<category>[-variant]
+ */
+
+:root {
+  /* ── Backgrounds (layered elevation model) ──────────────────────────────
+   * Use higher numbers for more elevated / closer-to-user surfaces.
+   * bg-0 = page base, bg-1 = card, bg-2 = hover/elevated, bg-3 = input focus,
+   * bg-4 = tooltip / deepest overlay */
+  --kk-bg-0: #0a0b0f;
+  --kk-bg-1: #0f1117;
+  --kk-bg-2: #111217;
+  --kk-bg-3: #16181f;
+  --kk-bg-4: #1b1e26;
+
+  /* ── Borders ────────────────────────────────────────────────────────────
+   * border = very subtle (use for card outlines)
+   * border-strong = visible (use for separator lines, input outlines) */
+  --kk-border:        rgba(255, 255, 255, 0.06);
+  --kk-border-strong: #23252e;
+
+  /* ── Foreground (text hierarchy, light → dark) ──────────────────────── */
+  --kk-fg:       #f5f7fa;   /* primary text */
+  --kk-fg-dim:   #c8ccd3;   /* secondary / body text */
+  --kk-fg-muted: #9ca3af;   /* placeholder, metadata, labels */
+  --kk-fg-faint: #6b7280;   /* disabled, very subtle */
+
+  /* ── Accent (primary interactive color — purple) ────────────────────── */
+  --kk-accent:        #a78bfa;
+  --kk-accent-dim:    #8b5cf6;
+  --kk-accent-subtle: rgba(139, 92, 246, 0.14);
+
+  /* ── Semantic colors ────────────────────────────────────────────────── */
+  --kk-positive:     #22c55e;   /* income / success (bg / border) */
+  --kk-positive-dim: #4ade80;   /* income / success text on dark */
+  --kk-negative:     #ef4444;   /* expense / error (bg / border) */
+  --kk-negative-dim: #f87171;   /* expense / error text on dark */
+  --kk-warning:      #f59e0b;   /* caution (bg / border) */
+  --kk-warning-dim:  #fbbf24;   /* caution text on dark */
+
+  /* ── Typography ─────────────────────────────────────────────────────── */
+  --kk-font-sans: 'Inter', ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --kk-font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  /* ── Border radius ───────────────────────────────────────────────────── */
+  --kk-radius-xs:  4px;
+  --kk-radius-sm:  6px;
+  --kk-radius-md:  8px;
+  --kk-radius-lg:  10px;
+  --kk-radius-xl:  12px;
+  --kk-radius-2xl: 14px;
+
+  /* ── Shadows ─────────────────────────────────────────────────────────── */
+  --kk-shadow-sm:     0 1px 3px rgba(0, 0, 0, 0.4);
+  --kk-shadow:        0 4px 16px rgba(0, 0, 0, 0.5);
+  --kk-shadow-lg:     0 10px 40px rgba(0, 0, 0, 0.6);
+  --kk-shadow-accent: 0 6px 24px -8px rgba(139, 92, 246, 0.55);
+
+  /* ── Layout constants ────────────────────────────────────────────────── */
+  --kk-rail-bg:       #0c0d12;
+  --kk-topbar-bg:     #0b0c11;
+  --kk-content-pad-x: clamp(16px, 4vw, 28px);
+  --kk-content-pad-y: 24px;
+}

@@ -1,0 +1,76 @@
+/* Reusable animation keyframes and utility classes.
+ * All prefixed kk- to avoid collision with Tailwind or third-party names.
+ *
+ * Usage:
+ *   <div className="kk-reveal-up kk-d2"> → fades up with a 100ms delay
+ *   <div className="kk-bar-grow">         → grows from left on mount
+ */
+
+/* ── Keyframes ────────────────────────────────────────────────────────── */
+
+@keyframes kk-reveal-up {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: none; }
+}
+
+@keyframes kk-bar-grow {
+  from { transform: scaleX(0); }
+  to   { transform: scaleX(1); }
+}
+
+@keyframes kk-fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes kk-line-draw {
+  from { stroke-dashoffset: var(--draw-len, 2000); }
+  to   { stroke-dashoffset: 0; }
+}
+
+@keyframes kk-pulse-glow {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(167, 139, 250, 0); }
+  50%       { box-shadow: 0 0 0 4px rgba(167, 139, 250, 0.15); }
+}
+
+/* ── Utility classes ─────────────────────────────────────────────────── */
+
+/* Content reveal — use fill-mode: both so elements are hidden during
+   delay and stay visible after animation ends even in hidden iframes. */
+.kk-reveal-up {
+  animation: kk-reveal-up 0.55s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* Progress bar — always set transform-origin on the parent */
+.kk-bar-grow {
+  animation: kk-bar-grow 1.1s cubic-bezier(0.22, 1, 0.36, 1) both;
+  transform-origin: left center;
+}
+
+.kk-fade-in {
+  animation: kk-fade-in 0.8s ease both;
+}
+
+/* SVG line draw — set --draw-len to the path length on the element */
+.kk-line-draw {
+  animation: kk-line-draw 1.6s cubic-bezier(0.65, 0, 0.35, 1) forwards;
+  stroke-dasharray: var(--draw-len, 2000);
+}
+
+/* ── Stagger delay helpers ───────────────────────────────────────────── */
+.kk-d1 { animation-delay: 0.05s; }
+.kk-d2 { animation-delay: 0.10s; }
+.kk-d3 { animation-delay: 0.15s; }
+.kk-d4 { animation-delay: 0.20s; }
+.kk-d5 { animation-delay: 0.25s; }
+.kk-d6 { animation-delay: 0.30s; }
+.kk-d7 { animation-delay: 0.35s; }
+
+/* ── Motion safety ───────────────────────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  .kk-reveal-up,
+  .kk-bar-grow,
+  .kk-fade-in {
+    animation-duration: 0.01s;
+  }
+}

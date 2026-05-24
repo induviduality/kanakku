@@ -1,9 +1,9 @@
 import type { ActiveSubscriptionItem } from '../../api/dashboard'
 
 const STATUS_STYLES: Record<string, string> = {
-  upcoming: 'bg-green-100 text-green-800',
-  due_soon: 'bg-amber-100 text-amber-800',
-  overdue: 'bg-red-100 text-red-800',
+  upcoming: 'kk-chip-positive',
+  due_soon: 'kk-chip-warning',
+  overdue: 'kk-chip-negative',
 }
 
 const STATUS_LABEL: Record<string, string> = {
@@ -19,7 +19,7 @@ export default function SubscriptionStatusBadge({ subscription }: { subscription
   return (
     <span
       aria-label={`status: ${subscription.status}`}
-      className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${style}`}
+      className={style}
     >
       {label}
     </span>
