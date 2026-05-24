@@ -6,6 +6,8 @@ COPY package.json bun.lock ./
 RUN bun install --frozen-lockfile
 
 COPY . .
+ARG VITE_DEV_MODE=false
+ENV VITE_DEV_MODE=$VITE_DEV_MODE
 RUN bun run build
 
 

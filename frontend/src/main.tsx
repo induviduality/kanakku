@@ -19,7 +19,7 @@ const queryClient = new QueryClient()
  *             the stale token is cleared so the user lands on /login cleanly.
  */
 async function initAuth(): Promise<void> {
-  if (import.meta.env.DEV) {
+  if (import.meta.env.DEV || import.meta.env.VITE_DEV_MODE === 'true') {
     try {
       const res = await fetch('/api/v1/auth/dev-login')
       if (res.ok) {

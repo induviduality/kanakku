@@ -48,6 +48,7 @@ services:
       LLM_MODEL: ${LLM_MODEL:-qwen2.5:1.5b}
       REDIS_URL: ${REDIS_URL}
       PUBLIC_BASE_URL: ${PUBLIC_BASE_URL}
+      DEV_MODE: ${DEV_MODE_BACKEND:-false}
     depends_on:
       db:
         condition: service_healthy
@@ -93,6 +94,8 @@ services:
     build:
       context: ../frontend
       dockerfile: Dockerfile
+      args:
+        VITE_DEV_MODE: ${DEV_MODE_FRONTEND:-false}
     restart: unless-stopped
     depends_on:
       - api
