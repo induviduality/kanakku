@@ -1,0 +1,35 @@
+# Development overrides — applied automatically by `docker compose up` on local machines.
+# Do NOT deploy this file to production servers.
+#
+# What this adds:
+#   - Code mounts on api/worker for hot reload
+#   - Direct port exposure for db/redis/api/frontend/ollama
+#   - --reload flag on uvicorn
+
+services:
+  api:
+    volumes:
+      - ../backend:/app
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    ports:
+      - "8000:8000"
+
+  worker:
+    volumes:
+      - ../backend:/app
+
+  db:
+    ports:
+      - "5432:5432"
+
+  redis:
+    ports:
+      - "6379:6379"
+
+  frontend:
+    ports:
+      - "5173:80"
+
+  ollama:
+    ports:
+      - "11434:11434"

@@ -14,8 +14,10 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
-    ports:
-      - "5432:5432"
+    deploy:
+      resources:
+        limits:
+          memory: 1g
 
   redis:
     image: redis:7-alpine
@@ -27,8 +29,10 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
-    ports:
-      - "6379:6379"
+    deploy:
+      resources:
+        limits:
+          memory: 256m
 
   api:
     build:
@@ -49,11 +53,17 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
-    ports:
-      - "8000:8000"
-    volumes:
-      - ../backend:/app
-    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 3
+    deploy:
+      resources:
+        limits:
+          memory: 512m
 
   worker:
     build:
@@ -73,19 +83,23 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
-    volumes:
-      - ../backend:/app
     command: python -m arq app.worker.WorkerSettings
+    deploy:
+      resources:
+        limits:
+          memory: 512m
 
   frontend:
     build:
       context: ../frontend
       dockerfile: Dockerfile
     restart: unless-stopped
-    ports:
-      - "5173:80"
     depends_on:
       - api
+    deploy:
+      resources:
+        limits:
+          memory: 128m
 
   ollama:
     image: ollama/ollama:latest
@@ -94,8 +108,10 @@ services:
       - ollama:/root/.ollama
     environment:
       OLLAMA_MAX_LOADED_MODELS: "1"
-    ports:
-      - "11434:11434"
+    deploy:
+      resources:
+        limits:
+          memory: 4g
 
   caddy:
     image: caddy:2-alpine
@@ -103,6 +119,8 @@ services:
     ports:
       - "80:80"
       - "443:443"
+    environment:
+      PUBLIC_DOMAIN: ${PUBLIC_DOMAIN:-localhost}
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy_data:/data
@@ -110,6 +128,10 @@ services:
     depends_on:
       - api
       - frontend
+    deploy:
+      resources:
+        limits:
+          memory: 128m
 
 volumes:
   pgdata:

@@ -1,5 +1,14 @@
 # Completed Milestones
 
+## Milestone 14: Production Deployment — In Progress
+
+### Task 14.1: Caddyfile & Production Compose
+- infra/docker-compose.yml: production-ready baseline — no code volume mounts, `--workers 3` uvicorn, resource limits (db 1g, redis 256m, api 512m, worker 512m, frontend 128m, ollama 4g, caddy 128m), healthcheck on api service, PUBLIC_DOMAIN env passed to caddy
+- infra/docker-compose.override.yml: new dev override — code volume mounts on api/worker (hot reload), port exposures for db/redis/api/frontend/ollama; picked up automatically by `docker compose up` in dev, absent in production
+- infra/env.example: DOMAIN → PUBLIC_DOMAIN with updated comments for localhost/LAN/Tailscale/VPS scenarios
+- infra/Makefile: added prod-up/prod-down targets (skip override file)
+- docs/running.md: documented dev vs. prod compose usage, `docker compose -f docker-compose.yml up -d` for production
+
 ## Milestone 11: Reports & Custom Dashboards — In Progress
 
 ### Task 11.1: Read-Only Role & Query Endpoint

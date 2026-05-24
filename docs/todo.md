@@ -488,11 +488,11 @@
 ## Milestone 14: Production Deployment
 
 ### Task 14.1: Caddyfile & Production Compose
-- [ ] Caddyfile (localhost + production)
-- [ ] Production docker-compose.yml
-- [ ] Caddy front-facing
-- [ ] Healthchecks
-- [ ] Resource limits for Pi 5
+- [x] Caddyfile (localhost + production)
+- [x] Production docker-compose.yml
+- [x] Caddy front-facing
+- [x] Healthchecks
+- [x] Resource limits for Pi 5
 - [ ] Verified on actual Pi 5
 
 ### Task 14.2: Backup Automation

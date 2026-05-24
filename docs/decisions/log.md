@@ -82,6 +82,18 @@ The format: date, title, context, decision, alternatives, what it affects.
 - Shell alias / Makefile target — less discoverable, doesn't compose well across presets
 
 **Affects:** `.dev-config.yml`, `infra/load-dev-config.py`, `infra/env.example`, `DEV_MODE_SETUP.md`. No backend code changes; backend still reads `DEV_MODE` as before.
+## 2026-05-24 — Production docker-compose split into base + dev override
+
+**Context:** The development compose needed code volume mounts and `--reload` for hot iteration, while production needs multi-worker uvicorn and no mounts. Both use the same `docker-compose.yml` filename (per NFR-1.1 "same file for home server + VPS").
+
+**Decision:** Made `docker-compose.yml` the production baseline (no mounts, `--workers 3`, resource limits). Created `docker-compose.override.yml` for dev which Docker Compose applies automatically when present. Production servers don't have the override file. Added `make prod-up` for running production mode locally.
+
+**Alternatives considered:**
+- Build-arg or `COMPOSE_FILE` env var to switch profiles — less discoverable
+- Separate `docker-compose.dev.yml` requiring explicit `-f` flag — would break existing `make up`
+
+**Affects:** `infra/docker-compose.yml`, `infra/docker-compose.override.yml` (new), `infra/Makefile`, `docs/running.md`.
+
 ## 2026-05-23 — Export and import-archive share one router file; ExportJob stored in DB (not Redis)
 
 **Context:** Tasks 12.1 (export) and 12.2 (import-archive) both need /export and /import-archive endpoints. Job status needs persistence across the ARQ worker and the API process.

@@ -147,6 +147,10 @@ bun run build       # production build check
 Runs every service in containers. Closer to production but slower to iterate.
 Requires Docker Desktop installed and running.
 
+`docker-compose.override.yml` is picked up automatically in local dev — it adds
+code volume mounts (hot reload) and exposes service ports directly. On production
+servers this file is absent, so `docker compose up` uses the production baseline.
+
 ```bash
 cd infra
 
@@ -154,7 +158,7 @@ cd infra
 cp env.example .env
 # Edit .env — at minimum change JWT_SECRET and POSTGRES_PASSWORD
 
-# Start everything
+# Start everything (dev: includes override file automatically)
 docker compose up
 
 # Or in background
@@ -165,6 +169,12 @@ docker compose logs -f api
 
 # Stop
 docker compose down
+```
+
+To run in production mode locally (no code mounts, multi-worker):
+```bash
+docker compose -f docker-compose.yml up -d
+# or: make prod-up
 ```
 
 Services and their ports:

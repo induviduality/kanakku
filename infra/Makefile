@@ -1,9 +1,10 @@
 .PHONY: up down restart logs build ps \
         backend-shell worker-shell frontend-shell psql redis-shell ollama-shell \
-        migrate ollama-init
+        migrate ollama-init prod-up prod-down
 
 # ── Compose lifecycle ──────────────────────────────────────────────────────────
 
+# Local dev: applies docker-compose.yml + docker-compose.override.yml automatically
 up:
 	docker compose up -d
 
@@ -15,6 +16,13 @@ restart:
 
 build:
 	docker compose build
+
+# Production: skips the dev override file
+prod-up:
+	docker compose -f docker-compose.yml up -d
+
+prod-down:
+	docker compose -f docker-compose.yml down
 
 ps:
 	docker compose ps

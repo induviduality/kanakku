@@ -53,6 +53,7 @@
 # Milestone 14: Production Deployment — In Progress
 
 ## Completed Tasks
+- 14.1 Caddyfile & Production Compose (docker-compose.yml production-ready, override.yml for dev, resource limits, healthchecks, PUBLIC_DOMAIN) — DONE
 
 ## Next Task
-- 14.1 Caddyfile & Production Compose
+- 14.2 Backup Automation

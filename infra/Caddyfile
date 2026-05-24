@@ -1,4 +1,40 @@
-{$DOMAIN} {
-    reverse_proxy /api/* backend:8000
-    reverse_proxy frontend:5173
+# Kanakku Caddyfile
+#
+# Modes (set PUBLIC_DOMAIN in .env):
+#   Local dev / LAN:   PUBLIC_DOMAIN=localhost  → HTTP only, no TLS
+#   Production:        PUBLIC_DOMAIN=kanakku.yourdomain.com → auto HTTPS (Let's Encrypt)
+#
+# For VPN-only access (recommended for home server):
+#   Use Tailscale and set PUBLIC_DOMAIN to your Tailscale hostname.
+#   Tailscale provides TLS certificates via HTTPS certificates feature.
+#   See docs/operations.md for Tailscale setup.
+
+{
+    admin off
+    # Reduce log verbosity in production
+    log {
+        level WARN
+    }
+}
+
+{$PUBLIC_DOMAIN:localhost} {
+    encode gzip
+
+    # Compress and cache static assets
+    header /assets/* Cache-Control "public, max-age=31536000, immutable"
+    header /*.js Cache-Control "public, max-age=3600"
+    header /*.css Cache-Control "public, max-age=3600"
+
+    # API → FastAPI backend
+    reverse_proxy /api/* api:8000 {
+        header_up X-Forwarded-Proto {scheme}
+        health_uri /health
+        health_interval 15s
+    }
+
+    # Health check pass-through
+    reverse_proxy /health api:8000
+
+    # Everything else → Nginx-served frontend static files
+    reverse_proxy * frontend:80
 }
