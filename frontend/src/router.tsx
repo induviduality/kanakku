@@ -1,5 +1,6 @@
-import { createRootRoute, createRoute, createRouter } from '@tanstack/react-router'
+import { createRootRoute, createRoute, createRouter, redirect } from '@tanstack/react-router'
 import AppLayout from './components/AppLayout'
+import { isAuthenticated } from './lib/auth-storage'
 import Dashboard from './pages/Dashboard'
 import Login from './pages/Login'
 import Setup from './pages/Setup'
@@ -34,7 +35,23 @@ import SettingsDataExport from './pages/SettingsDataExport'
 import SettingsDataImport from './pages/SettingsDataImport'
 import RecentlyDeleted from './pages/RecentlyDeleted'
 
-const rootRoute = createRootRoute({ component: AppLayout })
+// Guest-only paths that must never trigger the auth redirect.
+const GUEST_PATHS = ['/login', '/setup', '/accept-invite']
+
+const rootRoute = createRootRoute({
+  component: AppLayout,
+  // Runs synchronously before any component renders — no flash of wrong content.
+  // Protected routes redirect to /login; the login page redirects to / if
+  // already authenticated.  Auth state is resolved in main.tsx before mount.
+  beforeLoad: ({ location }) => {
+    const isGuest = GUEST_PATHS.some(
+      (p) => location.pathname === p || location.pathname.startsWith(p + '/'),
+    )
+    if (!isGuest && !isAuthenticated()) {
+      throw redirect({ to: '/login' })
+    }
+  },
+})
 
 const indexRoute = createRoute({
   getParentRoute: () => rootRoute,
@@ -52,6 +69,9 @@ const loginRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/login',
   component: Login,
+  beforeLoad: () => {
+    if (isAuthenticated()) throw redirect({ to: '/' })
+  },
 })
 
 const acceptInviteRoute = createRoute({

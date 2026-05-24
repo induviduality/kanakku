@@ -26,6 +26,7 @@ from app.schemas.auth import (
     SetupRequest,
     TokenResponse,
 )
+from app.config import settings
 from app.security.passwords import hash_password, verify_password
 from app.security.tokens import (
     REFRESH_TOKEN_EXPIRES,
@@ -67,6 +68,36 @@ async def setup(
         access_token=create_access_token(user.id),
         refresh_token=create_refresh_token(user.id),
     )
+
+
+@router.get("/dev-login", response_model=TokenResponse)
+async def dev_login(session: AsyncSession = Depends(get_session)) -> TokenResponse:
+    """Auto-login as the dev seed user. Only available when DEV_MODE=true."""
+    if not settings.dev_mode:
+        raise HTTPException(status_code=404, detail="Not found")
+
+    DEV_USER_ID = uuid.UUID("11111111-1111-1111-1111-111111111111")
+
+    result = await session.execute(
+        select(User).where(User.id == DEV_USER_ID, User.deleted_at.is_(None))
+    )
+    user = result.scalar_one_or_none()
+    if user is None:
+        raise HTTPException(status_code=503, detail="Dev user not seeded yet")
+
+    access_token = create_access_token(user.id)
+    refresh_token = create_refresh_token(user.id)
+
+    db_session = SessionModel(
+        id=uuid.uuid4(),
+        user_id=user.id,
+        token_hash=_hash_token(refresh_token),
+        expires_at=datetime.now(UTC) + REFRESH_TOKEN_EXPIRES,
+    )
+    session.add(db_session)
+    await session.commit()
+
+    return TokenResponse(access_token=access_token, refresh_token=refresh_token)
 
 
 @router.post("/login", response_model=TokenResponse)
