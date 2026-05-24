@@ -16,7 +16,12 @@ depends_on = None
 
 def upgrade() -> None:
     op.execute(
-        "CREATE TYPE IF NOT EXISTS exportjobstatus AS ENUM ('pending', 'running', 'done', 'failed')"
+        """
+        DO $$ BEGIN
+            CREATE TYPE exportjobstatus AS ENUM ('pending', 'running', 'done', 'failed');
+        EXCEPTION WHEN duplicate_object THEN null;
+        END $$
+        """
     )
     op.create_table(
         "export_jobs",
