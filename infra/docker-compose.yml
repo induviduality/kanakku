@@ -117,10 +117,13 @@ services:
     image: caddy:2-alpine
     restart: unless-stopped
     ports:
-      - "80:80"
-      - "443:443"
+      - "${CADDY_PORT:-8081}:${CADDY_PORT:-8081}"
     environment:
       PUBLIC_DOMAIN: ${PUBLIC_DOMAIN:-localhost}
+      CADDY_PORT: ${CADDY_PORT:-8081}
+    networks:
+      - default
+      - proxy-nw
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy_data:/data
@@ -139,3 +142,9 @@ volumes:
   ollama:
   caddy_data:
   caddy_config:
+
+networks:
+  default:
+  proxy-nw:
+    external: true
+    name: ${PROXY_NETWORK:-my-example-proxy-nw}
