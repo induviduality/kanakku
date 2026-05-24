@@ -2,6 +2,11 @@
 
 ## Milestone 14: Production Deployment — In Progress
 
+### Task 14.2: Backup Automation
+- infra/scripts/auto-backup.sh: nightly script with 7/4/12 daily/weekly/monthly rotation; DRY_RUN=1 and DOW/DOM env var overrides for deterministic testing; cron entry documented
+- docs/operations.md: new runbook — manual backup/restore, auto-backup cron entry, Docker log access, health checks, update procedure, common issues, Tailscale setup
+- backend/tests/test_auto_backup.py: 7 pytest tests covering file creation, Monday/1st-of-month special cases, and rotation keeps-N-most-recent for all three tiers
+
 ### Task 14.1: Caddyfile & Production Compose
 - infra/docker-compose.yml: production-ready baseline — no code volume mounts, `--workers 3` uvicorn, resource limits (db 1g, redis 256m, api 512m, worker 512m, frontend 128m, ollama 4g, caddy 128m), healthcheck on api service, PUBLIC_DOMAIN env passed to caddy
 - infra/docker-compose.override.yml: new dev override — code volume mounts on api/worker (hot reload), port exposures for db/redis/api/frontend/ollama; picked up automatically by `docker compose up` in dev, absent in production

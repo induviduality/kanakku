@@ -496,9 +496,9 @@
 - [ ] Verified on actual Pi 5
 
 ### Task 14.2: Backup Automation
-- [ ] auto-backup.sh with rotation
-- [ ] Cron entry documented
-- [ ] Tests
+- [x] auto-backup.sh with rotation
+- [x] Cron entry documented
+- [x] Tests
 
 ### Task 14.3: Documentation
 - [ ] README with quick start
