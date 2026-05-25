@@ -9,7 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.session import get_session
 from app.dependencies import get_current_user
-from app.models.account import Account
+from app.models.account import Account, AccountType
 from app.models.transaction import (
     Transaction,
     TransactionType,
@@ -98,12 +98,15 @@ async def _to_response(txn: Transaction, session: AsyncSession) -> TransactionRe
     return TransactionResponse.model_validate(data)
 
 
+_LIABILITY_TYPES = {AccountType.credit_card, AccountType.loan}
+
+
 def _apply_balance_delta(account: Account, txn: Transaction, sign: int) -> None:
     """Adjust account.current_balance. sign=+1 to apply, -1 to reverse."""
     amount = txn.amount * sign
     if txn.type == TransactionType.expense:
         account.current_balance -= amount
-    elif txn.type == TransactionType.income:
+    elif txn.type in (TransactionType.income, TransactionType.opening_balance):
         account.current_balance += amount
     # transfer handled separately via _apply_transfer_balances
 
@@ -193,13 +196,19 @@ async def create_transaction(
     if body.type != TransactionType.transfer and body.to_account_id is not None:
         raise HTTPException(status_code=422, detail="to_account_id only allowed for transfer")
 
-    # Resolve currency
+    # Resolve currency and validate opening_balance account type
     currency = body.currency
     if currency is None:
         acc = await _get_account_or_404(body.account_id, current_user.id, session)
         currency = acc.currency
     else:
-        await _get_account_or_404(body.account_id, current_user.id, session)
+        acc = await _get_account_or_404(body.account_id, current_user.id, session)
+
+    if body.type == TransactionType.opening_balance and acc.type in _LIABILITY_TYPES:
+        raise HTTPException(
+            status_code=422,
+            detail="opening_balance cannot be applied to liability accounts (credit_card, loan)",
+        )
 
     if body.to_account_id:
         await _get_account_or_404(body.to_account_id, current_user.id, session)
@@ -355,6 +364,14 @@ async def patch_transaction(
         raise HTTPException(status_code=422, detail="transfer requires to_account_id")
     if new_type != TransactionType.transfer and new_to_account is not None:
         raise HTTPException(status_code=422, detail="to_account_id only allowed for transfer")
+
+    if new_type == TransactionType.opening_balance:
+        acc = await _get_account_or_404(txn.account_id, current_user.id, session)
+        if acc.type in _LIABILITY_TYPES:
+            raise HTTPException(
+                status_code=422,
+                detail="opening_balance cannot be applied to liability accounts (credit_card, loan)",
+            )
 
     for field, value in patch_data.items():
         if field in scalar_fields:

@@ -94,6 +94,9 @@ TXN_PIG_LAPTOP_1 = uuid.UUID("f6000001-0000-0000-0000-000000000030")
 TXN_PIG_TRIP_1   = uuid.UUID("f6000001-0000-0000-0000-000000000031")
 TXN_PIG_TRIP_2   = uuid.UUID("f6000001-0000-0000-0000-000000000032")
 TXN_PIG_PHONE_1  = uuid.UUID("f6000001-0000-0000-0000-000000000033")
+TXN_OB_HDFC      = uuid.UUID("f6000001-0000-0000-0000-000000000040")
+TXN_OB_ICICI     = uuid.UUID("f6000001-0000-0000-0000-000000000041")
+TXN_OB_CASH      = uuid.UUID("f6000001-0000-0000-0000-000000000042")
 
 # Budgets
 BUD_FOOD_CURR   = uuid.UUID("b7000001-0000-0000-0000-000000000001")
@@ -206,6 +209,19 @@ async def seed_dev_data() -> None:
 
         # ── Transactions ──────────────────────────────────────────────────────
         txns = [
+            # Scenario: opening balances (dated Jan 1 to appear before all other transactions)
+            Transaction(id=TXN_OB_HDFC, user_id=USER_ID, type=TransactionType.opening_balance,
+                        transacted_at=_dt(2026, 1, 1), amount=Decimal("50000"),
+                        currency="INR", account_id=ACC_HDFC,
+                        description="Opening balance"),
+            Transaction(id=TXN_OB_ICICI, user_id=USER_ID, type=TransactionType.opening_balance,
+                        transacted_at=_dt(2026, 1, 1), amount=Decimal("25000"),
+                        currency="INR", account_id=ACC_ICICI,
+                        description="Opening balance"),
+            Transaction(id=TXN_OB_CASH, user_id=USER_ID, type=TransactionType.opening_balance,
+                        transacted_at=_dt(2026, 1, 1), amount=Decimal("5000"),
+                        currency="INR", account_id=ACC_CASH,
+                        description="Opening balance"),
             Transaction(id=TXN_SALARY_APR, user_id=USER_ID, type=TransactionType.income,
                         transacted_at=_dt(2026, 4, 1), amount=Decimal("85000"),
                         currency="INR", account_id=ACC_HDFC, payee_id=PAYEE_EMPLOYER,

@@ -13,6 +13,7 @@ class TransactionType(StrEnum):
     expense = "expense"
     income = "income"
     transfer = "transfer"
+    opening_balance = "opening_balance"
 
 
 # Association tables (no ORM class needed — accessed via raw SQL or joined loads)
