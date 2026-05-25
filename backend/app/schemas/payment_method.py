@@ -8,7 +8,7 @@ from app.models.payment_method import PaymentMethodType
 
 class PaymentMethodCreate(BaseModel):
     type: PaymentMethodType
-    label: str
+    name: str
     upi_app: str | None = None
     is_active: bool = True
 
@@ -22,7 +22,7 @@ class PaymentMethodCreate(BaseModel):
 
 
 class PaymentMethodPatch(BaseModel):
-    label: str | None = None
+    name: str | None = None
     upi_app: str | None = None
     is_active: bool | None = None
 
@@ -31,7 +31,7 @@ class PaymentMethodResponse(BaseModel):
     id: uuid.UUID
     account_id: uuid.UUID
     type: PaymentMethodType
-    label: str
+    name: str
     upi_app: str | None
     is_active: bool
     created_at: datetime

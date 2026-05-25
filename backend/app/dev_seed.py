@@ -158,11 +158,11 @@ async def seed_dev_data() -> None:
 
         # ── Payment methods ───────────────────────────────────────────────────
         session.add(PaymentMethod(id=PM_HDFC_UPI, account_id=ACC_HDFC,
-                                  type=PaymentMethodType.upi, label="GPay", upi_app="gpay"))
+                                  type=PaymentMethodType.upi, name="GPay", upi_app="gpay"))
         session.add(PaymentMethod(id=PM_HDFC_DEBIT, account_id=ACC_HDFC,
-                                  type=PaymentMethodType.debit_card, label="HDFC Debit ••4242"))
+                                  type=PaymentMethodType.debit_card, name="HDFC Debit ••4242"))
         session.add(PaymentMethod(id=PM_CREDIT_CC, account_id=ACC_CREDIT,
-                                  type=PaymentMethodType.credit_card, label="HDFC Credit ••9876"))
+                                  type=PaymentMethodType.credit_card, name="HDFC Credit ••9876"))
 
         # ── Categories ────────────────────────────────────────────────────────
         session.add(Category(id=CAT_FOOD, user_id=USER_ID, name="Food & Dining",

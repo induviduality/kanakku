@@ -70,7 +70,7 @@ async def create_payment_method(
         id=uuid.uuid4(),
         account_id=account_id,
         type=body.type,
-        label=body.label,
+        name=body.name,
         upi_app=body.upi_app,
         is_active=body.is_active,
     )
