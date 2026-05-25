@@ -102,7 +102,11 @@ async def _set_categories(
         )
 
 
-def _budget_response(b: Budget, category_ids: list[uuid.UUID]) -> BudgetResponse:
+def _budget_response(
+    b: Budget,
+    category_ids: list[uuid.UUID],
+    current_spent: Decimal = Decimal("0"),
+) -> BudgetResponse:
     return BudgetResponse(
         id=b.id,
         user_id=b.user_id,
@@ -119,10 +123,36 @@ def _budget_response(b: Budget, category_ids: list[uuid.UUID]) -> BudgetResponse
         is_active=b.is_active,
         notes=b.notes,
         category_ids=category_ids,
+        current_spent=current_spent,
         created_at=b.created_at,
         updated_at=b.updated_at,
         deleted_at=b.deleted_at,
     )
+
+
+async def _batch_spent(
+    budget_ids: list[uuid.UUID], session: AsyncSession
+) -> dict[uuid.UUID, Decimal]:
+    """Return {budget_id: total_spent} for the given IDs in one query."""
+    if not budget_ids:
+        return {}
+    import sqlalchemy as sa
+
+    stmt = (
+        sa.select(
+            transaction_budgets.c.budget_id,
+            sa.func.coalesce(sa.func.sum(Transaction.amount), Decimal("0")).label("spent"),
+        )
+        .join(Transaction, Transaction.id == transaction_budgets.c.transaction_id)
+        .where(
+            transaction_budgets.c.budget_id.in_(budget_ids),
+            Transaction.type == TransactionType.expense,
+            Transaction.deleted_at.is_(None),
+        )
+        .group_by(transaction_budgets.c.budget_id)
+    )
+    rows = (await session.execute(stmt)).all()
+    return {r.budget_id: r.spent for r in rows}
 
 
 def _next_recurrence_start(budget: Budget, from_date: date) -> date | None:
@@ -179,10 +209,12 @@ async def list_budgets(
         q = q.where(Budget.is_active.is_(True))
     budgets = (await session.execute(q)).scalars().all()
 
+    spent_map = await _batch_spent([b.id for b in budgets], session)
+
     result = []
     for b in budgets:
         cat_ids = await _load_category_ids(b.id, session)
-        result.append(_budget_response(b, cat_ids))
+        result.append(_budget_response(b, cat_ids, spent_map.get(b.id, Decimal("0"))))
     return result
 
 

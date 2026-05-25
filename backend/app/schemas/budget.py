@@ -76,6 +76,7 @@ class BudgetResponse(BaseModel):
     is_active: bool
     notes: str | None
     category_ids: list[uuid.UUID]
+    current_spent: Decimal = Decimal("0")
     created_at: datetime
     updated_at: datetime
     deleted_at: datetime | None

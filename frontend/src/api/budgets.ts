@@ -22,6 +22,7 @@ export interface Budget {
   is_active: boolean
   notes: string | null
   category_ids: string[]
+  current_spent: string
   created_at: string
   updated_at: string
   deleted_at: string | null
