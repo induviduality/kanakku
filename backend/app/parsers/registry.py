@@ -2,11 +2,11 @@
 
 import io
 
-from app.parsers.banks.hdfc import HDFCParser
+from app.parsers.banks.generic import GenericTableParser
 from app.parsers.base import BaseParser
 
 _PARSERS: list[type[BaseParser]] = [
-    HDFCParser,
+    GenericTableParser,
 ]
 
 
