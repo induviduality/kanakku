@@ -1,17 +1,6 @@
 import { Drawer, DrawerSection, DrawerRow } from '../Drawer'
 import { useGetBudget, useGetBudgetTransactions } from '../../api/budgets'
-
-const RRULE_LABELS: Record<string, string> = {
-  'FREQ=DAILY':              'Daily',
-  'FREQ=WEEKLY':             'Weekly',
-  'FREQ=MONTHLY':            'Monthly',
-  'FREQ=MONTHLY;INTERVAL=3': 'Quarterly',
-  'FREQ=YEARLY':             'Yearly',
-}
-function rruleLabel(rule: string | null): string {
-  if (!rule) return ''
-  return RRULE_LABELS[rule] ?? rule
-}
+import { rruleLabel } from '../../lib/rrule'
 
 interface Props {
   budgetId: string | null

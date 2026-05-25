@@ -314,22 +314,22 @@ export default function Transactions() {
       ) : (
         <>
           {/* Desktop table */}
-          <div className="hidden md:block overflow-x-auto rounded-lg border border-gray-200">
+          <div className="hidden md:block overflow-x-auto rounded-xl border border-border bg-surface-1/60 backdrop-blur-sm shadow-sm">
             <table className="w-full text-sm">
-              <thead className="bg-gray-50 border-b border-gray-200">
+              <thead className="bg-surface-2/80 border-b border-border">
                 <tr>
                   <th className="w-8 px-3 py-2">
                     <span className="sr-only">Select</span>
                   </th>
-                  <th className="px-3 py-2 text-left font-medium text-gray-600">Date</th>
-                  <th className="px-3 py-2 text-left font-medium text-gray-600">Description / Payee</th>
-                  <th className="px-3 py-2 text-right font-medium text-gray-600">Amount</th>
-                  <th className="px-3 py-2 text-left font-medium text-gray-600">Type</th>
-                  <th className="px-3 py-2 text-left font-medium text-gray-600">Account</th>
-                  <th className="px-3 py-2 text-left font-medium text-gray-600 w-32">Actions</th>
+                  <th className="px-3 py-2 text-left font-medium text-fg-faint">Date</th>
+                  <th className="px-3 py-2 text-left font-medium text-fg-faint">Description / Payee</th>
+                  <th className="px-3 py-2 text-right font-medium text-fg-faint">Amount</th>
+                  <th className="px-3 py-2 text-left font-medium text-fg-faint">Type</th>
+                  <th className="px-3 py-2 text-left font-medium text-fg-faint">Account</th>
+                  <th className="px-3 py-2 text-left font-medium text-fg-faint w-32">Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-100">
+              <tbody className="divide-y divide-border/60">
                 {allItems.map((t) => {
                   const acc = accounts.find((a) => a.id === t.account_id)
                   const payee = payees.find((p) => p.id === t.payee_id)
@@ -338,7 +338,7 @@ export default function Transactions() {
                     <>
                       <tr
                         key={t.id}
-                        className={`hover:bg-gray-50 cursor-pointer ${split ? 'border-b-0' : ''}`}
+                        className={`hover:bg-surface-2/50 cursor-pointer ${split ? 'border-b-0' : ''}`}
                         onClick={() => setDrawerTransaction(t)}
                       >
                         <td className="px-3 py-2" onClick={(e) => e.stopPropagation()}>

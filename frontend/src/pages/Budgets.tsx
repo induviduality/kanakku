@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { rruleLabel } from '../lib/rrule'
 import { Pencil, Trash2 } from 'lucide-react'
 import { Link } from '@tanstack/react-router'
 import {
@@ -105,11 +106,6 @@ const RRULE_OPTIONS: { value: string; label: string }[] = [
   { value: 'FREQ=MONTHLY;INTERVAL=3', label: 'Quarterly' },
   { value: 'FREQ=YEARLY',             label: 'Yearly' },
 ]
-
-function rruleLabel(rule: string | null): string {
-  if (!rule) return ''
-  return RRULE_OPTIONS.find(o => o.value === rule)?.label ?? rule
-}
 
 export default function Budgets() {
   const { data: budgets = [], isLoading } = useGetBudgets(true)

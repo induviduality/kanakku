@@ -1,5 +1,5 @@
 import { Drawer, DrawerSection, DrawerRow } from '../Drawer'
-import { usePaymentMethods, type Account } from '../../api/accounts'
+import { usePaymentMethods, usePatchAccount, type Account } from '../../api/accounts'
 
 const TYPE_LABEL: Record<Account['type'], string> = {
   bank:        'Bank',
@@ -42,9 +42,15 @@ interface Props {
 }
 
 export function AccountDrawer({ account, onClose }: Props) {
+  const patch    = usePatchAccount()
   const balance  = account ? parseFloat(account.current_balance) : 0
   const opening  = account ? parseFloat(account.opening_balance) : 0
   const isNeg    = balance < 0
+
+  function toggleActive() {
+    if (!account) return
+    patch.mutate({ id: account.id, patch: { is_active: !account.is_active } })
+  }
 
   return (
     <Drawer open={!!account} onClose={onClose} title={account?.name ?? 'Account'}>
@@ -74,7 +80,18 @@ export function AccountDrawer({ account, onClose }: Props) {
             <div className="kk-panel">
               <DrawerRow label="Type"     value={TYPE_LABEL[account.type]} />
               <DrawerRow label="Currency" value={account.currency} />
-              <DrawerRow label="Status"   value={account.is_active ? 'Active' : 'Inactive'} />
+              <DrawerRow
+              label="Status"
+              value={
+                <button
+                  onClick={toggleActive}
+                  disabled={patch.isPending}
+                  className={`kk-chip cursor-pointer transition-opacity disabled:opacity-50 ${account.is_active ? 'kk-chip-positive' : 'kk-chip-warning'}`}
+                >
+                  {account.is_active ? 'Active' : 'Inactive'}
+                </button>
+              }
+            />
               <DrawerRow
                 label="Opening balance"
                 value={<span className="kk-mono">{account.currency} {opening.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>}
