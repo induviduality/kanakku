@@ -1,5 +1,50 @@
 # Decision Log
 
+## 2026-05-25 — Progress ring mount animation uses requestAnimationFrame + CSS transition
+
+**Context:** Four separate `ProgressRing` components needed to animate from 0% to the real value on initial render. Pure CSS transitions don't fire on mount because the element is painted with the final value immediately.
+
+**Decision:** `useState(circumference)` (fully offset = 0%) as initial state, then a `useEffect` with a single `requestAnimationFrame` to set the real offset. The browser paints the 0% frame, rAF fires after the paint, React state update triggers the CSS `stroke-dashoffset` transition. One `transition` style on the arc circle handles both mount animation and subsequent value changes.
+
+**Alternatives considered:**
+- CSS `@keyframes` animation — can't be driven by a runtime value; would need `animation-delay` hack
+- Framer Motion / react-spring — brings a dependency for one simple effect
+- Double-rAF pattern — sometimes needed for DOM mutations but single rAF is sufficient for React state updates after mount
+
+**Affects:** `PiggyBankProgressRing.tsx`, `PiggyBankDrawer.tsx` (local `ProgressRing`), `PiggyBankDetail.tsx`, `PiggyBanks.tsx`.
+
+## 2026-05-25 — Cash flow buckets embedded in /dashboard/home response, not a separate endpoint
+
+**Context:** Dashboard needs time-series income vs expense data to render the cash flow chart. Two approaches: add it to the existing dashboard payload, or create a separate `/dashboard/cashflow` endpoint.
+
+**Decision:** Added `cashflow_buckets: list[CashFlowBucket]` directly to `DashboardResponse`. Avoids a second network round-trip; the dashboard already fetches everything the page needs in one call. The bucket query is a single `GROUP BY (type, date_trunc(...))` on the same transaction table already being queried.
+
+**Alternatives considered:**
+- Separate endpoint — cleaner API surface, independently cacheable, but costs an extra fetch and complicates the frontend data flow
+- Client-side aggregation from transaction list — unbounded result set, not paginated, would require fetching all transactions for the period
+
+**Affects:** `backend/app/schemas/dashboard.py` (`CashFlowBucket`, `DashboardResponse`), `backend/app/routers/dashboard.py` (`_cashflow_buckets`), `frontend/src/api/dashboard.ts`, `frontend/src/components/dashboard/CashFlowChart.tsx`.
+
+## 2026-05-25 — Budget detail transaction drawer uses a local adapter instead of re-fetching
+
+**Context:** `BudgetDetail` shows `BudgetTransactionItem` rows. Clicking a row should open `TransactionDrawer`, which expects a full `Transaction` object. `BudgetTransactionItem` is a subset — it's missing `tag_ids`, `notes`, `to_account_id`, `subscription_id`, etc.
+
+**Decision:** `toTransaction()` adapter fills in missing fields with safe defaults (`tag_ids: []`, `notes: null`, etc.) and casts to `Transaction`. The drawer gracefully skips sections with empty/null values, so the user sees all available data (account, payee, categories, amount, date) without an extra API call per click.
+
+**Alternatives considered:**
+- Fetch `GET /transactions/{id}` on click — shows complete data (tags, notes) but adds latency and a loading state inside the drawer; tags/notes are rarely present on budget-linked transactions anyway
+- Extend the budget transactions endpoint to return full `Transaction` objects — over-fetches data the list view doesn't need
+
+**Affects:** `frontend/src/pages/BudgetDetail.tsx`.
+
+## 2026-05-25 — Cash flow bucket granularity auto-selected by period duration
+
+**Context:** The cash flow chart needs to choose between daily, weekly, and monthly bars. Fixed granularity per period type (e.g. "month always → daily") doesn't work for custom periods of arbitrary length.
+
+**Decision:** Duration-based threshold: ≤31 days → `date_trunc('day')`, ≤91 days → `date_trunc('week')`, >91 days → `date_trunc('month')`. This keeps the chart readable (≤31 bars) regardless of which period is selected.
+
+**Affects:** `backend/app/routers/dashboard.py` (`_cashflow_buckets`).
+
 ## 2026-05-25 — Dev mode auth bypass uses HTTPBearer(auto_error=False) with fallback user
 
 **Context:** User runs DEV_MODE=true on the production server to test features without a local Docker setup. The `get_current_user` dependency previously required a valid Bearer token unconditionally.
