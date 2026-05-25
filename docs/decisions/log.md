@@ -12,6 +12,30 @@
 
 
 
+## 2026-05-25 — Generic table parser replaces HDFC-specific parser
+
+**Context:** The original `HDFCParser` was hardcoded to HDFC's column layout. Real bank PDFs vary: some have separate withdrawal/deposit columns, others use Dr/Cr suffixes, others have no column headers at all.
+
+**Decision:** Dropped `HDFCParser` entirely and replaced it with `GenericTableParser` in `backend/app/parsers/banks/generic.py`. It detects layout from column headers using flexible substring matching, then handles three layouts: dual-column (separate debit/credit), single-column with Dr/Cr suffix, and headerless (structure inferred from row data). The parser registry now points to `GenericTableParser` for all inputs.
+
+**Alternatives considered:**
+- Keep HDFC parser + add per-bank subclasses — grows linearly with bank count; most banks are minor variants of the same three layouts
+- Config-driven column mappings — overfits to known banks, still fails on unknown ones
+
+**Affects:** `backend/app/parsers/banks/generic.py` (new), `backend/app/parsers/banks/hdfc.py` (deleted), `backend/app/parsers/registry.py`, `backend/tests/test_parser.py` (replaced `test_hdfc_parser.py`).
+
+## 2026-05-25 — budget `_batch_spent` uses two date-windowed batched queries instead of one GROUP BY
+
+**Context:** The original `_batch_spent` helper only counted explicit `transaction_budgets` links with no date filter. The drawer's `list_budget_transactions` also counts category-matched transactions and respects `budget.start_date / end_date`. This caused the list page to show a different (lower) spend figure than the drawer.
+
+**Decision:** Rewrote `_batch_spent` to run two batched queries — (1) explicit links via `transaction_budgets`, (2) category matches via `transaction_categories` — both date-windowed by joining `Budget` and filtering on `start_date / end_date`. Results are summed per budget_id. This matches the drawer logic exactly.
+
+**Alternatives considered:**
+- Single query with UNION — harder to read, mixing join paths in one query is fragile
+- Reuse `list_budget_transactions` endpoint logic — that runs per-budget; batching requires a different approach
+
+**Affects:** `backend/app/routers/budgets.py` (`_batch_spent`).
+
 ## 2026-05-23 — Dev seed lives in app/dev_seed.py, called from lifespan
 
 **Context:** Dev mode needed realistic fixture data spanning all domain entities
@@ -83,17 +107,13 @@ The format: date, title, context, decision, alternatives, what it affects.
 
 **Affects:** `app/models/category.py`, `app/schemas/payee.py`, `app/routers/payees.py`, `frontend/src/api/payees.ts`.
 
-## 2026-05-23 — Dev mode toggled via .dev-config.yml + loader script rather than .env editing
+## 2026-05-23 — Dev mode toggled via DEV_MODE env var (plain env, not YAML config)
 
-**Context:** User wanted a single touchpoint to toggle dev mode for backend, frontend, and infra independently without editing multiple files or the .env directly.
+**Context:** An earlier plan called for a `.dev-config.yml` file + `infra/load-dev-config.py` loader to toggle dev mode. The `.dev-config.yml` file was never shipped; only `load-dev-config.py` exists. In practice dev mode is controlled directly by the `DEV_MODE=true` env var (read via pydantic-settings in `app/config.py`).
 
-**Decision:** Separate config file (`.dev-config.yml`) + a Python loader script (`infra/load-dev-config.py`) that reads the YAML and exports shell-ready env vars. Script also exports `DEV_MODE` for backward compat alongside the new `DEV_MODE_BACKEND / DEV_MODE_FRONTEND / DEV_MODE_INFRA`.
+**Decision:** Keep plain env var (`DEV_MODE`) as the sole toggle. The `load-dev-config.py` script remains as a convenience helper but is not required. No `.dev-config.yml` file exists or is needed.
 
-**Alternatives considered:**
-- Edit `.env` directly — defeats the single-touchpoint goal and risks committing secrets
-- Shell alias / Makefile target — less discoverable, doesn't compose well across presets
-
-**Affects:** `.dev-config.yml`, `infra/load-dev-config.py`, `infra/env.example`, `DEV_MODE_SETUP.md`. No backend code changes; backend still reads `DEV_MODE` as before.
+**Affects:** `backend/app/config.py` (`dev_mode: bool = False`), `infra/load-dev-config.py` (optional helper), `infra/env.example`. The `DEV_MODE_BACKEND / DEV_MODE_FRONTEND / DEV_MODE_INFRA` split was planned but never implemented.
 ## 2026-05-24 — Production docker-compose split into base + dev override
 
 **Context:** The development compose needed code volume mounts and `--reload` for hot iteration, while production needs multi-worker uvicorn and no mounts. Both use the same `docker-compose.yml` filename (per NFR-1.1 "same file for home server + VPS").

@@ -9,12 +9,55 @@
 
 
 
-### Opening balance + budget NaN + dropdown styling + recurrence rule
-- `opening_balance` transaction type: backend enum + migration, liability-account guard in create/patch, frontend form (filtered accounts, type pill, no payee/category/tags), drawer chip, Transactions page display
-- Budget `current_spent` on list page: `_batch_spent` helper (single GROUP BY query), `BudgetResponse.current_spent` field, `Budgets.tsx` ProgressBar fixed from hardcoded 0
+### payment_method label→name rename (migration 0021)
+- `backend/alembic/versions/0021_payment_method_label_to_name.py`: renames the `label` column to `name` in the DB
+- `backend/app/models/payment_method.py`, `schemas/payment_method.py`, `routers/payment_methods.py`, `dev_seed.py`: all updated to use `name`
+
+### Generic table parser replaces HDFC-specific parser
+- `backend/app/parsers/banks/generic.py`: new layout-agnostic parser handling dual-column (withdrawal/deposit), single-column Dr/Cr suffix, and headerless PDFs via flexible column-header matching
+- `backend/app/parsers/banks/hdfc.py`: deleted; `backend/app/parsers/registry.py`: now routes all inputs to `GenericTableParser`
+- `backend/tests/test_parser.py`: replaces deleted `test_hdfc_parser.py` with layout-agnostic tests
+
+### CLI diagnostic scripts for local testing
+- `backend/scripts/diagnose_statement.py`: prints parser detection + column layout without creating DB rows
+- `backend/scripts/parse_statement.py`: runs full parse pipeline on a local PDF file
+
+### Account active toggle + shared rrule.ts + Transactions table styling
+- `frontend/src/components/drawers/AccountDrawer.tsx`: inline active/inactive toggle chip that PATCHes directly without opening the edit modal
+- `frontend/src/lib/rrule.ts`: shared RRULE-to-human-readable parser replacing duplicated lookup tables in BudgetDrawer and Budgets; handles BYMONTHDAY, BYDAY, INTERVAL; unknown patterns → "Custom"
+- `frontend/src/pages/Transactions.tsx`: replaced transparent/white table background with `bg-surface-1/60 + backdrop-blur-sm`; swapped hardcoded gray classes for design-system tokens
+
+### Budget `current_spent` query rewrite
+- `backend/app/routers/budgets.py`: rewrote `_batch_spent` to run two date-windowed batched queries — (1) explicit `transaction_budgets` links, (2) `transaction_categories` category matches — both JOINing `Budget` to apply `start_date / end_date` filter; fixes mismatch between list page and drawer spend figures
+
+### Opening balance + recurrence rule + dropdown styling
+- `opening_balance` transaction type: backend enum + migration (`0020_opening_balance_type.py`), liability-account guard in create/patch, dev seed fixtures, frontend form (filtered accounts, type pill, no payee/category/tags), drawer chip, Transactions page display
 - Global form element dark-theme: `base.css` overrides browser-default white backgrounds on `select/input/textarea`
 - Dashboard `opening_balance` display: `RecentTransaction.type` includes `'opening_balance'`, shows `+` prefix and `text-positive-dim` color
 - Recurrence rule: replaced free-text RRULE inputs with `<select>` dropdowns in `Budgets.tsx` create modal and `BudgetForm.tsx` edit page; `BudgetDrawer.tsx` shows human-readable label
+
+## Navigation & Dashboard Enhancement Sprint (post-M14, pre-UI-Polish)
+
+### MSW mock API mode
+- `frontend/src/test/handlers.ts` + Vite config: `VITE_DEV_MODE` flag enables MSW in-browser API mocking so frontend runs without a backend
+
+### Design system tokens + typography
+- `frontend/src/styles/base.css`: CSS custom properties for color tokens (bg, surface, fg, accent, border, positive, negative, warning); Inter + JetBrains Mono fonts via Google Fonts
+
+### Dashboard period selector + savings rate
+- `frontend/src/pages/Dashboard.tsx`: period selector (week/month/quarter/year/custom) wired to dashboard endpoint `from/to` params; savings rate = (income − expense) / income with prev-period comparison delta
+
+### Global top navbar with period picker
+- `frontend/src/components/TopNav.tsx`: sticky navbar with period picker dropdown (tabs → dropdown on narrow viewports); transparent background on scroll
+
+### Breadcrumb navigation
+- `frontend/src/components/Breadcrumbs.tsx`: route-aware breadcrumbs in topnav
+
+### Side navigation bar
+- `frontend/src/components/SideNav.tsx`: collapsible side nav for desktop (transactions, accounts, payees, budgets, splits)
+
+### Tamil brand mark + dashboard in sidenav
+- `frontend/src/components/TopNav.tsx`: கணக்கு logotype; dashboard link added to side nav
 
 ## UI Polish Sprint (post-M14)
 

@@ -75,7 +75,13 @@ All tasks finished:
 - Bulk PDF importer pages (Imports, ImportUpload, ImportReview) + sidebar nav item
 - Split inline panel in Transactions page (proportional bars per share + stacked bar footer)
 - Opening balance transaction type (backend enum, migration, liability-account guard, frontend form/drawer/display)
-- Budget spending on list page (batch SQL query, `current_spent` in BudgetResponse)
+- Budget spending on list page (`current_spent` in BudgetResponse; later rewritten to two date-windowed batched queries to match drawer logic)
 - Global dropdown/form dark-theme baseline (base.css overrides browser defaults)
 - Dashboard opening_balance display: type includes `opening_balance`, shows `+` prefix with positive color
 - Recurrence rule display: select dropdown in create/edit forms (Daily/Weekly/Monthly/Quarterly/Yearly), human-readable label in list and drawer
+- payment_method `label` → `name` rename (migration 0021, schema + model + router + seed)
+- Generic table parser replacing HDFC-specific parser (dual-column / Dr-Cr / headerless layouts)
+- CLI diagnostic scripts: `backend/scripts/parse_statement.py` + `diagnose_statement.py`
+- Account active toggle in drawer + `rrule.ts` shared lib + Transactions table design-token styling
+- PDF import auth fix: `useUploadPdf` now uses `getAccessToken()` (not localStorage); added `r.ok` check to prevent navigation to `/imports/undefined` on error
+- Dev mode auth bypass: `get_current_user` returns dev seed user when `DEV_MODE=true` and no token is present
