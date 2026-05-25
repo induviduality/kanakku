@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from '@tanstack/react-router'
 import {
   useInfiniteTransactions,
@@ -7,6 +7,7 @@ import {
   type TransactionFilters,
   type TransactionType,
 } from '../api/transactions'
+import { useListSplits, type Split } from '../api/splits'
 import { useAccounts } from '../api/accounts'
 import { usePayees } from '../api/payees'
 import { useCategories } from '../api/categories'
@@ -15,9 +16,10 @@ import ConfirmDialog from '../components/ConfirmDialog'
 import BundleAsSplitModal from '../components/BundleAsSplitModal'
 import { EmptyState } from '../components/EmptyState'
 import { TransactionDrawer } from '../components/drawers/TransactionDrawer'
+import { SplitInlinePanel } from '../components/SplitInlinePanel'
 
 function formatAmount(t: Transaction): string {
-  const sign = t.type === 'expense' ? '-' : t.type === 'income' ? '+' : '⇄'
+  const sign = t.type === 'expense' ? '-' : t.type === 'transfer' ? '⇄' : '+'
   return `${sign}${t.currency} ${Number(t.amount).toLocaleString('en-IN', { minimumFractionDigits: 2 })}`
 }
 
@@ -26,9 +28,10 @@ function formatDate(iso: string): string {
 }
 
 const TYPE_COLORS: Record<TransactionType, string> = {
-  expense: 'text-red-600',
-  income: 'text-green-600',
-  transfer: 'text-blue-600',
+  expense:         'text-red-600',
+  income:          'text-green-600',
+  transfer:        'text-blue-600',
+  opening_balance: 'text-accent',
 }
 
 interface FiltersState {
@@ -71,7 +74,21 @@ export default function Transactions() {
   const { data: payees = [] } = usePayees()
   const { data: categories = [] } = useCategories()
   const { data: tags = [] } = useTags()
+  const { data: splitsData } = useListSplits()
   const deleteTxn = useDeleteTransaction()
+
+  const payeeMap = useMemo(
+    () => Object.fromEntries(payees.map(p => [p.id, p.name])),
+    [payees],
+  )
+
+  const splitsByTxnId = useMemo(() => {
+    const map = new Map<string, Split>()
+    for (const s of splitsData ?? []) {
+      if (!s.deleted_at) map.set(s.expense_transaction_id, s)
+    }
+    return map
+  }, [splitsData])
 
   const { data, isLoading, isFetchingNextPage, hasNextPage, fetchNextPage } =
     useInfiniteTransactions(activeFilters)
@@ -316,49 +333,65 @@ export default function Transactions() {
                 {allItems.map((t) => {
                   const acc = accounts.find((a) => a.id === t.account_id)
                   const payee = payees.find((p) => p.id === t.payee_id)
+                  const split = splitsByTxnId.get(t.id)
                   return (
-                    <tr
-                      key={t.id}
-                      className="hover:bg-gray-50 cursor-pointer"
-                      onClick={() => setDrawerTransaction(t)}
-                    >
-                      <td className="px-3 py-2" onClick={(e) => e.stopPropagation()}>
-                        <input
-                          type="checkbox"
-                          checked={selectedIds.has(t.id)}
-                          onChange={() => toggleSelect(t.id)}
-                          aria-label={`Select ${t.description ?? t.id}`}
-                        />
-                      </td>
-                      <td className="px-3 py-2 text-gray-500 whitespace-nowrap">{formatDate(t.transacted_at)}</td>
-                      <td className="px-3 py-2">
-                        <p className="font-medium text-gray-900">{t.description ?? '—'}</p>
-                        {payee && <p className="text-xs text-gray-400">{payee.name}</p>}
-                      </td>
-                      <td className={`px-3 py-2 text-right font-medium whitespace-nowrap ${TYPE_COLORS[t.type]}`}>
-                        {formatAmount(t)}
-                      </td>
-                      <td className="px-3 py-2">
-                        <span className={`capitalize text-xs font-medium ${TYPE_COLORS[t.type]}`}>{t.type}</span>
-                      </td>
-                      <td className="px-3 py-2 text-gray-500">{acc?.name ?? '—'}</td>
-                      <td className="px-3 py-2" onClick={(e) => e.stopPropagation()}>
-                        <div className="flex gap-2">
-                          <button
-                            onClick={() => navigate({ to: '/transactions/new', search: { editId: t.id } })}
-                            className="text-xs text-gray-500 hover:text-gray-700"
-                          >
-                            Edit
-                          </button>
-                          <button
-                            onClick={() => setDeleteTarget(t)}
-                            className="text-xs text-red-500 hover:text-red-700"
-                          >
-                            Delete
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
+                    <>
+                      <tr
+                        key={t.id}
+                        className={`hover:bg-gray-50 cursor-pointer ${split ? 'border-b-0' : ''}`}
+                        onClick={() => setDrawerTransaction(t)}
+                      >
+                        <td className="px-3 py-2" onClick={(e) => e.stopPropagation()}>
+                          <input
+                            type="checkbox"
+                            checked={selectedIds.has(t.id)}
+                            onChange={() => toggleSelect(t.id)}
+                            aria-label={`Select ${t.description ?? t.id}`}
+                          />
+                        </td>
+                        <td className="px-3 py-2 text-gray-500 whitespace-nowrap">{formatDate(t.transacted_at)}</td>
+                        <td className="px-3 py-2">
+                          <p className="font-medium text-gray-900">{t.description ?? '—'}</p>
+                          {payee && <p className="text-xs text-gray-400">{payee.name}</p>}
+                        </td>
+                        <td className={`px-3 py-2 text-right font-medium whitespace-nowrap ${TYPE_COLORS[t.type]}`}>
+                          {formatAmount(t)}
+                        </td>
+                        <td className="px-3 py-2">
+                          <span className={`text-xs font-medium ${TYPE_COLORS[t.type]}`}>
+                          {t.type === 'opening_balance' ? 'Opening Balance' : t.type.charAt(0).toUpperCase() + t.type.slice(1)}
+                        </span>
+                        </td>
+                        <td className="px-3 py-2 text-gray-500">{acc?.name ?? '—'}</td>
+                        <td className="px-3 py-2" onClick={(e) => e.stopPropagation()}>
+                          <div className="flex gap-2">
+                            <button
+                              onClick={() => navigate({ to: '/transactions/new', search: { editId: t.id } })}
+                              className="text-xs text-gray-500 hover:text-gray-700"
+                            >
+                              Edit
+                            </button>
+                            <button
+                              onClick={() => setDeleteTarget(t)}
+                              className="text-xs text-red-500 hover:text-red-700"
+                            >
+                              Delete
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                      {split && (
+                        <tr key={`${t.id}-split`} className="border-b border-gray-100">
+                          <td colSpan={7} className="p-0">
+                            <SplitInlinePanel
+                              split={split}
+                              transactionAmount={parseFloat(t.amount)}
+                              payeeMap={payeeMap}
+                            />
+                          </td>
+                        </tr>
+                      )}
+                    </>
                   )
                 })}
               </tbody>
@@ -370,46 +403,58 @@ export default function Transactions() {
             {allItems.map((t) => {
               const acc = accounts.find((a) => a.id === t.account_id)
               const payee = payees.find((p) => p.id === t.payee_id)
+              const split = splitsByTxnId.get(t.id)
               return (
                 <div
                   key={`mobile-${t.id}`}
-                  className="rounded-lg border border-gray-200 bg-white p-3 flex gap-3 cursor-pointer"
+                  className="rounded-lg border border-gray-200 bg-white overflow-hidden cursor-pointer"
                   onClick={() => setDrawerTransaction(t)}
                 >
-                  <input
-                    type="checkbox"
-                    checked={selectedIds.has(t.id)}
-                    onChange={() => toggleSelect(t.id)}
-                    onClick={e => e.stopPropagation()}
-                    className="mt-1 flex-shrink-0"
-                    aria-label={`Select ${t.description ?? t.id}`}
-                  />
-                  <div className="flex-1 min-w-0">
-                    <div className="flex justify-between items-start">
-                      <div>
-                        <p className="font-medium text-gray-900 truncate">{t.description ?? '—'}</p>
-                        {payee && <p className="text-xs text-gray-400">{payee.name}</p>}
-                        <p className="text-xs text-gray-400">{acc?.name ?? '—'} · {formatDate(t.transacted_at)}</p>
+                  <div className="p-3 flex gap-3">
+                    <input
+                      type="checkbox"
+                      checked={selectedIds.has(t.id)}
+                      onChange={() => toggleSelect(t.id)}
+                      onClick={e => e.stopPropagation()}
+                      className="mt-1 flex-shrink-0"
+                      aria-label={`Select ${t.description ?? t.id}`}
+                    />
+                    <div className="flex-1 min-w-0">
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <p className="font-medium text-gray-900 truncate">{t.description ?? '—'}</p>
+                          {payee && <p className="text-xs text-gray-400">{payee.name}</p>}
+                          <p className="text-xs text-gray-400">{acc?.name ?? '—'} · {formatDate(t.transacted_at)}</p>
+                        </div>
+                        <p className={`font-semibold whitespace-nowrap ml-2 ${TYPE_COLORS[t.type]}`}>
+                          {formatAmount(t)}
+                        </p>
                       </div>
-                      <p className={`font-semibold whitespace-nowrap ml-2 ${TYPE_COLORS[t.type]}`}>
-                        {formatAmount(t)}
-                      </p>
-                    </div>
-                    <div className="mt-2 flex gap-3" onClick={e => e.stopPropagation()}>
-                      <button
-                        onClick={() => navigate({ to: '/transactions/new', search: { editId: t.id } })}
-                        className="text-xs text-gray-500 hover:text-gray-700"
-                      >
-                        Edit
-                      </button>
-                      <button
-                        onClick={() => setDeleteTarget(t)}
-                        className="text-xs text-red-500 hover:text-red-700"
-                      >
-                        Delete
-                      </button>
+                      <div className="mt-2 flex gap-3" onClick={e => e.stopPropagation()}>
+                        <button
+                          onClick={() => navigate({ to: '/transactions/new', search: { editId: t.id } })}
+                          className="text-xs text-gray-500 hover:text-gray-700"
+                        >
+                          Edit
+                        </button>
+                        <button
+                          onClick={() => setDeleteTarget(t)}
+                          className="text-xs text-red-500 hover:text-red-700"
+                        >
+                          Delete
+                        </button>
+                      </div>
                     </div>
                   </div>
+                  {split && (
+                    <div onClick={e => e.stopPropagation()}>
+                      <SplitInlinePanel
+                        split={split}
+                        transactionAmount={parseFloat(t.amount)}
+                        payeeMap={payeeMap}
+                      />
+                    </div>
+                  )}
                 </div>
               )
             })}

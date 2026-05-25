@@ -108,6 +108,7 @@ export default function Splits() {
   const unsettled     = periodSplits.filter(s => s.shares.some(sh => sh.status === 'pending'))
 
   return (
+    <>
     <div className="p-4 md:p-6 max-w-3xl mx-auto space-y-8">
       {/* Unsettled section */}
       <section>
@@ -157,5 +158,6 @@ export default function Splits() {
     </div>
 
     <SplitDrawer splitId={selectedSplitId} onClose={() => setSelectedSplitId(null)} />
+    </>
   )
 }
