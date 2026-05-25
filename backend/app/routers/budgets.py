@@ -9,7 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.session import get_session
 from app.dependencies import get_current_user
-from app.models.budget import Budget, BudgetType, budget_categories
+from app.models.budget import Budget, BudgetType, budget_categories as budget_cats
 from app.models.category import Category
 from app.models.transaction import (
     Transaction,
@@ -63,8 +63,8 @@ async def _get_budget_or_404(
 async def _load_category_ids(budget_id: uuid.UUID, session: AsyncSession) -> list[uuid.UUID]:
     rows = (
         await session.execute(
-            select(budget_categories.c.category_id).where(
-                budget_categories.c.budget_id == budget_id
+            select(budget_cats.c.category_id).where(
+                budget_cats.c.budget_id == budget_id
             )
         )
     ).all()
@@ -92,11 +92,11 @@ async def _set_categories(
             raise HTTPException(status_code=422, detail="Invalid category_ids")
 
     await session.execute(
-        delete(budget_categories).where(budget_categories.c.budget_id == budget_id)
+        delete(budget_cats).where(budget_cats.c.budget_id == budget_id)
     )
     if category_ids:
         await session.execute(
-            insert(budget_categories).values(
+            insert(budget_cats).values(
                 [{"budget_id": budget_id, "category_id": cid} for cid in category_ids]
             )
         )
@@ -131,28 +131,85 @@ def _budget_response(
 
 
 async def _batch_spent(
-    budget_ids: list[uuid.UUID], session: AsyncSession
+    budgets: list[Budget], session: AsyncSession
 ) -> dict[uuid.UUID, Decimal]:
-    """Return {budget_id: total_spent} for the given IDs in one query."""
-    if not budget_ids:
+    """Return {budget_id: total_spent} using the same logic as list_budget_transactions.
+
+    Counts both explicit transaction_budgets links and category-matched transactions,
+    each filtered to the budget's own start_date/end_date window.
+    """
+    if not budgets:
         return {}
     import sqlalchemy as sa
 
-    stmt = (
+    totals: dict[uuid.UUID, Decimal] = {b.id: Decimal("0") for b in budgets}
+    budget_ids = [b.id for b in budgets]
+
+    # ── 1. Explicit links (transaction_budgets) ──────────────────────────────
+    # JOIN Budget to apply per-budget date windows in one query.
+    explicit_stmt = (
         sa.select(
             transaction_budgets.c.budget_id,
             sa.func.coalesce(sa.func.sum(Transaction.amount), Decimal("0")).label("spent"),
         )
         .join(Transaction, Transaction.id == transaction_budgets.c.transaction_id)
+        .join(Budget, Budget.id == transaction_budgets.c.budget_id)
         .where(
             transaction_budgets.c.budget_id.in_(budget_ids),
             Transaction.type == TransactionType.expense,
             Transaction.deleted_at.is_(None),
+            sa.or_(
+                Budget.start_date.is_(None),
+                Transaction.transacted_at >= sa.cast(Budget.start_date, sa.DateTime),
+            ),
+            sa.or_(
+                Budget.end_date.is_(None),
+                Transaction.transacted_at <= sa.func.cast(
+                    sa.func.concat(Budget.end_date, " 23:59:59"), sa.DateTime
+                ),
+            ),
         )
         .group_by(transaction_budgets.c.budget_id)
     )
-    rows = (await session.execute(stmt)).all()
-    return {r.budget_id: r.spent for r in rows}
+    for row in (await session.execute(explicit_stmt)).all():
+        totals[row.budget_id] = totals[row.budget_id] + row.spent
+
+    # ── 2. Category-match (budget_categories → transaction_categories) ───────
+    # Exclude any transaction already counted via explicit link above.
+    cat_stmt = (
+        sa.select(
+            budget_cats.c.budget_id,
+            sa.func.coalesce(sa.func.sum(Transaction.amount), Decimal("0")).label("spent"),
+        )
+        .join(transaction_categories, transaction_categories.c.category_id == budget_cats.c.category_id)
+        .join(Transaction, Transaction.id == transaction_categories.c.transaction_id)
+        .join(Budget, Budget.id == budget_cats.c.budget_id)
+        .where(
+            budget_cats.c.budget_id.in_(budget_ids),
+            Transaction.type == TransactionType.expense,
+            Transaction.deleted_at.is_(None),
+            Transaction.id.not_in(
+                sa.select(transaction_budgets.c.transaction_id).where(
+                    transaction_budgets.c.budget_id == budget_cats.c.budget_id
+                )
+            ),
+            sa.or_(
+                Budget.start_date.is_(None),
+                Transaction.transacted_at >= sa.cast(Budget.start_date, sa.DateTime),
+            ),
+            sa.or_(
+                Budget.end_date.is_(None),
+                Transaction.transacted_at <= sa.func.cast(
+                    sa.func.concat(Budget.end_date, " 23:59:59"), sa.DateTime
+                ),
+            ),
+        )
+        .group_by(budget_cats.c.budget_id)
+    )
+    for row in (await session.execute(cat_stmt)).all():
+        totals[row.budget_id] = totals[row.budget_id] + row.spent
+
+    return totals
 
 
 def _next_recurrence_start(budget: Budget, from_date: date) -> date | None:
@@ -209,7 +266,7 @@ async def list_budgets(
         q = q.where(Budget.is_active.is_(True))
     budgets = (await session.execute(q)).scalars().all()
 
-    spent_map = await _batch_spent([b.id for b in budgets], session)
+    spent_map = await _batch_spent(list(budgets), session)
 
     result = []
     for b in budgets:
