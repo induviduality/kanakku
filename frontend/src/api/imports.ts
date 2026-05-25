@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { getAccessToken } from '../lib/auth-storage'
 import { apiGet, apiPatch, apiPost } from '../lib/api-client'
 
 export type ImportSource = 'pdf' | 'gpay_takeout' | 'manual'
@@ -99,9 +100,12 @@ export function useUploadPdf() {
       const qs = params.toString() ? `?${params.toString()}` : ''
       return fetch(`/api/v1/imports/pdf${qs}`, {
         method: 'POST',
-        headers: { Authorization: `Bearer ${localStorage.getItem('access_token') ?? ''}` },
+        headers: { Authorization: `Bearer ${getAccessToken() ?? ''}` },
         body: form,
-      }).then((r) => r.json() as Promise<ImportBatch>)
+      }).then((r) => {
+        if (!r.ok) throw r
+        return r.json() as Promise<ImportBatch>
+      })
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ['imports'] }),
   })

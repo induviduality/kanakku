@@ -2,6 +2,13 @@
 
 ## Ad-hoc Fixes Sprint (post-M14)
 
+### Import PDF 401/422 bug fixes + dev mode auth bypass
+- `frontend/src/api/imports.ts`: fixed `useUploadPdf` to use `getAccessToken()` from auth-storage instead of `localStorage.getItem('access_token')` (access token is in-memory only, never in localStorage)
+- `frontend/src/api/imports.ts`: added `if (!r.ok) throw r` check before parsing response JSON, preventing 401/5xx responses from being silently treated as a successful `ImportBatch` (which caused navigation to `/imports/undefined`)
+- `backend/app/dependencies.py`: when `DEV_MODE=true` and no Authorization header is present, `get_current_user` falls back to the dev seed user (`11111111-...`); uses `HTTPBearer(auto_error=False)` so missing header is handled manually instead of auto-rejected
+
+
+
 ### Opening balance + budget NaN + dropdown styling + recurrence rule
 - `opening_balance` transaction type: backend enum + migration, liability-account guard in create/patch, frontend form (filtered accounts, type pill, no payee/category/tags), drawer chip, Transactions page display
 - Budget `current_spent` on list page: `_batch_spent` helper (single GROUP BY query), `BudgetResponse.current_spent` field, `Budgets.tsx` ProgressBar fixed from hardcoded 0

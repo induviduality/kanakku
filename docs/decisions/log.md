@@ -1,5 +1,17 @@
 # Decision Log
 
+## 2026-05-25 — Dev mode auth bypass uses HTTPBearer(auto_error=False) with fallback user
+
+**Context:** User runs DEV_MODE=true on the production server to test features without a local Docker setup. The `get_current_user` dependency previously required a valid Bearer token unconditionally.
+
+**Decision:** Changed `_bearer = HTTPBearer(auto_error=False)` and made `credentials` optional. When `dev_mode=True` and no token is present, the dependency looks up the dev seed user by its fixed UUID and returns it directly. If the dev user doesn't exist in the DB, it falls through to the standard 401 path.
+
+**Alternatives considered:**
+- A separate `DevAuthMiddleware` that injects a fake token — more complex, touches the request pipeline
+- A distinct `get_current_user_dev` dependency that routes would use in dev mode — requires changing every router, error-prone
+
+
+
 ## 2026-05-23 — Dev seed lives in app/dev_seed.py, called from lifespan
 
 **Context:** Dev mode needed realistic fixture data spanning all domain entities
