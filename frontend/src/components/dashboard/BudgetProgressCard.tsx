@@ -21,15 +21,15 @@ export default function BudgetProgressCard({ budget }: { budget: BudgetSummaryIt
         </Link>
         <span
           aria-label={`budget status: ${budget.status}`}
-          className={
+          className={`kk-chip ${
             budget.status === 'over_budget'
               ? 'kk-chip-negative'
               : budget.status === 'warning'
                 ? 'kk-chip-warning'
                 : 'kk-chip-positive'
-          }
+          }`}
         >
-          {budget.status === 'over_budget' ? 'Over' : budget.status === 'warning' ? 'Warning' : 'On track'}
+          {budget.status === 'over_budget' ? 'Over budget' : budget.status === 'warning' ? 'Warning' : 'On track'}
         </span>
       </div>
       <div className="kk-bar" aria-label="budget progress bar">

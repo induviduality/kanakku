@@ -1,9 +1,9 @@
 import type { ActiveSubscriptionItem } from '../../api/dashboard'
 
 const STATUS_STYLES: Record<string, string> = {
-  upcoming: 'kk-chip-positive',
-  due_soon: 'kk-chip-warning',
-  overdue: 'kk-chip-negative',
+  upcoming: 'kk-chip kk-chip-positive',
+  due_soon: 'kk-chip kk-chip-warning',
+  overdue: 'kk-chip kk-chip-negative',
 }
 
 const STATUS_LABEL: Record<string, string> = {

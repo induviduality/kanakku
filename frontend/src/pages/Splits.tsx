@@ -64,13 +64,15 @@ function SplitCard({ split, onSelect }: { split: Split; onSelect: (id: string) =
   )
 }
 
-function SectionHeader({ title, viewAllTo }: { title: string; viewAllTo: string }) {
+function SectionHeader({ title, viewAllTo, hasItems }: { title: string; viewAllTo: string; hasItems: boolean }) {
   return (
     <div className="flex items-center justify-between mb-3">
       <h2 className="text-sm font-semibold text-fg-muted uppercase tracking-wide">{title}</h2>
-      <Link to={viewAllTo as any} className="text-xs text-accent hover:underline">
-        View all →
-      </Link>
+      {hasItems && (
+        <Link to={viewAllTo as any} className="text-xs text-accent hover:underline">
+          View all →
+        </Link>
+      )}
     </div>
   )
 }
@@ -112,7 +114,7 @@ export default function Splits() {
     <div className="p-4 md:p-6 max-w-3xl mx-auto space-y-8">
       {/* Unsettled section */}
       <section>
-        <SectionHeader title="Unsettled" viewAllTo="/splits/pending" />
+        <SectionHeader title="Unsettled" viewAllTo="/splits/pending" hasItems={unsettled.length > 0} />
         {unsettled.length === 0 ? (
           <EmptyState
             title="No unsettled splits"
@@ -135,7 +137,7 @@ export default function Splits() {
 
       {/* All splits section */}
       <section>
-        <SectionHeader title={`All Splits — ${shortLabel}`} viewAllTo="/splits/history" />
+        <SectionHeader title={`All Splits — ${shortLabel}`} viewAllTo="/splits/history" hasItems={periodSplits.length > 0} />
         {periodSplits.length === 0 ? (
           <EmptyState
             title="No splits in this period"

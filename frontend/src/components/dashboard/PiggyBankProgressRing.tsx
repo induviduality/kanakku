@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react'
 import type { PiggyBankSummaryItem } from '../../api/dashboard'
 
 const RADIUS = 28
@@ -5,8 +6,14 @@ const CIRCUMFERENCE = 2 * Math.PI * RADIUS
 
 export default function PiggyBankProgressRing({ piggyBank }: { piggyBank: PiggyBankSummaryItem }) {
   const clamped = Math.min(Math.max(piggyBank.progress_pct, 0), 100)
-  const offset = CIRCUMFERENCE - (clamped / 100) * CIRCUMFERENCE
+  const targetOffset = CIRCUMFERENCE - (clamped / 100) * CIRCUMFERENCE
+  const [animOffset, setAnimOffset] = useState(CIRCUMFERENCE)
   const arcColor = piggyBank.is_completed ? 'var(--kk-positive)' : 'var(--kk-accent)'
+
+  useEffect(() => {
+    const id = requestAnimationFrame(() => setAnimOffset(targetOffset))
+    return () => cancelAnimationFrame(id)
+  }, [targetOffset])
 
   return (
     <div className="flex items-center gap-3">
@@ -31,9 +38,10 @@ export default function PiggyBankProgressRing({ piggyBank }: { piggyBank: PiggyB
           stroke={arcColor}
           strokeWidth="6"
           strokeDasharray={CIRCUMFERENCE}
-          strokeDashoffset={offset}
+          strokeDashoffset={animOffset}
           strokeLinecap="round"
           transform="rotate(-90 32 32)"
+          style={{ transition: 'stroke-dashoffset 1s cubic-bezier(0.22, 1, 0.36, 1)' }}
         />
         {/* Percentage label */}
         <text

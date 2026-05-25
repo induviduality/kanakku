@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Trash2 } from 'lucide-react'
 import { Drawer, DrawerSection, DrawerRow } from '../Drawer'
 import { useGetPiggyBank, useGetContributions, useRemoveContribution } from '../../api/piggy_banks'
@@ -7,8 +7,16 @@ import ConfirmDialog from '../ConfirmDialog'
 function ProgressRing({ pct }: { pct: number }) {
   const r = 36
   const circ = 2 * Math.PI * r
-  const offset = circ * (1 - pct / 100)
-  const color = pct >= 100 ? 'var(--kk-positive)' : pct >= 70 ? 'var(--kk-warning)' : 'var(--kk-accent)'
+  const clamped = Math.min(100, Math.max(0, pct))
+  const targetOffset = circ * (1 - clamped / 100)
+  const [animOffset, setAnimOffset] = useState(circ)
+  const color = clamped >= 100 ? 'var(--kk-positive)' : clamped >= 70 ? 'var(--kk-warning)' : 'var(--kk-accent)'
+
+  useEffect(() => {
+    const id = requestAnimationFrame(() => setAnimOffset(targetOffset))
+    return () => cancelAnimationFrame(id)
+  }, [targetOffset])
+
   return (
     <svg width="88" height="88" viewBox="0 0 88 88" className="rotate-[-90deg]">
       <circle cx="44" cy="44" r={r} fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth="8" />
@@ -19,8 +27,8 @@ function ProgressRing({ pct }: { pct: number }) {
         strokeWidth="8"
         strokeLinecap="round"
         strokeDasharray={circ}
-        strokeDashoffset={offset}
-        style={{ transition: 'stroke-dashoffset 0.8s cubic-bezier(0.22,1,0.36,1)' }}
+        strokeDashoffset={animOffset}
+        style={{ transition: 'stroke-dashoffset 1s cubic-bezier(0.22, 1, 0.36, 1)' }}
       />
     </svg>
   )

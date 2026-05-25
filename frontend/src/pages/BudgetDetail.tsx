@@ -1,15 +1,33 @@
+import { useState } from 'react'
 import { useParams, Link } from '@tanstack/react-router'
-import { useGetBudget, useGetBudgetTransactions } from '../api/budgets'
+import { useGetBudget, useGetBudgetTransactions, type BudgetTransactionItem } from '../api/budgets'
+import { TransactionDrawer } from '../components/drawers/TransactionDrawer'
+import type { Transaction, TransactionType } from '../api/transactions'
+
+function toTransaction(item: BudgetTransactionItem): Transaction {
+  return {
+    ...item,
+    user_id: '',
+    type: item.type as TransactionType,
+    notes: null,
+    payment_method_id: null,
+    to_account_id: null,
+    to_amount: null,
+    to_currency: null,
+    subscription_id: null,
+    import_record_id: null,
+    tag_ids: [],
+    created_at: item.transacted_at,
+    updated_at: item.transacted_at,
+    deleted_at: null,
+  }
+}
 
 function badge(linkType: 'explicit' | 'category_match') {
   return linkType === 'explicit' ? (
-    <span className="rounded-full bg-indigo-100 text-indigo-700 px-2 py-0.5 text-xs font-medium">
-      explicit
-    </span>
+    <span className="kk-chip kk-chip-accent">explicit</span>
   ) : (
-    <span className="rounded-full bg-gray-100 text-gray-600 px-2 py-0.5 text-xs font-medium">
-      category match
-    </span>
+    <span className="kk-chip kk-chip-neutral">category match</span>
   )
 }
 
@@ -17,6 +35,7 @@ export default function BudgetDetail() {
   const { budgetId } = useParams({ from: '/budgets/$budgetId' })
   const { data: budget, isLoading: budgetLoading } = useGetBudget(budgetId)
   const { data: txnsData, isLoading: txnsLoading } = useGetBudgetTransactions(budgetId)
+  const [selectedTxn, setSelectedTxn] = useState<Transaction | null>(null)
 
   if (budgetLoading) {
     return <p className="p-6 text-gray-500">Loading budget…</p>
@@ -65,20 +84,27 @@ export default function BudgetDetail() {
       ) : !txnsData || txnsData.items.length === 0 ? (
         <p className="text-gray-400">No transactions linked to this budget.</p>
       ) : (
-        <div className="divide-y divide-gray-100 border border-gray-200 rounded-lg bg-white shadow-sm">
+        <div className="kk-card p-0 overflow-hidden divide-y divide-border/50">
           {txnsData.items.map((t) => (
-            <div key={t.id} className="flex items-center justify-between px-4 py-3">
-              <div>
-                <p className="text-sm font-medium text-gray-800">
+            <div
+              key={t.id}
+              role="button"
+              tabIndex={0}
+              onClick={() => setSelectedTxn(toTransaction(t))}
+              onKeyDown={e => (e.key === 'Enter' || e.key === ' ') && setSelectedTxn(toTransaction(t))}
+              className="flex items-center justify-between px-4 py-3 hover:bg-surface-2/50 cursor-pointer transition-colors"
+            >
+              <div className="min-w-0">
+                <p className="text-sm font-medium text-fg truncate">
                   {t.description ?? t.type}
                 </p>
-                <p className="text-xs text-gray-400">
-                  {new Date(t.transacted_at).toLocaleDateString('en-IN')}
+                <p className="text-xs text-fg-faint">
+                  {new Date(t.transacted_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
                 </p>
               </div>
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-3 shrink-0">
                 {badge(t.link_type)}
-                <span className="text-sm font-semibold text-gray-900">
+                <span className="text-sm font-semibold text-fg kk-mono">
                   ₹{parseFloat(t.amount).toLocaleString('en-IN')}
                 </span>
               </div>
@@ -86,6 +112,8 @@ export default function BudgetDetail() {
           ))}
         </div>
       )}
+
+      <TransactionDrawer transaction={selectedTxn} onClose={() => setSelectedTxn(null)} />
     </main>
   )
 }

@@ -71,6 +71,12 @@ export interface RecentTransaction {
   category_ids: string[]
 }
 
+export interface CashFlowBucket {
+  date: string   // "YYYY-MM-DD" — start of the bucket
+  income: string
+  expense: string
+}
+
 export interface DashboardData {
   // legacy
   month: string
@@ -95,6 +101,7 @@ export interface DashboardData {
   piggy_banks_summary: PiggyBankSummaryItem[]
   account_balances: AccountBalanceItem[]
   active_subscriptions: ActiveSubscriptionItem[]
+  cashflow_buckets: CashFlowBucket[]
 }
 
 export interface DashboardParams {

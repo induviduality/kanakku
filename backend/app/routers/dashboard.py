@@ -30,6 +30,7 @@ from app.schemas.dashboard import (
     AccountBalanceItem,
     ActiveSubscriptionItem,
     BudgetSummaryItem,
+    CashFlowBucket,
     CategoryBreakdownItem,
     DashboardResponse,
     PendingByPayee,
@@ -472,6 +473,50 @@ async def _active_subscriptions(
     return result
 
 
+async def _cashflow_buckets(
+    session: AsyncSession,
+    user_id: uuid.UUID,
+    period_start: datetime,
+    period_end: datetime,
+    period: DashboardPeriod,
+) -> list[CashFlowBucket]:
+    duration_days = (period_end - period_start).days
+    if period == DashboardPeriod.year or duration_days > 91:
+        trunc_unit = "month"
+    elif period == DashboardPeriod.quarter or duration_days > 31:
+        trunc_unit = "week"
+    else:
+        trunc_unit = "day"
+
+    bucket_col = sa.func.date_trunc(trunc_unit, Transaction.transacted_at).label("bucket")
+    rows = (
+        await session.execute(
+            sa.select(Transaction.type, bucket_col, sa.func.sum(Transaction.amount).label("amount"))
+            .where(
+                Transaction.user_id == user_id,
+                Transaction.deleted_at.is_(None),
+                Transaction.transacted_at >= period_start,
+                Transaction.transacted_at < period_end,
+                Transaction.type.in_([TransactionType.expense, TransactionType.income]),
+            )
+            .group_by(Transaction.type, "bucket")
+            .order_by("bucket")
+        )
+    ).all()
+
+    buckets: dict[str, dict[str, Decimal]] = {}
+    for row in rows:
+        key = row.bucket.strftime("%Y-%m-%d")
+        if key not in buckets:
+            buckets[key] = {"income": Decimal("0"), "expense": Decimal("0")}
+        buckets[key][row.type.value] = row.amount
+
+    return [
+        CashFlowBucket(date=k, income=v["income"], expense=v["expense"])
+        for k, v in sorted(buckets.items())
+    ]
+
+
 def _savings_rate(inflow: Decimal, outflow: Decimal) -> float | None:
     if inflow <= 0:
         return None
@@ -501,6 +546,7 @@ async def home_dashboard(
     pigs = await _piggy_banks_summary(session, user.id)
     accounts = await _account_balances(session, user.id)
     subs = await _active_subscriptions(session, user.id)
+    cashflow = await _cashflow_buckets(session, user.id, period_start, period_end, period)
 
     total_balance = sum((Decimal(a.current_balance) for a in accounts), Decimal("0"))
 
@@ -525,4 +571,5 @@ async def home_dashboard(
         piggy_banks_summary=pigs,
         account_balances=accounts,
         active_subscriptions=subs,
+        cashflow_buckets=cashflow,
     )

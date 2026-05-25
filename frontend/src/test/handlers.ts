@@ -467,6 +467,12 @@ export const DASHBOARD_RESPONSE = {
       next_billing_date: '2026-06-15',
     },
   ],
+  cashflow_buckets: [
+    { date: '2026-05-01', income: '15000.00', expense: '8500.00' },
+    { date: '2026-05-08', income: '0.00',     expense: '3200.00' },
+    { date: '2026-05-15', income: '42000.00', expense: '12000.00' },
+    { date: '2026-05-22', income: '0.00',     expense: '5400.00' },
+  ],
 }
 
 export const handlers = [

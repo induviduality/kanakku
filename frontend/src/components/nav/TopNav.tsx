@@ -15,17 +15,17 @@ export default function TopNav() {
       {/* Brand — matches SideNav width on desktop */}
       <Link
         to="/"
-        className="hidden md:flex items-center justify-center w-52 shrink-0 h-full border-r border-border/60 hover:bg-surface-2 transition-colors"
+        className="hidden md:flex items-center justify-center w-52 shrink-0 h-full hover:bg-surface-2 transition-colors"
         aria-label="Home"
       >
-        <span className="text-base font-bold text-fg tracking-tight" style={{ fontFamily: 'var(--kk-font-sans)' }}>
+        <span className="text-xl font-extrabold text-accent tracking-tight" style={{ fontFamily: 'var(--kk-font-sans)' }}>
           கணக்கு.
         </span>
       </Link>
 
       {/* Mobile brand */}
       <Link to="/" className="md:hidden flex items-center pl-4 h-full" aria-label="Home">
-        <span className="text-base font-bold text-fg">கணக்கு.</span>
+        <span className="text-xl font-extrabold text-accent">கணக்கு.</span>
       </Link>
 
       {/* Breadcrumbs */}

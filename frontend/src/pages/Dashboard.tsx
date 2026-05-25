@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react'
 import { Link } from '@tanstack/react-router'
 import { useGetDashboard } from '../api/dashboard'
 import BudgetProgressCard from '../components/dashboard/BudgetProgressCard'
+import CashFlowChart from '../components/dashboard/CashFlowChart'
 import PiggyBankProgressRing from '../components/dashboard/PiggyBankProgressRing'
 import { usePeriod } from '../lib/period-context'
 
@@ -230,7 +231,7 @@ export default function Dashboard() {
         </Section>
       </div>
 
-      {/* Row 3 — piggy banks + pending splits */}
+      {/* Row 3 — savings goals + pending splits */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <Section title="Savings Goals" linkTo="/piggy-banks">
           {data.piggy_banks_summary.length === 0 ? (
@@ -269,6 +270,29 @@ export default function Dashboard() {
           )}
         </Section>
       </div>
+
+      {/* Row 4 — cash flow chart (full width) */}
+      <Section title={`Cash Flow — ${label}`}>
+        <CashFlowChart buckets={data.cashflow_buckets} />
+      </Section>
+
+      {/* Row 5 — account balances */}
+      <Section title="Account Balances" linkTo="/accounts">
+        {data.account_balances.length === 0 ? (
+          <p className="text-sm text-fg-muted">No accounts yet.</p>
+        ) : (
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+            {data.account_balances.map(a => (
+              <div key={a.id} className="kk-card py-3 px-4">
+                <p className="text-xs text-fg-faint truncate">{a.name}</p>
+                <p className={`text-base font-bold kk-mono mt-1 ${parseFloat(a.current_balance) < 0 ? 'text-negative-dim' : 'text-fg'}`}>
+                  ₹{parseFloat(a.current_balance).toLocaleString('en-IN')}
+                </p>
+              </div>
+            ))}
+          </div>
+        )}
+      </Section>
 
     </div>
   )

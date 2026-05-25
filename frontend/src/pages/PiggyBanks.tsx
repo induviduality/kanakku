@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Pencil, Trash2 } from 'lucide-react'
 import { Link } from '@tanstack/react-router'
 import {
@@ -16,8 +16,15 @@ function ProgressRing({ pct }: { pct: number }) {
   const r = 36
   const circ = 2 * Math.PI * r
   const clamped = Math.min(100, Math.max(0, pct))
-  const offset = circ * (1 - clamped / 100)
+  const targetOffset = circ * (1 - clamped / 100)
+  const [animOffset, setAnimOffset] = useState(circ)
   const color = clamped >= 100 ? 'var(--kk-positive)' : 'var(--kk-accent)'
+
+  useEffect(() => {
+    const id = requestAnimationFrame(() => setAnimOffset(targetOffset))
+    return () => cancelAnimationFrame(id)
+  }, [targetOffset])
+
   return (
     <svg
       width="88"
@@ -35,9 +42,10 @@ function ProgressRing({ pct }: { pct: number }) {
         stroke={color}
         strokeWidth="8"
         strokeDasharray={circ}
-        strokeDashoffset={offset}
+        strokeDashoffset={animOffset}
         strokeLinecap="round"
         transform="rotate(-90 44 44)"
+        style={{ transition: 'stroke-dashoffset 1s cubic-bezier(0.22, 1, 0.36, 1)' }}
       />
       <text x="44" y="49" textAnchor="middle" fontSize="14" fontWeight="bold" fill="var(--kk-fg)" fontFamily="var(--kk-font-mono)">
         {clamped.toFixed(0)}%

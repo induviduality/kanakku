@@ -78,6 +78,12 @@ class RecentTransaction(BaseModel):
     category_ids: list[uuid.UUID]
 
 
+class CashFlowBucket(BaseModel):
+    date: str  # "YYYY-MM-DD" — start of the bucket
+    income: Decimal
+    expense: Decimal
+
+
 class DashboardResponse(BaseModel):
     # legacy fields kept for backward compat
     month: str
@@ -103,3 +109,4 @@ class DashboardResponse(BaseModel):
     piggy_banks_summary: list[PiggyBankSummaryItem]
     account_balances: list[AccountBalanceItem]
     active_subscriptions: list[ActiveSubscriptionItem]
+    cashflow_buckets: list[CashFlowBucket]
