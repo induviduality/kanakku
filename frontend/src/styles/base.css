@@ -53,6 +53,45 @@ body {
   background-color: var(--kk-bg-1);
 }
 
+/* ── Form element dark-theme baseline ───────────────────────────────────
+ * Browsers render <select>, <input>, <textarea> with a hardcoded white
+ * background that bypasses Tailwind's color remapping.  These rules give
+ * every form element a sensible dark-themed default so pages that don't
+ * apply kk-input still look correct. */
+select,
+input[type="text"],
+input[type="number"],
+input[type="email"],
+input[type="password"],
+input[type="date"],
+input[type="datetime-local"],
+input[type="search"],
+input[type="url"],
+textarea {
+  background-color: var(--kk-bg-2);
+  color: var(--kk-fg);
+  border-color: var(--kk-border);
+}
+
+select:focus,
+input:focus,
+textarea:focus {
+  outline-color: var(--kk-accent);
+  border-color: rgba(167, 139, 250, 0.5);
+  background-color: var(--kk-bg-3);
+}
+
+select option {
+  background-color: var(--kk-bg-3);
+  color: var(--kk-fg);
+}
+
+/* Placeholder text */
+::placeholder {
+  color: var(--kk-fg-faint);
+  opacity: 1;
+}
+
 /* ── Atmospheric layers ─────────────────────────────────────────────────
  * These are rendered by AppLayout for authenticated pages.
  * Purely decorative. Controlled by .kk-ambient and .kk-grain classes. */

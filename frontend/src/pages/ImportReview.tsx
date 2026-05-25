@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useParams } from '@tanstack/react-router'
+import { Link, useParams } from '@tanstack/react-router'
 import {
   useGetImportBatch,
   useGetImportRecords,
@@ -10,12 +10,18 @@ import {
   type RecordStatus,
 } from '../api/imports'
 
-const TAB_LABELS: { status: RecordStatus; label: string }[] = [
-  { status: 'pending', label: 'Pending' },
+const TABS: { status: RecordStatus; label: string }[] = [
+  { status: 'pending',   label: 'Pending' },
   { status: 'confirmed', label: 'Confirmed' },
-  { status: 'rejected', label: 'Rejected' },
+  { status: 'rejected',  label: 'Rejected' },
   { status: 'duplicate', label: 'Duplicate' },
 ]
+
+const CONFIDENCE_CLS: Record<string, string> = {
+  high:   'text-positive-dim',
+  medium: 'text-warning-dim',
+  low:    'text-negative-dim',
+}
 
 function parsedField(record: RawImportRecord, field: string): string {
   const val = record.parsed_json?.[field]
@@ -40,112 +46,101 @@ function RecordRow({
   const [type, setType] = useState(parsedField(record, 'type') || 'expense')
 
   function saveEdit() {
-    const updated = {
-      ...record.parsed_json,
-      description,
-      amount,
-      type,
-    }
     patchMutation.mutate(
-      { recordId: record.id, patch: { parsed_json: updated } },
+      { recordId: record.id, patch: { parsed_json: { ...record.parsed_json, description, amount, type } } },
       { onSuccess: () => setEditing(false) },
     )
   }
 
   const isPending = record.status === 'pending' || record.status === 'duplicate'
+  const txnType = parsedField(record, 'type') || 'expense'
 
   return (
-    <tr className="border-b border-gray-100 hover:bg-gray-50">
-      <td className="px-3 py-2 text-sm">
+    <tr className="border-b border-border/50 hover:bg-surface-2/40 transition-colors">
+      <td className="px-3 py-2.5">
         {isPending && (
           <input
             type="checkbox"
             aria-label={`select record ${record.id}`}
             checked={selected}
             onChange={onToggle}
-            className="rounded"
+            className="rounded accent-accent"
           />
         )}
       </td>
-      <td className="px-3 py-2 text-sm text-gray-500">{parsedField(record, 'date')}</td>
-      <td className="px-3 py-2 text-sm">
+      <td className="px-3 py-2.5 text-xs text-fg-muted whitespace-nowrap kk-mono">
+        {parsedField(record, 'date')}
+      </td>
+      <td className="px-3 py-2.5 text-sm max-w-[280px]">
         {editing ? (
           <input
             value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            className="w-full rounded border border-gray-300 px-2 py-1 text-sm"
+            onChange={e => setDescription(e.target.value)}
+            className="kk-input h-7 text-xs"
           />
         ) : (
-          parsedField(record, 'description')
+          <span className="text-fg truncate block">{parsedField(record, 'description') || '—'}</span>
         )}
       </td>
-      <td className="px-3 py-2 text-sm text-right">
+      <td className="px-3 py-2.5 text-right">
         {editing ? (
           <input
             type="number"
             step="0.01"
             value={amount}
-            onChange={(e) => setAmount(e.target.value)}
-            className="w-24 rounded border border-gray-300 px-2 py-1 text-sm text-right"
+            onChange={e => setAmount(e.target.value)}
+            className="kk-input h-7 text-xs w-28 text-right"
           />
         ) : (
-          parsedField(record, 'amount')
+          <span className="text-sm font-medium kk-mono text-fg">
+            ₹{Number(parsedField(record, 'amount')).toLocaleString('en-IN')}
+          </span>
         )}
       </td>
-      <td className="px-3 py-2 text-sm">
+      <td className="px-3 py-2.5">
         {editing ? (
           <select
             value={type}
-            onChange={(e) => setType(e.target.value)}
-            className="rounded border border-gray-300 px-2 py-1 text-sm"
+            onChange={e => setType(e.target.value)}
+            className="kk-input h-7 text-xs w-28"
           >
             <option value="expense">expense</option>
             <option value="income">income</option>
           </select>
         ) : (
-          <span
-            className={`inline-block rounded-full px-2 py-0.5 text-xs font-medium ${
-              parsedField(record, 'type') === 'income'
-                ? 'bg-green-100 text-green-800'
-                : 'bg-orange-100 text-orange-800'
-            }`}
-          >
-            {parsedField(record, 'type') || 'expense'}
+          <span className={`kk-chip ${txnType === 'income' ? 'kk-chip-positive' : 'kk-chip-negative'}`}>
+            {txnType}
           </span>
         )}
       </td>
-      <td className="px-3 py-2 text-sm">
+      <td className="px-3 py-2.5 text-xs">
         {record.confidence && (
-          <span className="text-xs text-gray-400">{record.confidence}</span>
+          <span className={`font-medium ${CONFIDENCE_CLS[record.confidence] ?? 'text-fg-faint'}`}>
+            {record.confidence}
+          </span>
         )}
       </td>
-      <td className="px-3 py-2 text-sm">
-        {record.status === 'pending' || record.status === 'duplicate' ? (
+      <td className="px-3 py-2.5">
+        {isPending && (
           editing ? (
             <div className="flex gap-1">
               <button
                 onClick={saveEdit}
                 disabled={patchMutation.isPending}
-                className="rounded bg-indigo-600 px-2 py-1 text-xs text-white hover:bg-indigo-700 disabled:opacity-50"
+                className="kk-btn-primary h-7 text-xs px-2 disabled:opacity-50"
               >
                 Save
               </button>
-              <button
-                onClick={() => setEditing(false)}
-                className="rounded px-2 py-1 text-xs text-gray-500 hover:bg-gray-100"
-              >
+              <button onClick={() => setEditing(false)} className="kk-btn-ghost h-7 text-xs px-2">
                 Cancel
               </button>
             </div>
           ) : (
-            <button
-              onClick={() => setEditing(true)}
-              className="text-xs text-indigo-600 hover:underline"
-            >
+            <button onClick={() => setEditing(true)} className="text-xs text-accent hover:underline">
               Edit
             </button>
           )
-        ) : null}
+        )}
       </td>
     </tr>
   )
@@ -162,77 +157,79 @@ export default function ImportReview() {
   const rejectMutation = useRejectRecords(batchId)
 
   function toggleSelect(id: string) {
-    setSelectedIds((prev) => {
+    setSelectedIds(prev => {
       const next = new Set(prev)
-      if (next.has(id)) next.delete(id)
-      else next.add(id)
+      next.has(id) ? next.delete(id) : next.add(id)
       return next
     })
   }
 
   function toggleAll() {
-    if (selectedIds.size === records.length) {
-      setSelectedIds(new Set())
-    } else {
-      setSelectedIds(new Set(records.map((r) => r.id)))
-    }
+    setSelectedIds(selectedIds.size === records.length ? new Set() : new Set(records.map(r => r.id)))
   }
 
   function confirmSelected(force = false) {
     const ids = selectedIds.size > 0 ? Array.from(selectedIds) : undefined
-    confirmMutation.mutate(
-      { record_ids: ids, force },
-      { onSuccess: () => setSelectedIds(new Set()) },
-    )
+    confirmMutation.mutate({ record_ids: ids, force }, { onSuccess: () => setSelectedIds(new Set()) })
   }
 
   function rejectSelected() {
     const ids = selectedIds.size > 0 ? Array.from(selectedIds) : undefined
-    rejectMutation.mutate(
-      { record_ids: ids },
-      { onSuccess: () => setSelectedIds(new Set()) },
-    )
+    rejectMutation.mutate({ record_ids: ids }, { onSuccess: () => setSelectedIds(new Set()) })
   }
 
-  if (batchLoading) return <p className="p-8 text-gray-500">Loading…</p>
-  if (!batch) return <p className="p-8 text-red-500">Import batch not found.</p>
+  if (batchLoading) {
+    return (
+      <div className="p-4 md:p-6 max-w-5xl mx-auto space-y-3">
+        {[0, 1, 2].map(i => <div key={i} className="h-14 animate-pulse bg-surface-2 rounded-xl" />)}
+      </div>
+    )
+  }
+  if (!batch) return <p className="p-8 text-negative-dim text-center">Import batch not found.</p>
 
   const hasDuplicates = activeTab === 'duplicate'
   const isPendingTab = activeTab === 'pending' || hasDuplicates
+  const pendingRemaining = batch.total_parsed - batch.total_confirmed - batch.total_rejected
 
   return (
-    <div className="p-6 max-w-5xl mx-auto">
-      <div className="mb-6">
-        <div className="flex items-center gap-3 flex-wrap">
-          <h1 className="text-2xl font-bold text-gray-900">{batch.filename}</h1>
-          <span className="rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-600">
+    <div className="p-4 md:p-6 max-w-5xl mx-auto">
+      {/* Header */}
+      <div className="mb-5">
+        <Link to="/imports" className="text-xs text-fg-faint hover:text-accent transition-colors">
+          ← Back to imports
+        </Link>
+        <div className="flex items-center gap-2 flex-wrap mt-2 mb-1">
+          <h1 className="text-xl font-bold text-fg">{batch.filename}</h1>
+          <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${
+            batch.status === 'completed' ? 'bg-positive/10 text-positive-dim' :
+            batch.status === 'failed'    ? 'bg-negative/10 text-negative-dim' :
+            batch.status === 'processing'? 'bg-accent/15 text-accent' :
+                                           'bg-warning/15 text-warning-dim'
+          }`}>
             {batch.status}
           </span>
           {batch.verification_status && (
-            <span className="rounded-full bg-indigo-50 px-2 py-0.5 text-xs font-medium text-indigo-700">
+            <span className="text-[10px] text-fg-faint border border-border/50 px-1.5 py-0.5 rounded-full">
               {batch.verification_status}
             </span>
           )}
         </div>
-        <p className="mt-1 text-sm text-gray-500">
-          {batch.total_parsed} parsed · {batch.total_confirmed} confirmed · {batch.total_rejected} rejected
+        <p className="text-xs text-fg-faint">
+          <span className="kk-mono">{batch.total_parsed}</span> parsed &nbsp;·&nbsp;
+          <span className="kk-mono text-positive-dim">{batch.total_confirmed}</span> confirmed &nbsp;·&nbsp;
+          <span className="kk-mono text-negative-dim">{batch.total_rejected}</span> rejected &nbsp;·&nbsp;
+          <span className="kk-mono text-warning-dim">{pendingRemaining}</span> pending
         </p>
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-1 border-b border-gray-200 mb-4">
-        {TAB_LABELS.map(({ status, label }) => (
+      <div className="kk-seg mb-4 self-start inline-flex">
+        {TABS.map(({ status, label }) => (
           <button
             key={status}
-            onClick={() => {
-              setActiveTab(status)
-              setSelectedIds(new Set())
-            }}
-            className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
-              activeTab === status
-                ? 'border-indigo-600 text-indigo-600'
-                : 'border-transparent text-gray-500 hover:text-gray-700'
-            }`}
+            onClick={() => { setActiveTab(status); setSelectedIds(new Set()) }}
+            data-active={activeTab === status}
+            className="kk-seg-btn"
             aria-selected={activeTab === status}
             role="tab"
           >
@@ -243,22 +240,22 @@ export default function ImportReview() {
 
       {/* Bulk actions */}
       {isPendingTab && records.length > 0 && (
-        <div className="flex items-center gap-2 mb-3">
-          <span className="text-sm text-gray-500">
-            {selectedIds.size > 0 ? `${selectedIds.size} selected` : 'All'}
+        <div className="flex items-center gap-2 mb-4 flex-wrap">
+          <span className="text-xs text-fg-faint">
+            {selectedIds.size > 0 ? `${selectedIds.size} selected` : `${records.length} records`}
           </span>
           <button
             onClick={() => confirmSelected(false)}
             disabled={confirmMutation.isPending}
-            className="rounded bg-green-600 px-3 py-1.5 text-xs text-white hover:bg-green-700 disabled:opacity-50"
+            className="kk-btn-primary disabled:opacity-50"
           >
-            Confirm
+            ✓ Confirm
           </button>
           {hasDuplicates && (
             <button
               onClick={() => confirmSelected(true)}
               disabled={confirmMutation.isPending}
-              className="rounded bg-indigo-600 px-3 py-1.5 text-xs text-white hover:bg-indigo-700 disabled:opacity-50"
+              className="kk-btn-ghost disabled:opacity-50"
             >
               Force confirm
             </button>
@@ -266,42 +263,44 @@ export default function ImportReview() {
           <button
             onClick={rejectSelected}
             disabled={rejectMutation.isPending}
-            className="rounded bg-red-600 px-3 py-1.5 text-xs text-white hover:bg-red-700 disabled:opacity-50"
+            className="kk-btn-danger disabled:opacity-50"
           >
-            Reject
+            ✕ Reject
           </button>
         </div>
       )}
 
       {/* Records table */}
       {records.length === 0 ? (
-        <p className="text-gray-400 text-sm py-8 text-center">No {activeTab} records.</p>
+        <div className="py-16 text-center text-fg-faint text-sm">
+          No {activeTab} records.
+        </div>
       ) : (
-        <div className="overflow-x-auto">
+        <div className="kk-card p-0 overflow-x-auto">
           <table className="w-full text-left text-sm">
-            <thead>
-              <tr className="border-b border-gray-200 text-xs font-medium text-gray-500 uppercase">
-                <th className="px-3 py-2">
+            <thead className="border-b border-border/50">
+              <tr className="text-[10px] font-semibold uppercase tracking-wider text-fg-faint">
+                <th className="px-3 py-2.5 w-8">
                   {isPendingTab && (
                     <input
                       type="checkbox"
                       aria-label="select all"
                       checked={selectedIds.size === records.length && records.length > 0}
                       onChange={toggleAll}
-                      className="rounded"
+                      className="rounded accent-accent"
                     />
                   )}
                 </th>
-                <th className="px-3 py-2">Date</th>
-                <th className="px-3 py-2">Description</th>
-                <th className="px-3 py-2 text-right">Amount</th>
-                <th className="px-3 py-2">Type</th>
-                <th className="px-3 py-2">Confidence</th>
-                <th className="px-3 py-2"></th>
+                <th className="px-3 py-2.5">Date</th>
+                <th className="px-3 py-2.5">Description</th>
+                <th className="px-3 py-2.5 text-right">Amount</th>
+                <th className="px-3 py-2.5">Type</th>
+                <th className="px-3 py-2.5">Confidence</th>
+                <th className="px-3 py-2.5 w-24"></th>
               </tr>
             </thead>
             <tbody>
-              {records.map((record) => (
+              {records.map(record => (
                 <RecordRow
                   key={record.id}
                   record={record}
