@@ -1,7 +1,7 @@
 import * as Popover from '@radix-ui/react-popover'
 import { DayPicker } from 'react-day-picker'
 import { useState } from 'react'
-import { type PeriodMode, type PeriodSelection, resolvePeriod } from '../../lib/period'
+import { type PeriodMode, type PeriodSelection } from '../../lib/period'
 
 // ── helpers ──────────────────────────────────────────────────────────────────
 

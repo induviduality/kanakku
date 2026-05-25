@@ -60,16 +60,16 @@ function Section({
 
 // ── Stat cards ───────────────────────────────────────────────────────────────
 
-const INR_FORMAT: Intl.NumberFormatOptions = {
+const INR_FORMAT = {
   style: 'currency',
   currency: 'INR',
   maximumFractionDigits: 0,
-}
+} as const
 
-const PCT_FORMAT: Intl.NumberFormatOptions = {
+const PCT_FORMAT = {
   style: 'percent',
   maximumFractionDigits: 1,
-}
+} as const
 
 function StatCard({
   label,
@@ -80,7 +80,7 @@ function StatCard({
 }: {
   label: string
   amount: number
-  format?: Intl.NumberFormatOptions
+  format?: Parameters<typeof NumberFlow>[0]['format']
   sub?: string
   trend?: { delta: number | null; label: string }
 }) {
