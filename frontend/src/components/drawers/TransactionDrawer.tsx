@@ -6,9 +6,17 @@ import { useCategories } from '../../api/categories'
 import { useTags } from '../../api/tags'
 
 const TYPE_CLS: Record<TransactionType, string> = {
-  expense:  'kk-chip kk-chip-negative',
-  income:   'kk-chip kk-chip-positive',
-  transfer: 'kk-chip kk-chip-neutral',
+  expense:         'kk-chip kk-chip-negative',
+  income:          'kk-chip kk-chip-positive',
+  transfer:        'kk-chip kk-chip-neutral',
+  opening_balance: 'kk-chip kk-chip-accent',
+}
+
+const TYPE_LABEL: Record<TransactionType, string> = {
+  expense:         'expense',
+  income:          'income',
+  transfer:        'transfer',
+  opening_balance: 'opening balance',
 }
 
 function useLookupMaps() {
@@ -36,6 +44,7 @@ export function TransactionDrawer({ transaction: txn, onClose }: Props) {
   const amount = txn ? parseFloat(txn.amount) : 0
   const isExpense  = txn?.type === 'expense'
   const isTransfer = txn?.type === 'transfer'
+  const isOpeningBalance = txn?.type === 'opening_balance'
 
   return (
     <Drawer open={!!txn} onClose={onClose} title={txn?.description ?? 'Transaction'}>
@@ -43,11 +52,11 @@ export function TransactionDrawer({ transaction: txn, onClose }: Props) {
         <div className="space-y-6 p-5">
           {/* Hero amount */}
           <div className="kk-panel text-center">
-            <p className={`text-2xl font-bold kk-mono ${isExpense ? 'text-negative-dim' : 'text-positive-dim'}`}>
+            <p className={`text-2xl font-bold kk-mono ${isExpense ? 'text-negative-dim' : isOpeningBalance ? 'text-accent' : 'text-positive-dim'}`}>
               {isExpense ? '−' : isTransfer ? '' : '+'}₹{amount.toLocaleString('en-IN', { maximumFractionDigits: 2 })}
             </p>
             <div className="mt-2 flex justify-center">
-              <span className={TYPE_CLS[txn.type]}>{txn.type}</span>
+              <span className={TYPE_CLS[txn.type]}>{TYPE_LABEL[txn.type]}</span>
             </div>
             <p className="mt-2 text-xs text-fg-faint">
               {new Date(txn.transacted_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'long', year: 'numeric' })}

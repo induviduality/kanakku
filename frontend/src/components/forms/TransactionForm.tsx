@@ -16,7 +16,9 @@ interface TransactionFormProps {
   isSubmitting?: boolean
 }
 
-const TYPE_OPTIONS: TransactionType[] = ['expense', 'income', 'transfer']
+const TYPE_OPTIONS: TransactionType[] = ['expense', 'income', 'transfer', 'opening_balance']
+
+const LIABILITY_ACCOUNT_TYPES = new Set(['credit_card', 'loan'])
 
 export default function TransactionForm({
   initial,
@@ -136,20 +138,30 @@ export default function TransactionForm({
       {/* Type toggle */}
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-1">Type</label>
-        <div className="flex rounded-md border border-gray-300 overflow-hidden" role="group" aria-label="Transaction type">
+        <div className="flex flex-wrap gap-1.5" role="group" aria-label="Transaction type">
           {TYPE_OPTIONS.map((t) => (
             <button
               key={t}
               type="button"
               onClick={() => setType(t)}
-              className={`flex-1 py-2 text-sm font-medium capitalize transition-colors
-                ${type === t ? 'bg-indigo-600 text-white' : 'bg-white text-gray-700 hover:bg-gray-50'}`}
+              className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-colors ${
+                type === t
+                  ? t === 'opening_balance'
+                    ? 'bg-accent/20 border-accent/50 text-accent'
+                    : 'bg-indigo-600 border-indigo-600 text-white'
+                  : 'bg-white border-gray-300 text-gray-600 hover:border-indigo-400'
+              }`}
               aria-pressed={type === t}
             >
-              {t}
+              {t === 'opening_balance' ? 'Opening Balance' : t.charAt(0).toUpperCase() + t.slice(1)}
             </button>
           ))}
         </div>
+        {type === 'opening_balance' && (
+          <p className="mt-1.5 text-xs text-fg-faint">
+            Sets the initial balance for a bank or cash account. Not allowed on credit cards or loans.
+          </p>
+        )}
       </div>
 
       {/* Date/time */}
@@ -206,9 +218,12 @@ export default function TransactionForm({
           className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
         >
           <option value="">Select account…</option>
-          {accounts.filter((a) => !a.deleted_at && a.is_active).map((a) => (
-            <option key={a.id} value={a.id}>{a.name} ({a.currency})</option>
-          ))}
+          {accounts
+            .filter((a) => !a.deleted_at && a.is_active)
+            .filter((a) => type !== 'opening_balance' || !LIABILITY_ACCOUNT_TYPES.has(a.type))
+            .map((a) => (
+              <option key={a.id} value={a.id}>{a.name} ({a.currency})</option>
+            ))}
         </select>
       </div>
 
@@ -232,7 +247,7 @@ export default function TransactionForm({
       )}
 
       {/* Payment method */}
-      {type !== 'transfer' && accountId && pmOptions.length > 0 && (
+      {type !== 'transfer' && type !== 'opening_balance' && accountId && pmOptions.length > 0 && (
         <div>
           <label htmlFor="txn-pm" className="block text-sm font-medium text-gray-700">Payment Method</label>
           <Autocomplete
@@ -245,8 +260,8 @@ export default function TransactionForm({
         </div>
       )}
 
-      {/* Payee (not for transfers) */}
-      {type !== 'transfer' && (
+      {/* Payee (not for transfers or opening balance) */}
+      {type !== 'transfer' && type !== 'opening_balance' && (
         <div>
           <label htmlFor="txn-payee" className="block text-sm font-medium text-gray-700">Payee</label>
           <Autocomplete
@@ -263,8 +278,8 @@ export default function TransactionForm({
         </div>
       )}
 
-      {/* Categories (not for transfers) */}
-      {type !== 'transfer' && (
+      {/* Categories (not for transfers or opening balance) */}
+      {type !== 'transfer' && type !== 'opening_balance' && (
         <div>
           <label className="block text-sm font-medium text-gray-700">Categories</label>
           <div className="mt-1 flex flex-wrap gap-1">
@@ -284,26 +299,6 @@ export default function TransactionForm({
           </div>
         </div>
       )}
-
-      {/* Tags */}
-      <div>
-        <label className="block text-sm font-medium text-gray-700">Tags</label>
-        <div className="mt-1 flex flex-wrap gap-1">
-          {allTags.filter((t) => !t.deleted_at).map((t) => (
-            <button
-              key={t.id}
-              type="button"
-              onClick={() => toggleTag(t.id)}
-              className={`rounded-full px-3 py-1 text-xs font-medium border transition-colors
-                ${selectedTags.includes(t.id)
-                  ? 'bg-indigo-600 text-white border-indigo-600'
-                  : 'bg-white text-gray-600 border-gray-300 hover:border-indigo-400'}`}
-            >
-              {t.name}
-            </button>
-          ))}
-        </div>
-      </div>
 
       {/* Description */}
       <div>
@@ -329,6 +324,28 @@ export default function TransactionForm({
           className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
         />
       </div>
+
+      {/* Tags (not for opening balance) */}
+      {type !== 'opening_balance' && (
+        <div>
+          <label className="block text-sm font-medium text-gray-700">Tags</label>
+          <div className="mt-1 flex flex-wrap gap-1">
+            {allTags.filter((t) => !t.deleted_at).map((t) => (
+              <button
+                key={t.id}
+                type="button"
+                onClick={() => toggleTag(t.id)}
+                className={`rounded-full px-3 py-1 text-xs font-medium border transition-colors
+                  ${selectedTags.includes(t.id)
+                    ? 'bg-indigo-600 text-white border-indigo-600'
+                    : 'bg-white text-gray-600 border-gray-300 hover:border-indigo-400'}`}
+              >
+                {t.name}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Split toggle (expense only) */}
       {type === 'expense' && (

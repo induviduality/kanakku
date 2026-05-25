@@ -1,7 +1,7 @@
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { apiDelete, apiGet, apiPatch, apiPost } from '../lib/api-client'
 
-export type TransactionType = 'expense' | 'income' | 'transfer'
+export type TransactionType = 'expense' | 'income' | 'transfer' | 'opening_balance'
 
 export interface Transaction {
   id: string
