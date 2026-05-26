@@ -1,6 +1,6 @@
 import {
-  BarChart,
-  Bar,
+  LineChart,
+  Line,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -8,102 +8,160 @@ import {
   ResponsiveContainer,
   Legend,
 } from 'recharts'
-import type { CashFlowBucket } from '../../api/dashboard'
+import type { CashFlowAccountBucket } from '../../api/dashboard'
 
-interface ChartRow {
-  label: string
-  income: number
-  expense: number
-  net: number
+const ACCOUNT_COLORS = [
+  '#3b82f6', // blue
+  '#22c55e', // green
+  '#f97316', // orange
+  '#a855f7', // purple
+  '#ec4899', // pink
+  '#14b8a6', // teal
+]
+
+function bucketUnit(startDate: string, endDate: string): 'day' | 'week' | 'month' {
+  const start = new Date(startDate + 'T00:00:00')
+  const end = new Date(endDate + 'T00:00:00')
+  const days = (end.getTime() - start.getTime()) / 86_400_000
+  if (days > 91) return 'month'
+  if (days > 31) return 'week'
+  return 'day'
 }
 
-function formatLabel(dateStr: string, bucketCount: number): string {
+function formatLabel(dateStr: string, unit: 'day' | 'week' | 'month'): string {
   const d = new Date(dateStr + 'T00:00:00')
-  if (bucketCount <= 12) {
-    // monthly buckets — show "Jan", "Feb"
-    return d.toLocaleDateString('en-IN', { month: 'short' })
+  if (unit === 'month') {
+    const mon = d.toLocaleDateString('en-IN', { month: 'short' })
+    const yr = d.getFullYear().toString().slice(2)
+    return `${mon} '${yr}`
   }
-  if (bucketCount <= 14) {
-    // weekly buckets — show "12 Jan"
-    return d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })
-  }
-  // daily buckets — show "12 Jan"
   return d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })
 }
 
 function formatINR(value: number) {
-  if (value >= 100000) return `₹${(value / 100000).toFixed(1)}L`
-  if (value >= 1000) return `₹${(value / 1000).toFixed(0)}K`
-  return `₹${value.toFixed(0)}`
+  const abs = Math.abs(value)
+  const sign = value < 0 ? '-' : ''
+  if (abs >= 100_000) return `${sign}₹${(abs / 100_000).toFixed(1)}L`
+  if (abs >= 1_000) return `${sign}₹${(abs / 1_000).toFixed(0)}K`
+  return `${sign}₹${abs.toFixed(0)}`
 }
 
-interface TooltipPayloadEntry {
-  name: string
-  value: number
-  color: string
-}
+interface TooltipEntry { name: string; value: number; color: string; payload: Record<string, number | null> }
 
 function CustomTooltip({ active, payload, label }: {
   active?: boolean
-  payload?: TooltipPayloadEntry[]
+  payload?: TooltipEntry[]
   label?: string
 }) {
   if (!active || !payload?.length) return null
+  // Filter out __net hidden keys; recharts passes all dataKeys
+  const lines = payload.filter(p => !p.name.endsWith('__net'))
   return (
-    <div className="kk-card text-xs py-2 px-3 space-y-1 shadow-lg">
+    <div className="kk-card text-xs py-2 px-3 space-y-1.5 shadow-lg min-w-[160px]">
       <p className="font-semibold text-fg mb-1">{label}</p>
-      {payload.map((p) => (
-        <div key={p.name} className="flex items-center gap-2">
-          <span className="w-2 h-2 rounded-full shrink-0" style={{ background: p.color }} />
-          <span className="text-fg-muted capitalize">{p.name}</span>
-          <span className="ml-auto font-medium text-fg kk-mono">
-            ₹{p.value.toLocaleString('en-IN')}
-          </span>
-        </div>
-      ))}
+      {lines.map((p) => {
+        const net = p.payload[`${p.name}__net`] as number | null
+        return (
+          <div key={p.name} className="space-y-0.5">
+            <div className="flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full shrink-0" style={{ background: p.color }} />
+              <span className="text-fg-muted truncate max-w-[100px]">{p.name}</span>
+              <span className="ml-auto font-semibold kk-mono text-fg">{formatINR(p.value)}</span>
+            </div>
+            {net != null && net !== 0 && (
+              <p className={`text-right kk-mono pl-4 ${net > 0 ? 'text-positive-dim' : 'text-negative-dim'}`}>
+                {net > 0 ? '+' : ''}{formatINR(net)}
+              </p>
+            )}
+          </div>
+        )
+      })}
     </div>
   )
 }
 
-export default function CashFlowChart({ buckets }: { buckets: CashFlowBucket[] }) {
-  if (buckets.length === 0) {
+interface CashFlowChartProps {
+  byAccount: CashFlowAccountBucket[]
+  periodStart: string  // "YYYY-MM-DD"
+  periodEnd: string
+}
+
+export default function CashFlowChart({ byAccount = [], periodStart, periodEnd }: CashFlowChartProps) {
+  if (byAccount.length === 0) {
     return (
       <p className="text-sm text-fg-muted text-center py-8">No transactions in this period.</p>
     )
   }
 
-  const rows: ChartRow[] = buckets.map(b => {
-    const income  = parseFloat(b.income)
-    const expense = parseFloat(b.expense)
-    return { label: formatLabel(b.date, buckets.length), income, expense, net: income - expense }
+  const unit = bucketUnit(periodStart, periodEnd)
+
+  // Unique sorted dates and account names
+  const dates = [...new Set(byAccount.map(b => b.date))].sort()
+  const accountNames = [...new Set(byAccount.map(b => b.account_name))].sort()
+
+  // Build lookup: date → accountName → { balance, net }
+  const lookup = new Map<string, Map<string, { balance: number; net: number }>>()
+  for (const b of byAccount) {
+    if (!lookup.has(b.date)) lookup.set(b.date, new Map())
+    lookup.get(b.date)!.set(b.account_name, {
+      balance: parseFloat(b.balance),
+      net: parseFloat(b.net),
+    })
+  }
+
+  const rows = dates.map(date => {
+    const row: Record<string, string | number | null> = { label: formatLabel(date, unit) }
+    for (const name of accountNames) {
+      const entry = lookup.get(date)?.get(name)
+      row[name] = entry?.balance ?? null
+      row[`${name}__net`] = entry?.net ?? null
+    }
+    return row
   })
 
+  const unitLabel = unit === 'month' ? 'monthly' : unit === 'week' ? 'weekly' : 'daily'
+
   return (
-    <ResponsiveContainer width="100%" height={220}>
-      <BarChart data={rows} barGap={2} barCategoryGap="30%">
-        <CartesianGrid strokeDasharray="3 3" stroke="var(--kk-border)" vertical={false} />
-        <XAxis
-          dataKey="label"
-          tick={{ fontSize: 11, fill: 'var(--kk-fg-faint)' }}
-          axisLine={false}
-          tickLine={false}
-        />
-        <YAxis
-          tickFormatter={formatINR}
-          tick={{ fontSize: 11, fill: 'var(--kk-fg-faint)' }}
-          axisLine={false}
-          tickLine={false}
-          width={52}
-        />
-        <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(255,255,255,0.04)' }} />
-        <Legend
-          iconType="circle"
-          iconSize={8}
-          wrapperStyle={{ fontSize: 11, color: 'var(--kk-fg-muted)', paddingTop: 8 }}
-        />
-        <Bar dataKey="income"  name="Income"  fill="var(--kk-positive)"      radius={[3, 3, 0, 0]} maxBarSize={32} />
-        <Bar dataKey="expense" name="Expense" fill="var(--kk-negative-dim)"  radius={[3, 3, 0, 0]} maxBarSize={32} />
-      </BarChart>
-    </ResponsiveContainer>
+    <div>
+      <p className="text-xs text-fg-faint mb-3">
+        {unitLabel} buckets &middot; {accountNames.length} account{accountNames.length !== 1 ? 's' : ''} &middot; closing balance per bucket
+      </p>
+      <ResponsiveContainer width="100%" height={220}>
+        <LineChart data={rows} margin={{ top: 4, right: 8, bottom: 0, left: 0 }}>
+          <CartesianGrid strokeDasharray="3 3" stroke="var(--kk-border)" vertical={false} />
+          <XAxis
+            dataKey="label"
+            tick={{ fontSize: 11, fill: 'var(--kk-fg-faint)' }}
+            axisLine={false}
+            tickLine={false}
+          />
+          <YAxis
+            tickFormatter={formatINR}
+            tick={{ fontSize: 11, fill: 'var(--kk-fg-faint)' }}
+            axisLine={false}
+            tickLine={false}
+            width={56}
+          />
+          <Tooltip content={<CustomTooltip />} />
+          <Legend
+            iconType="circle"
+            iconSize={8}
+            wrapperStyle={{ fontSize: 11, color: 'var(--kk-fg-muted)', paddingTop: 8 }}
+          />
+          {accountNames.map((name, i) => (
+            <Line
+              key={name}
+              type="monotone"
+              dataKey={name}
+              stroke={ACCOUNT_COLORS[i % ACCOUNT_COLORS.length]}
+              strokeWidth={2}
+              dot={false}
+              activeDot={{ r: 4 }}
+              connectNulls={false}
+            />
+          ))}
+        </LineChart>
+      </ResponsiveContainer>
+    </div>
   )
 }

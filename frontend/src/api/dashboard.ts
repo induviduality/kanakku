@@ -77,6 +77,14 @@ export interface CashFlowBucket {
   expense: string
 }
 
+export interface CashFlowAccountBucket {
+  date: string
+  account_id: string
+  account_name: string
+  balance: string   // closing balance at end of this bucket
+  net: string       // net change within this bucket
+}
+
 export interface DashboardData {
   // legacy
   month: string
@@ -102,6 +110,7 @@ export interface DashboardData {
   account_balances: AccountBalanceItem[]
   active_subscriptions: ActiveSubscriptionItem[]
   cashflow_buckets: CashFlowBucket[]
+  cashflow_by_account: CashFlowAccountBucket[]
 }
 
 export interface DashboardParams {

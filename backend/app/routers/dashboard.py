@@ -30,6 +30,7 @@ from app.schemas.dashboard import (
     AccountBalanceItem,
     ActiveSubscriptionItem,
     BudgetSummaryItem,
+    CashFlowAccountBucket,
     CashFlowBucket,
     CategoryBreakdownItem,
     DashboardResponse,
@@ -517,6 +518,210 @@ async def _cashflow_buckets(
     ]
 
 
+async def _cashflow_by_account(
+    session: AsyncSession,
+    user_id: uuid.UUID,
+    period_start: datetime,
+    period_end: datetime,
+    period: DashboardPeriod,
+) -> list[CashFlowAccountBucket]:
+    duration_days = (period_end - period_start).days
+    if period == DashboardPeriod.year or duration_days > 91:
+        trunc_unit = "month"
+    elif period == DashboardPeriod.quarter or duration_days > 31:
+        trunc_unit = "week"
+    else:
+        trunc_unit = "day"
+
+    # Active accounts for this user
+    accounts = (
+        await session.execute(
+            sa.select(Account).where(
+                Account.user_id == user_id,
+                Account.deleted_at.is_(None),
+                Account.is_active.is_(True),
+            )
+        )
+    ).scalars().all()
+    if not accounts:
+        return []
+
+    acc_ids = [a.id for a in accounts]
+    acc_map = {a.id: a for a in accounts}
+
+    # ── Step 1: opening balance at period_start ──────────────────────────────
+    # opening = current_balance − net_change(period_start → ∞)
+    # net_change per account for income/expense
+    ie_open = (
+        await session.execute(
+            sa.select(
+                Transaction.account_id,
+                sa.func.sum(sa.case(
+                    (Transaction.type == TransactionType.income,  Transaction.amount),
+                    else_=-Transaction.amount,
+                )).label("net"),
+            )
+            .where(
+                Transaction.user_id == user_id,
+                Transaction.deleted_at.is_(None),
+                Transaction.transacted_at >= period_start,
+                Transaction.type.in_([TransactionType.income, TransactionType.expense]),
+                Transaction.account_id.in_(acc_ids),
+            )
+            .group_by(Transaction.account_id)
+        )
+    ).all()
+
+    # transfers out (source account loses money)
+    xfer_out_open = (
+        await session.execute(
+            sa.select(
+                Transaction.account_id,
+                sa.func.sum(Transaction.amount).label("out"),
+            )
+            .where(
+                Transaction.user_id == user_id,
+                Transaction.deleted_at.is_(None),
+                Transaction.transacted_at >= period_start,
+                Transaction.type == TransactionType.transfer,
+                Transaction.account_id.in_(acc_ids),
+            )
+            .group_by(Transaction.account_id)
+        )
+    ).all()
+
+    # transfers in (destination account gains money)
+    xfer_in_open = (
+        await session.execute(
+            sa.select(
+                Transaction.to_account_id,
+                sa.func.sum(Transaction.to_amount).label("into"),
+            )
+            .where(
+                Transaction.user_id == user_id,
+                Transaction.deleted_at.is_(None),
+                Transaction.transacted_at >= period_start,
+                Transaction.type == TransactionType.transfer,
+                Transaction.to_account_id.in_(acc_ids),
+            )
+            .group_by(Transaction.to_account_id)
+        )
+    ).all()
+
+    ie_open_map   = {r.account_id: r.net or Decimal("0")  for r in ie_open}
+    xfer_out_map  = {r.account_id: r.out or Decimal("0")  for r in xfer_out_open}
+    xfer_in_map   = {r.to_account_id: r.into or Decimal("0") for r in xfer_in_open}
+
+    opening: dict[uuid.UUID, Decimal] = {}
+    for acc_id in acc_ids:
+        net_after = (
+            ie_open_map.get(acc_id, Decimal("0"))
+            - xfer_out_map.get(acc_id, Decimal("0"))
+            + xfer_in_map.get(acc_id, Decimal("0"))
+        )
+        opening[acc_id] = acc_map[acc_id].current_balance - net_after
+
+    # ── Step 2: net change per (account, bucket) within the period ───────────
+    bucket_col = sa.func.date_trunc(trunc_unit, Transaction.transacted_at).label("bucket")
+
+    ie_rows = (
+        await session.execute(
+            sa.select(
+                Transaction.account_id,
+                bucket_col,
+                sa.func.sum(sa.case(
+                    (Transaction.type == TransactionType.income,  Transaction.amount),
+                    else_=-Transaction.amount,
+                )).label("net"),
+            )
+            .where(
+                Transaction.user_id == user_id,
+                Transaction.deleted_at.is_(None),
+                Transaction.transacted_at >= period_start,
+                Transaction.transacted_at < period_end,
+                Transaction.type.in_([TransactionType.income, TransactionType.expense]),
+                Transaction.account_id.in_(acc_ids),
+            )
+            .group_by(Transaction.account_id, "bucket")
+            .order_by("bucket")
+        )
+    ).all()
+
+    xfer_out_rows = (
+        await session.execute(
+            sa.select(
+                Transaction.account_id,
+                bucket_col,
+                sa.func.sum(Transaction.amount).label("out"),
+            )
+            .where(
+                Transaction.user_id == user_id,
+                Transaction.deleted_at.is_(None),
+                Transaction.transacted_at >= period_start,
+                Transaction.transacted_at < period_end,
+                Transaction.type == TransactionType.transfer,
+                Transaction.account_id.in_(acc_ids),
+            )
+            .group_by(Transaction.account_id, "bucket")
+        )
+    ).all()
+
+    xfer_in_rows = (
+        await session.execute(
+            sa.select(
+                Transaction.to_account_id,
+                bucket_col,
+                sa.func.sum(Transaction.to_amount).label("into"),
+            )
+            .where(
+                Transaction.user_id == user_id,
+                Transaction.deleted_at.is_(None),
+                Transaction.transacted_at >= period_start,
+                Transaction.transacted_at < period_end,
+                Transaction.type == TransactionType.transfer,
+                Transaction.to_account_id.in_(acc_ids),
+            )
+            .group_by(Transaction.to_account_id, "bucket")
+        )
+    ).all()
+
+    # Merge into net_by_bucket: (acc_id, date_str) → net
+    net_by_bucket: dict[tuple[uuid.UUID, str], Decimal] = {}
+    for r in ie_rows:
+        key = (r.account_id, r.bucket.strftime("%Y-%m-%d"))
+        net_by_bucket[key] = net_by_bucket.get(key, Decimal("0")) + (r.net or Decimal("0"))
+    for r in xfer_out_rows:
+        key = (r.account_id, r.bucket.strftime("%Y-%m-%d"))
+        net_by_bucket[key] = net_by_bucket.get(key, Decimal("0")) - (r.out or Decimal("0"))
+    for r in xfer_in_rows:
+        key = (r.to_account_id, r.bucket.strftime("%Y-%m-%d"))
+        net_by_bucket[key] = net_by_bucket.get(key, Decimal("0")) + (r.into or Decimal("0"))
+
+    # ── Step 3: running balance per account across all bucket dates ──────────
+    all_dates = sorted({date for (_, date) in net_by_bucket})
+    if not all_dates:
+        return []
+
+    result: list[CashFlowAccountBucket] = []
+    for acc_id in acc_ids:
+        # Only include accounts that had activity in this period
+        if not any(aid == acc_id for (aid, _) in net_by_bucket):
+            continue
+        running = opening[acc_id]
+        for date_str in all_dates:
+            net = net_by_bucket.get((acc_id, date_str), Decimal("0"))
+            running += net
+            result.append(CashFlowAccountBucket(
+                date=date_str,
+                account_id=acc_id,
+                account_name=acc_map[acc_id].name,
+                balance=running,
+                net=net,
+            ))
+
+    return sorted(result, key=lambda x: (x.date, str(x.account_id)))
+
+
 def _savings_rate(inflow: Decimal, outflow: Decimal) -> float | None:
     if inflow <= 0:
         return None
@@ -547,6 +752,7 @@ async def home_dashboard(
     accounts = await _account_balances(session, user.id)
     subs = await _active_subscriptions(session, user.id)
     cashflow = await _cashflow_buckets(session, user.id, period_start, period_end, period)
+    cashflow_by_account = await _cashflow_by_account(session, user.id, period_start, period_end, period)
 
     total_balance = sum((Decimal(a.current_balance) for a in accounts), Decimal("0"))
 
@@ -572,4 +778,5 @@ async def home_dashboard(
         account_balances=accounts,
         active_subscriptions=subs,
         cashflow_buckets=cashflow,
+        cashflow_by_account=cashflow_by_account,
     )

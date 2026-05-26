@@ -273,7 +273,11 @@ export default function Dashboard() {
 
       {/* Row 4 — cash flow chart (full width) */}
       <Section title={`Cash Flow — ${label}`}>
-        <CashFlowChart buckets={data.cashflow_buckets} />
+        <CashFlowChart
+          byAccount={data.cashflow_by_account}
+          periodStart={dashboardParams.start_date ?? data.period_start}
+          periodEnd={dashboardParams.end_date ?? data.period_end}
+        />
       </Section>
 
       {/* Row 5 — account balances */}

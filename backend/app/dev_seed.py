@@ -25,6 +25,7 @@ from app.models.tag import Tag
 from app.models.transaction import (
     Transaction,
     TransactionType,
+    transaction_budgets,
     transaction_categories,
     transaction_tags,
 )
@@ -97,6 +98,38 @@ TXN_PIG_PHONE_1  = uuid.UUID("f6000001-0000-0000-0000-000000000033")
 TXN_OB_HDFC      = uuid.UUID("f6000001-0000-0000-0000-000000000040")
 TXN_OB_ICICI     = uuid.UUID("f6000001-0000-0000-0000-000000000041")
 TXN_OB_CASH      = uuid.UUID("f6000001-0000-0000-0000-000000000042")
+
+# Jan–Mar spread (so cashflow chart has data across all months)
+TXN_SALARY_JAN   = uuid.UUID("f6000001-0000-0000-0000-000000000050")
+TXN_SALARY_FEB   = uuid.UUID("f6000001-0000-0000-0000-000000000051")
+TXN_SALARY_MAR   = uuid.UUID("f6000001-0000-0000-0000-000000000052")
+TXN_GYM_JAN      = uuid.UUID("f6000001-0000-0000-0000-000000000053")
+TXN_GYM_FEB      = uuid.UUID("f6000001-0000-0000-0000-000000000054")
+TXN_GYM_MAR      = uuid.UUID("f6000001-0000-0000-0000-000000000055")
+TXN_FOOD_JAN     = uuid.UUID("f6000001-0000-0000-0000-000000000056")
+TXN_FOOD_FEB     = uuid.UUID("f6000001-0000-0000-0000-000000000057")
+TXN_FOOD_MAR     = uuid.UUID("f6000001-0000-0000-0000-000000000058")
+TXN_NETFLIX_JAN  = uuid.UUID("f6000001-0000-0000-0000-000000000059")
+TXN_NETFLIX_FEB  = uuid.UUID("f6000001-0000-0000-0000-000000000060")
+TXN_NETFLIX_MAR  = uuid.UUID("f6000001-0000-0000-0000-000000000061")
+TXN_ICICI_JAN    = uuid.UUID("f6000001-0000-0000-0000-000000000062")
+TXN_ICICI_FEB    = uuid.UUID("f6000001-0000-0000-0000-000000000063")
+TXN_ICICI_MAR    = uuid.UUID("f6000001-0000-0000-0000-000000000064")
+TXN_CASH_JAN     = uuid.UUID("f6000001-0000-0000-0000-000000000065")
+TXN_CASH_FEB     = uuid.UUID("f6000001-0000-0000-0000-000000000066")
+
+# Budget-linked transport transactions Jan–Apr (May uses TXN_UBER_1/2 already)
+TXN_UBER_JAN     = uuid.UUID("f6000001-0000-0000-0000-000000000070")
+TXN_UBER_FEB     = uuid.UUID("f6000001-0000-0000-0000-000000000071")
+TXN_UBER_MAR     = uuid.UUID("f6000001-0000-0000-0000-000000000072")
+TXN_UBER_APR     = uuid.UUID("f6000001-0000-0000-0000-000000000073")
+
+# Budget-linked entertainment transactions Jan–May (Apr uses TXN_NETFLIX/SPOTIFY already)
+TXN_SPOTIFY_JAN  = uuid.UUID("f6000001-0000-0000-0000-000000000074")
+TXN_SPOTIFY_FEB  = uuid.UUID("f6000001-0000-0000-0000-000000000075")
+TXN_SPOTIFY_MAR  = uuid.UUID("f6000001-0000-0000-0000-000000000076")
+TXN_SPOTIFY_MAY  = uuid.UUID("f6000001-0000-0000-0000-000000000077")
+TXN_NETFLIX_MAY  = uuid.UUID("f6000001-0000-0000-0000-000000000078")
 
 # Budgets
 BUD_FOOD_CURR   = uuid.UUID("b7000001-0000-0000-0000-000000000001")
@@ -303,6 +336,126 @@ async def seed_dev_data() -> None:
                         transacted_at=_dt(2026, 3, 15), amount=Decimal("45000"),
                         currency="INR", account_id=ACC_HDFC,
                         description="New phone purchase"),
+
+            # Scenario: Jan–Mar salary on HDFC (fills cashflow year view)
+            Transaction(id=TXN_SALARY_JAN, user_id=USER_ID, type=TransactionType.income,
+                        transacted_at=_dt(2026, 1, 1), amount=Decimal("85000"),
+                        currency="INR", account_id=ACC_HDFC, payee_id=PAYEE_EMPLOYER,
+                        description="January salary"),
+            Transaction(id=TXN_SALARY_FEB, user_id=USER_ID, type=TransactionType.income,
+                        transacted_at=_dt(2026, 2, 1), amount=Decimal("85000"),
+                        currency="INR", account_id=ACC_HDFC, payee_id=PAYEE_EMPLOYER,
+                        description="February salary"),
+            Transaction(id=TXN_SALARY_MAR, user_id=USER_ID, type=TransactionType.income,
+                        transacted_at=_dt(2026, 3, 1), amount=Decimal("85000"),
+                        currency="INR", account_id=ACC_HDFC, payee_id=PAYEE_EMPLOYER,
+                        description="March salary"),
+
+            # Scenario: monthly gym on HDFC Jan–Mar
+            Transaction(id=TXN_GYM_JAN, user_id=USER_ID, type=TransactionType.expense,
+                        transacted_at=_dt(2026, 1, 5), amount=Decimal("2500"),
+                        currency="INR", account_id=ACC_HDFC, payment_method_id=PM_HDFC_UPI,
+                        description="Gym membership Jan"),
+            Transaction(id=TXN_GYM_FEB, user_id=USER_ID, type=TransactionType.expense,
+                        transacted_at=_dt(2026, 2, 5), amount=Decimal("2500"),
+                        currency="INR", account_id=ACC_HDFC, payment_method_id=PM_HDFC_UPI,
+                        description="Gym membership Feb"),
+            Transaction(id=TXN_GYM_MAR, user_id=USER_ID, type=TransactionType.expense,
+                        transacted_at=_dt(2026, 3, 5), amount=Decimal("2500"),
+                        currency="INR", account_id=ACC_HDFC, payment_method_id=PM_HDFC_UPI,
+                        description="Gym membership Mar"),
+
+            # Scenario: monthly food on HDFC Jan–Mar
+            Transaction(id=TXN_FOOD_JAN, user_id=USER_ID, type=TransactionType.expense,
+                        transacted_at=_dt(2026, 1, 15), amount=Decimal("850"),
+                        currency="INR", account_id=ACC_HDFC, payee_id=PAYEE_SWIGGY,
+                        payment_method_id=PM_HDFC_UPI, description="Swiggy Jan"),
+            Transaction(id=TXN_FOOD_FEB, user_id=USER_ID, type=TransactionType.expense,
+                        transacted_at=_dt(2026, 2, 14), amount=Decimal("640"),
+                        currency="INR", account_id=ACC_HDFC, payee_id=PAYEE_SWIGGY,
+                        payment_method_id=PM_HDFC_UPI, description="Swiggy Feb"),
+            Transaction(id=TXN_FOOD_MAR, user_id=USER_ID, type=TransactionType.expense,
+                        transacted_at=_dt(2026, 3, 10), amount=Decimal("720"),
+                        currency="INR", account_id=ACC_HDFC, payee_id=PAYEE_SWIGGY,
+                        payment_method_id=PM_HDFC_UPI, description="Swiggy Mar"),
+
+            # Scenario: Netflix on Credit Card Jan–Mar
+            Transaction(id=TXN_NETFLIX_JAN, user_id=USER_ID, type=TransactionType.expense,
+                        transacted_at=_dt(2026, 1, 15), amount=Decimal("649"),
+                        currency="INR", account_id=ACC_CREDIT, payee_id=PAYEE_NETFLIX,
+                        payment_method_id=PM_CREDIT_CC, description="Netflix Jan"),
+            Transaction(id=TXN_NETFLIX_FEB, user_id=USER_ID, type=TransactionType.expense,
+                        transacted_at=_dt(2026, 2, 15), amount=Decimal("649"),
+                        currency="INR", account_id=ACC_CREDIT, payee_id=PAYEE_NETFLIX,
+                        payment_method_id=PM_CREDIT_CC, description="Netflix Feb"),
+            Transaction(id=TXN_NETFLIX_MAR, user_id=USER_ID, type=TransactionType.expense,
+                        transacted_at=_dt(2026, 3, 15), amount=Decimal("649"),
+                        currency="INR", account_id=ACC_CREDIT, payee_id=PAYEE_NETFLIX,
+                        payment_method_id=PM_CREDIT_CC, description="Netflix Mar"),
+
+            # Scenario: ICICI used for utility bills Jan–Mar
+            Transaction(id=TXN_ICICI_JAN, user_id=USER_ID, type=TransactionType.expense,
+                        transacted_at=_dt(2026, 1, 20), amount=Decimal("1800"),
+                        currency="INR", account_id=ACC_ICICI,
+                        description="Electricity bill Jan"),
+            Transaction(id=TXN_ICICI_FEB, user_id=USER_ID, type=TransactionType.expense,
+                        transacted_at=_dt(2026, 2, 20), amount=Decimal("1650"),
+                        currency="INR", account_id=ACC_ICICI,
+                        description="Electricity bill Feb"),
+            Transaction(id=TXN_ICICI_MAR, user_id=USER_ID, type=TransactionType.expense,
+                        transacted_at=_dt(2026, 3, 20), amount=Decimal("1900"),
+                        currency="INR", account_id=ACC_ICICI,
+                        description="Electricity bill Mar"),
+
+            # Scenario: cash wallet used in Jan and Feb
+            Transaction(id=TXN_CASH_JAN, user_id=USER_ID, type=TransactionType.expense,
+                        transacted_at=_dt(2026, 1, 10), amount=Decimal("350"),
+                        currency="INR", account_id=ACC_CASH,
+                        description="Auto fare Jan"),
+            Transaction(id=TXN_CASH_FEB, user_id=USER_ID, type=TransactionType.expense,
+                        transacted_at=_dt(2026, 2, 8), amount=Decimal("280"),
+                        currency="INR", account_id=ACC_CASH,
+                        description="Street food Feb"),
+
+            # Scenario: transport budget — Uber rides Jan–Apr (varied amounts for realism)
+            Transaction(id=TXN_UBER_JAN, user_id=USER_ID, type=TransactionType.expense,
+                        transacted_at=_dt(2026, 1, 12), amount=Decimal("520"),
+                        currency="INR", account_id=ACC_HDFC, payee_id=PAYEE_UBER,
+                        payment_method_id=PM_HDFC_UPI, description="Uber Jan"),
+            Transaction(id=TXN_UBER_FEB, user_id=USER_ID, type=TransactionType.expense,
+                        transacted_at=_dt(2026, 2, 10), amount=Decimal("410"),
+                        currency="INR", account_id=ACC_HDFC, payee_id=PAYEE_UBER,
+                        payment_method_id=PM_HDFC_UPI, description="Uber Feb"),
+            Transaction(id=TXN_UBER_MAR, user_id=USER_ID, type=TransactionType.expense,
+                        transacted_at=_dt(2026, 3, 8), amount=Decimal("680"),
+                        currency="INR", account_id=ACC_HDFC, payee_id=PAYEE_UBER,
+                        payment_method_id=PM_HDFC_UPI, description="Uber Mar"),
+            Transaction(id=TXN_UBER_APR, user_id=USER_ID, type=TransactionType.expense,
+                        transacted_at=_dt(2026, 4, 14), amount=Decimal("1200"),
+                        currency="INR", account_id=ACC_HDFC, payee_id=PAYEE_UBER,
+                        payment_method_id=PM_HDFC_UPI, description="Uber Apr"),
+
+            # Scenario: entertainment budget — Spotify Jan–Mar + May; Netflix May
+            Transaction(id=TXN_SPOTIFY_JAN, user_id=USER_ID, type=TransactionType.expense,
+                        transacted_at=_dt(2026, 1, 15), amount=Decimal("119"),
+                        currency="INR", account_id=ACC_CREDIT, payee_id=PAYEE_SPOTIFY,
+                        payment_method_id=PM_CREDIT_CC, description="Spotify Jan"),
+            Transaction(id=TXN_SPOTIFY_FEB, user_id=USER_ID, type=TransactionType.expense,
+                        transacted_at=_dt(2026, 2, 15), amount=Decimal("119"),
+                        currency="INR", account_id=ACC_CREDIT, payee_id=PAYEE_SPOTIFY,
+                        payment_method_id=PM_CREDIT_CC, description="Spotify Feb"),
+            Transaction(id=TXN_SPOTIFY_MAR, user_id=USER_ID, type=TransactionType.expense,
+                        transacted_at=_dt(2026, 3, 15), amount=Decimal("119"),
+                        currency="INR", account_id=ACC_CREDIT, payee_id=PAYEE_SPOTIFY,
+                        payment_method_id=PM_CREDIT_CC, description="Spotify Mar"),
+            Transaction(id=TXN_SPOTIFY_MAY, user_id=USER_ID, type=TransactionType.expense,
+                        transacted_at=_dt(2026, 5, 15), amount=Decimal("119"),
+                        currency="INR", account_id=ACC_CREDIT, payee_id=PAYEE_SPOTIFY,
+                        payment_method_id=PM_CREDIT_CC, description="Spotify May"),
+            Transaction(id=TXN_NETFLIX_MAY, user_id=USER_ID, type=TransactionType.expense,
+                        transacted_at=_dt(2026, 5, 15), amount=Decimal("649"),
+                        currency="INR", account_id=ACC_CREDIT, payee_id=PAYEE_NETFLIX,
+                        payment_method_id=PM_CREDIT_CC, description="Netflix May"),
         ]
         for txn in txns:
             session.add(txn)
@@ -316,6 +469,18 @@ async def seed_dev_data() -> None:
             (TXN_NETFLIX, CAT_STREAMING), (TXN_SPOTIFY, CAT_STREAMING),
             (TXN_PHARMACY, CAT_HEALTH), (TXN_AMAZON, CAT_SHOPPING),
             (TXN_WORK_MEAL, CAT_FOOD),
+            # Jan–Mar spread
+            (TXN_SALARY_JAN, CAT_SALARY), (TXN_SALARY_FEB, CAT_SALARY), (TXN_SALARY_MAR, CAT_SALARY),
+            (TXN_FOOD_JAN, CAT_FOOD), (TXN_FOOD_FEB, CAT_FOOD), (TXN_FOOD_MAR, CAT_FOOD),
+            (TXN_NETFLIX_JAN, CAT_STREAMING), (TXN_NETFLIX_FEB, CAT_STREAMING), (TXN_NETFLIX_MAR, CAT_STREAMING),
+            (TXN_ICICI_JAN, CAT_UTILITIES), (TXN_ICICI_FEB, CAT_UTILITIES), (TXN_ICICI_MAR, CAT_UTILITIES),
+            # Budget-linked transport Jan–Apr
+            (TXN_UBER_JAN, CAT_TRANSPORT), (TXN_UBER_FEB, CAT_TRANSPORT),
+            (TXN_UBER_MAR, CAT_TRANSPORT), (TXN_UBER_APR, CAT_TRANSPORT),
+            # Budget-linked entertainment Jan–May
+            (TXN_SPOTIFY_JAN, CAT_STREAMING), (TXN_SPOTIFY_FEB, CAT_STREAMING),
+            (TXN_SPOTIFY_MAR, CAT_STREAMING), (TXN_SPOTIFY_MAY, CAT_STREAMING),
+            (TXN_NETFLIX_MAY, CAT_STREAMING),
         ]:
             await session.execute(
                 transaction_categories.insert().values(transaction_id=txn_id, category_id=cat_id)
@@ -336,18 +501,23 @@ async def seed_dev_data() -> None:
         month_start = today.replace(day=1)
         month_end = (month_start + timedelta(days=32)).replace(day=1) - timedelta(days=1)
 
+        # Scenario: ad-hoc budget for current month (activated at month start)
         session.add(Budget(id=BUD_FOOD_CURR, user_id=USER_ID, name="May Food Budget",
                            type=BudgetType.adhoc, amount=Decimal("5000"), currency="INR",
                            start_date=month_start, end_date=month_end,
+                           activated_at=_dt(today.year, month_start.month, month_start.day),
                            notes="Includes dining out"))
+        # Scenario: recurring monthly budget activated at start of year
         session.add(Budget(id=BUD_TRANSPORT, user_id=USER_ID, name="Transport (Monthly)",
                            type=BudgetType.recurring, amount=Decimal("3000"), currency="INR",
                            period=BudgetPeriod.monthly,
-                           recurrence_rule="FREQ=MONTHLY;BYMONTHDAY=1"))
+                           recurrence_rule="FREQ=MONTHLY;BYMONTHDAY=1",
+                           activated_at=_dt(today.year, 1, 1)))
         session.add(Budget(id=BUD_ENTERTAIN, user_id=USER_ID, name="Entertainment",
                            type=BudgetType.recurring, amount=Decimal("2000"), currency="INR",
                            period=BudgetPeriod.monthly,
-                           recurrence_rule="FREQ=MONTHLY;BYMONTHDAY=1"))
+                           recurrence_rule="FREQ=MONTHLY;BYMONTHDAY=1",
+                           activated_at=_dt(today.year, 1, 1)))
         await session.flush()
 
         for bud_id, cat_id in [
@@ -356,6 +526,26 @@ async def seed_dev_data() -> None:
         ]:
             await session.execute(
                 budget_categories.insert().values(budget_id=bud_id, category_id=cat_id)
+            )
+
+        # Transaction-budget links: transport Jan–May, entertainment Jan–May
+        for txn_id, bud_id in [
+            # Transport budget — one Uber ride per month, varied amounts
+            (TXN_UBER_JAN, BUD_TRANSPORT),   # Jan  520
+            (TXN_UBER_FEB, BUD_TRANSPORT),   # Feb  410
+            (TXN_UBER_MAR, BUD_TRANSPORT),   # Mar  680
+            (TXN_UBER_APR, BUD_TRANSPORT),   # Apr 1200
+            (TXN_UBER_1,   BUD_TRANSPORT),   # May  250
+            (TXN_UBER_2,   BUD_TRANSPORT),   # May  180
+            # Entertainment budget — Netflix + Spotify per month
+            (TXN_NETFLIX_JAN, BUD_ENTERTAIN), (TXN_SPOTIFY_JAN, BUD_ENTERTAIN),   # Jan 768
+            (TXN_NETFLIX_FEB, BUD_ENTERTAIN), (TXN_SPOTIFY_FEB, BUD_ENTERTAIN),   # Feb 768
+            (TXN_NETFLIX_MAR, BUD_ENTERTAIN), (TXN_SPOTIFY_MAR, BUD_ENTERTAIN),   # Mar 768
+            (TXN_NETFLIX,     BUD_ENTERTAIN), (TXN_SPOTIFY,     BUD_ENTERTAIN),   # Apr 768
+            (TXN_NETFLIX_MAY, BUD_ENTERTAIN), (TXN_SPOTIFY_MAY, BUD_ENTERTAIN),   # May 768
+        ]:
+            await session.execute(
+                transaction_budgets.insert().values(transaction_id=txn_id, budget_id=bud_id)
             )
 
         # ── Subscriptions ─────────────────────────────────────────────────────

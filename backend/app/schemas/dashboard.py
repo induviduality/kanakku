@@ -84,6 +84,14 @@ class CashFlowBucket(BaseModel):
     expense: Decimal
 
 
+class CashFlowAccountBucket(BaseModel):
+    date: str          # "YYYY-MM-DD" — start of the bucket
+    account_id: uuid.UUID
+    account_name: str
+    balance: Decimal   # closing balance at end of this bucket
+    net: Decimal       # net change within this bucket (for tooltip)
+
+
 class DashboardResponse(BaseModel):
     # legacy fields kept for backward compat
     month: str
@@ -110,3 +118,4 @@ class DashboardResponse(BaseModel):
     account_balances: list[AccountBalanceItem]
     active_subscriptions: list[ActiveSubscriptionItem]
     cashflow_buckets: list[CashFlowBucket]
+    cashflow_by_account: list[CashFlowAccountBucket]
