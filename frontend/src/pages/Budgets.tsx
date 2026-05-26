@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { rruleLabel } from '../lib/rrule'
+import { usePeriod } from '../lib/period-context'
 import { Pencil, Trash2 } from 'lucide-react'
 import { Link } from '@tanstack/react-router'
 import {
@@ -10,14 +11,29 @@ import {
   type BudgetCreate,
   type DeleteScope,
 } from '../api/budgets'
-import { useCategories } from '../api/categories'
 import ConfirmDialog from '../components/ConfirmDialog'
 import EntityModal from '../components/EntityModal'
 import { EmptyState } from '../components/EmptyState'
 import { BudgetDrawer } from '../components/drawers/BudgetDrawer'
 
+// ── Rrule helpers ─────────────────────────────────────────────────────────────
+
+const PREDEFINED_RRULES: { value: string; label: string }[] = [
+  { value: 'FREQ=DAILY',              label: 'Daily' },
+  { value: 'FREQ=WEEKLY',             label: 'Weekly' },
+  { value: 'FREQ=MONTHLY;BYMONTHDAY=1', label: 'Monthly' },
+  { value: 'FREQ=MONTHLY;INTERVAL=3', label: 'Quarterly' },
+  { value: 'FREQ=YEARLY',             label: 'Yearly' },
+]
+
+function customIntervalRrule(days: number) {
+  return days === 1 ? 'FREQ=DAILY' : `FREQ=DAILY;INTERVAL=${days}`
+}
+
+// ── Progress bar ─────────────────────────────────────────────────────────────
+
 function ProgressBar({ spent, amount }: { spent: number; amount: number }) {
-  const pct = amount > 0 ? Math.min(100, (spent / amount) * 100) : 0
+  const pct   = amount > 0 ? Math.min(100, (spent / amount) * 100) : 0
   const color = pct >= 90 ? 'bg-red-500' : pct >= 70 ? 'bg-amber-400' : 'bg-green-500'
   return (
     <div className="w-full bg-gray-100 rounded-full h-2 overflow-hidden" aria-label="budget progress">
@@ -25,6 +41,8 @@ function ProgressBar({ spent, amount }: { spent: number; amount: number }) {
     </div>
   )
 }
+
+// ── Delete-scope dialog ───────────────────────────────────────────────────────
 
 function DeleteScopeDialog({
   budget,
@@ -62,9 +80,9 @@ function DeleteScopeDialog({
         <div className="space-y-2 mb-6">
           {(
             [
-              ['instance', 'This instance only'],
-              ['future_only', 'This and future instances'],
-              ['current_and_future', 'All instances'],
+              ['instance',            'This instance only'],
+              ['future_only',         'This and future instances'],
+              ['current_and_future',  'All instances'],
             ] as [DeleteScope, string][]
           ).map(([val, label]) => (
             <label key={val} className="flex items-center gap-2 cursor-pointer">
@@ -95,64 +113,98 @@ function DeleteScopeDialog({
   )
 }
 
-const INPUT_CLS =
-  'mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500'
-const LABEL_CLS = 'block text-sm font-medium text-gray-700'
+// ── Styles ────────────────────────────────────────────────────────────────────
 
-const RRULE_OPTIONS: { value: string; label: string }[] = [
-  { value: 'FREQ=DAILY',              label: 'Daily' },
-  { value: 'FREQ=WEEKLY',             label: 'Weekly' },
-  { value: 'FREQ=MONTHLY',            label: 'Monthly' },
-  { value: 'FREQ=MONTHLY;INTERVAL=3', label: 'Quarterly' },
-  { value: 'FREQ=YEARLY',             label: 'Yearly' },
-]
+const INPUT_CLS  = 'mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500'
+const LABEL_CLS  = 'block text-sm font-medium text-gray-700'
+
+function SegmentedControl<T extends string>({
+  options,
+  value,
+  onChange,
+}: {
+  options: { value: T; label: string }[]
+  value: T
+  onChange: (v: T) => void
+}) {
+  return (
+    <div className="mt-1 inline-flex rounded-lg border border-gray-200 bg-gray-100 p-0.5 gap-0.5">
+      {options.map(o => (
+        <button
+          key={o.value}
+          type="button"
+          onClick={() => onChange(o.value)}
+          className={`px-4 py-1.5 rounded-md text-sm font-medium transition-all ${
+            value === o.value
+              ? 'bg-white text-gray-900 shadow-sm'
+              : 'text-gray-500 hover:text-gray-700'
+          }`}
+        >
+          {o.label}
+        </button>
+      ))}
+    </div>
+  )
+}
+
+// ── Main page ─────────────────────────────────────────────────────────────────
 
 export default function Budgets() {
-  const { data: budgets = [], isLoading } = useGetBudgets(true)
-  const { data: categories = [] } = useCategories()
-  const createBudget = useCreateBudget()
-  const deleteBudget = useDeleteBudget()
+  // ── Period from global nav ───────────────────────────────────────────────
+  const { dashboardParams } = usePeriod()
+  const fromDate = dashboardParams.start_date
+  const toDate   = dashboardParams.end_date
 
-  const [createOpen, setCreateOpen] = useState(false)
-  const [deleteTarget, setDeleteTarget] = useState<Budget | null>(null)
+  // ── Data hooks ───────────────────────────────────────────────────────────
+  const { data: budgets = [], isLoading } = useGetBudgets(true, fromDate, toDate)
+  const createBudget  = useCreateBudget()
+  const deleteBudget  = useDeleteBudget()
+
+  // ── UI state ─────────────────────────────────────────────────────────────
+  const [createOpen,     setCreateOpen]     = useState(false)
+  const [deleteTarget,   setDeleteTarget]   = useState<Budget | null>(null)
   const [drawerBudgetId, setDrawerBudgetId] = useState<string | null>(null)
 
-  // Create form state
-  const [name, setName] = useState('')
-  const [amount, setAmount] = useState('')
-  const [currency, setCurrency] = useState('INR')
-  const [type, setType] = useState<'adhoc' | 'recurring'>('adhoc')
-  const [rrule, setRrule] = useState('FREQ=MONTHLY')
-  const [startDate, setStartDate] = useState('')
-  const [endDate, setEndDate] = useState('')
-  const [selectedCats, setSelectedCats] = useState<string[]>([])
-  const [createError, setCreateError] = useState('')
+  // ── Create form state ─────────────────────────────────────────────────────
+  const [name,         setName]         = useState('')
+  const [amount,       setAmount]       = useState('')
+  const [currency,     setCurrency]     = useState('INR')
+  const [budgetType,   setBudgetType]   = useState<'adhoc' | 'recurring'>('adhoc')
+  // recurring sub-options
+  const [scheduleKind, setScheduleKind] = useState<'predefined' | 'custom'>('predefined')
+  const [predefined,   setPredefined]   = useState(PREDEFINED_RRULES[2].value) // Monthly
+  const [customDays,   setCustomDays]   = useState('14')
+  // dates
+  const [startDate,    setStartDate]    = useState('')
+  const [endDate,      setEndDate]      = useState('')
+  const [createError,  setCreateError]  = useState('')
 
   function resetForm() {
-    setName('')
-    setAmount('')
-    setCurrency('INR')
-    setType('adhoc')
-    setRrule('FREQ=MONTHLY')
-    setStartDate('')
-    setEndDate('')
-    setSelectedCats([])
-    setCreateError('')
+    setName(''); setAmount(''); setCurrency('INR')
+    setBudgetType('adhoc'); setScheduleKind('predefined')
+    setPredefined(PREDEFINED_RRULES[2].value); setCustomDays('14')
+    setStartDate(''); setEndDate(''); setCreateError('')
+  }
+
+  function buildRrule() {
+    if (budgetType !== 'recurring') return undefined
+    if (scheduleKind === 'predefined') return predefined
+    const days = parseInt(customDays, 10)
+    return isNaN(days) || days < 1 ? undefined : customIntervalRrule(days)
   }
 
   async function handleCreate(e: React.FormEvent) {
     e.preventDefault()
     setCreateError('')
-    const body: BudgetCreate = {
-      name,
-      amount,
-      currency,
-      type,
-      category_ids: selectedCats,
+    const rrule = buildRrule()
+    if (budgetType === 'recurring' && !rrule) {
+      setCreateError('Please enter a valid interval (≥ 1 day).')
+      return
     }
-    if (startDate) body.start_date = startDate
-    if (endDate) body.end_date = endDate
-    if (type === 'recurring' && rrule) body.recurrence_rule = rrule
+    const body: BudgetCreate = { name, amount, currency, type: budgetType }
+    if (startDate)       body.start_date       = startDate
+    if (endDate)         body.end_date         = endDate
+    if (rrule)           body.recurrence_rule  = rrule
     try {
       await createBudget.mutateAsync(body)
       resetForm()
@@ -168,15 +220,10 @@ export default function Budgets() {
     setDeleteTarget(null)
   }
 
-  function toggleCat(id: string) {
-    setSelectedCats((prev) =>
-      prev.includes(id) ? prev.filter((c) => c !== id) : [...prev, id],
-    )
-  }
-
   return (
     <main className="p-6 max-w-3xl mx-auto">
-      <div className="flex items-center justify-between mb-6">
+      {/* Header */}
+      <div className="flex items-center justify-between mb-5">
         <h1 className="text-2xl font-bold text-gray-900">Budgets</h1>
         <button
           onClick={() => { resetForm(); setCreateOpen(true) }}
@@ -186,70 +233,81 @@ export default function Budgets() {
         </button>
       </div>
 
+      {/* Budget list */}
       {isLoading ? (
         <p className="text-gray-500">Loading budgets…</p>
       ) : budgets.length === 0 ? (
-        <EmptyState title="No budgets yet" description="Create a budget to start tracking your spending limits." />
+        <EmptyState title="No budgets" description="No budgets were active during this period." />
       ) : (
         <div className="space-y-4">
-          {budgets.map((b) => (
-            <div
-              key={b.id}
-              className="border border-gray-200 rounded-lg p-4 bg-white shadow-sm cursor-pointer hover:border-indigo-200 transition-colors"
-              onClick={() => setDrawerBudgetId(b.id)}
-            >
-              <div className="flex items-start justify-between mb-2">
-                <div>
-                  <p className="font-semibold text-gray-900">{b.name}</p>
-                  <p className="text-xs text-gray-400">
-                    {b.type === 'recurring' ? `Recurring${b.recurrence_rule ? ` · ${rruleLabel(b.recurrence_rule)}` : ''}` : 'Ad-hoc'}
-                    {!b.is_active && ' · Inactive'}
-                  </p>
+          {budgets.map(b => {
+            const spent  = parseFloat(b.current_spent) || 0
+            const total  = parseFloat(b.amount) || 0
+            return (
+              <div
+                key={b.id}
+                className="border border-gray-200 rounded-lg p-4 bg-white shadow-sm cursor-pointer hover:border-indigo-200 transition-colors"
+                onClick={() => setDrawerBudgetId(b.id)}
+              >
+                <div className="flex items-start justify-between mb-2">
+                  <div>
+                    <p className="font-semibold text-gray-900">{b.name}</p>
+                    <p className="text-xs text-gray-400">
+                      {b.type === 'recurring'
+                        ? `Recurring${b.recurrence_rule ? ` · ${rruleLabel(b.recurrence_rule)}` : ''}`
+                        : 'Ad-hoc'}
+                      {!b.is_active && ' · Inactive'}
+                    </p>
+                  </div>
+                  <div className="flex gap-1" onClick={e => e.stopPropagation()}>
+                    <Link
+                      to="/budgets/$budgetId/edit"
+                      params={{ budgetId: b.id }}
+                      className="p-1.5 rounded text-fg-muted hover:text-fg hover:bg-surface-2 transition-colors"
+                      title="Edit"
+                    >
+                      <Pencil className="w-4 h-4" />
+                    </Link>
+                    <button
+                      onClick={() => setDeleteTarget(b)}
+                      className="p-1.5 rounded text-fg-muted hover:text-negative-dim hover:bg-negative/10 transition-colors"
+                      title="Delete"
+                      aria-label={`Delete ${b.name}`}
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
                 </div>
-                <div className="flex gap-1" onClick={e => e.stopPropagation()}>
-                  <Link
-                    to="/budgets/$budgetId/edit"
-                    params={{ budgetId: b.id }}
-                    className="p-1.5 rounded text-fg-muted hover:text-fg hover:bg-surface-2 transition-colors"
-                    title="Edit"
-                  >
-                    <Pencil className="w-4 h-4" />
-                  </Link>
-                  <button
-                    onClick={() => setDeleteTarget(b)}
-                    className="p-1.5 rounded text-fg-muted hover:text-negative-dim hover:bg-negative/10 transition-colors"
-                    title="Delete"
-                    aria-label={`Delete ${b.name}`}
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
-                </div>
+                <ProgressBar spent={spent} amount={total} />
+                <p className="text-right text-xs text-gray-500 mt-1">
+                  ₹{spent.toLocaleString('en-IN')} / ₹{total.toLocaleString('en-IN')}
+                </p>
               </div>
-              <ProgressBar spent={parseFloat(b.current_spent)} amount={parseFloat(b.amount)} />
-              <p className="text-right text-xs text-gray-500 mt-1">
-                ₹{parseFloat(b.current_spent).toLocaleString('en-IN')} / ₹{parseFloat(b.amount).toLocaleString('en-IN')}
-              </p>
-            </div>
-          ))}
+            )
+          })}
         </div>
       )}
 
+      {/* Create modal */}
       <EntityModal
         open={createOpen}
         onClose={() => { setCreateOpen(false); resetForm() }}
         title="Add budget"
       >
         <form onSubmit={handleCreate} className="space-y-4">
+          {/* Name */}
           <div>
             <label htmlFor="budget-name" className={LABEL_CLS}>Name</label>
             <input
               id="budget-name"
               value={name}
-              onChange={(e) => setName(e.target.value)}
+              onChange={e => setName(e.target.value)}
               required
               className={INPUT_CLS}
             />
           </div>
+
+          {/* Amount + currency */}
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label htmlFor="budget-amount" className={LABEL_CLS}>Amount</label>
@@ -259,7 +317,7 @@ export default function Budgets() {
                 min="0.01"
                 step="0.01"
                 value={amount}
-                onChange={(e) => setAmount(e.target.value)}
+                onChange={e => setAmount(e.target.value)}
                 required
                 className={INPUT_CLS}
               />
@@ -269,90 +327,112 @@ export default function Budgets() {
               <input
                 id="budget-currency"
                 value={currency}
-                onChange={(e) => setCurrency(e.target.value)}
+                onChange={e => setCurrency(e.target.value)}
                 required
                 className={INPUT_CLS}
               />
             </div>
           </div>
+
+          {/* Type */}
           <div>
             <label className={LABEL_CLS}>Type</label>
-            <div className="flex gap-4 mt-1">
-              {(['adhoc', 'recurring'] as const).map((t) => (
-                <label key={t} className="flex items-center gap-1.5 cursor-pointer text-sm">
-                  <input
-                    type="radio"
-                    name="budget-type"
-                    value={t}
-                    checked={type === t}
-                    onChange={() => setType(t)}
-                  />
-                  {t === 'adhoc' ? 'Ad-hoc' : 'Recurring'}
-                </label>
-              ))}
-            </div>
+            <SegmentedControl
+              options={[{ value: 'adhoc', label: 'Ad-hoc' }, { value: 'recurring', label: 'Recurring' }]}
+              value={budgetType}
+              onChange={setBudgetType}
+            />
           </div>
-          {type === 'recurring' && (
-            <div>
-              <label htmlFor="budget-rrule" className={LABEL_CLS}>Recurrence</label>
-              <select
-                id="budget-rrule"
-                value={rrule}
-                onChange={(e) => setRrule(e.target.value)}
-                className={INPUT_CLS}
-              >
-                {RRULE_OPTIONS.map(o => (
-                  <option key={o.value} value={o.value}>{o.label}</option>
-                ))}
-              </select>
+
+          {/* Recurring schedule */}
+          {budgetType === 'recurring' && (
+            <div className="space-y-4 rounded-xl border border-gray-200 p-4 bg-gray-50">
+              <div>
+                <label className={LABEL_CLS}>Schedule</label>
+                <SegmentedControl
+                  options={[{ value: 'predefined', label: 'Predefined' }, { value: 'custom', label: 'Custom interval' }]}
+                  value={scheduleKind}
+                  onChange={setScheduleKind}
+                />
+              </div>
+
+              {scheduleKind === 'predefined' ? (
+                <div>
+                  <label className={LABEL_CLS}>Repeats</label>
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    {PREDEFINED_RRULES.map(o => (
+                      <button
+                        key={o.value}
+                        type="button"
+                        onClick={() => setPredefined(o.value)}
+                        className={`px-3 py-1.5 rounded-full text-sm font-medium border transition-colors ${
+                          predefined === o.value
+                            ? 'bg-indigo-600 text-white border-indigo-600'
+                            : 'bg-white text-gray-600 border-gray-300 hover:border-indigo-400'
+                        }`}
+                      >
+                        {o.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              ) : (
+                <div>
+                  <label htmlFor="budget-custom-days" className={LABEL_CLS}>Refresh every</label>
+                  <div className="mt-1 flex items-center gap-2">
+                    <input
+                      id="budget-custom-days"
+                      type="number"
+                      min="1"
+                      step="1"
+                      value={customDays}
+                      onChange={e => setCustomDays(e.target.value)}
+                      className="w-24 rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                      placeholder="14"
+                    />
+                    <span className="text-sm text-gray-500">days</span>
+                  </div>
+                  {parseInt(customDays, 10) > 0 && (
+                    <p className="mt-1.5 text-xs text-indigo-600 font-medium">
+                      Resets every {customDays} day{parseInt(customDays, 10) !== 1 ? 's' : ''}
+                    </p>
+                  )}
+                </div>
+              )}
             </div>
           )}
+
+          {/* Dates */}
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label htmlFor="budget-start" className={LABEL_CLS}>Start date</label>
+              <label htmlFor="budget-start" className={LABEL_CLS}>
+                {budgetType === 'recurring' ? 'First period starts' : 'Start date'}
+              </label>
               <input
                 id="budget-start"
                 type="date"
                 value={startDate}
-                onChange={(e) => setStartDate(e.target.value)}
+                onChange={e => setStartDate(e.target.value)}
                 className={INPUT_CLS}
               />
             </div>
-            <div>
-              <label htmlFor="budget-end" className={LABEL_CLS}>End date</label>
-              <input
-                id="budget-end"
-                type="date"
-                value={endDate}
-                onChange={(e) => setEndDate(e.target.value)}
-                className={INPUT_CLS}
-              />
-            </div>
-          </div>
-          {categories.length > 0 && (
-            <div>
-              <label className={LABEL_CLS}>Categories</label>
-              <div className="mt-1 flex flex-wrap gap-2">
-                {categories.map((c) => (
-                  <button
-                    key={c.id}
-                    type="button"
-                    onClick={() => toggleCat(c.id)}
-                    className={`rounded-full px-3 py-0.5 text-xs font-medium border ${
-                      selectedCats.includes(c.id)
-                        ? 'bg-indigo-600 text-white border-indigo-600'
-                        : 'bg-white text-gray-700 border-gray-300 hover:border-indigo-400'
-                    }`}
-                  >
-                    {c.name}
-                  </button>
-                ))}
+            {budgetType === 'adhoc' && (
+              <div>
+                <label htmlFor="budget-end" className={LABEL_CLS}>End date</label>
+                <input
+                  id="budget-end"
+                  type="date"
+                  value={endDate}
+                  onChange={e => setEndDate(e.target.value)}
+                  className={INPUT_CLS}
+                />
               </div>
-            </div>
-          )}
-          {createError && (
-            <p role="alert" className="text-sm text-red-600">{createError}</p>
-          )}
+            )}
+          </div>
+
+
+          {createError && <p role="alert" className="text-sm text-red-600">{createError}</p>}
+
           <div className="flex justify-end gap-2">
             <button
               type="button"

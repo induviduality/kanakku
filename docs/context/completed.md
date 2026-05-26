@@ -1,5 +1,24 @@
 # Completed Milestones
 
+## Ad-hoc Fixes (2026-05-26)
+
+### Budget NaN fix + current-period spending
+- `frontend/src/test/handlers.ts`: added `current_spent: '500.00'` to `BUDGETS_RESPONSE` (was missing, causing `parseFloat(undefined)` = NaN in the Budgets list)
+- `backend/app/routers/budgets.py`: replaced `_batch_spent` with `_current_period_window` + `_compute_current_spent`. Recurring budgets now use `expand_budget(b, today, today)` to find the current occurrence's date window, so `current_spent` shows only this period's spending rather than all-time.
+
+### Budget activated_at + period filter + create form redesign
+- Migration `0022`: adds `activated_at TIMESTAMPTZ` to `budgets` (server default = now)
+- `models/budget.py`, `schemas/budget.py`: added `activated_at` field
+- `routers/budgets.py`: `create_budget` sets `activated_at`; `list_budgets` gains `from_date`/`to_date` params and filters by `activated_at`/`end_date`; `_current_period_window` rewritten with `rrulestr.before/after` (handles mid-period days); `_compute_current_spent` accepts explicit period window
+- `dev_seed.py`: budgets now have `activated_at` set to start of year
+- Frontend: `useGetBudgets` accepts `fromDate`/`toDate`; `Budget` type includes `activated_at`
+- `Budgets.tsx`: period filter bar (This month / Last month / This quarter / Custom); create form redesigned with Predefined schedule picker (Daily/Weekly/Monthly/Quarterly/Yearly) and Custom interval (every X days)
+
+### Budgets page: global period context wiring
+- Removed local period filter chips (This month / Last month / This quarter / Custom) from `Budgets.tsx`
+- `Budgets.tsx` now reads `dashboardParams.start_date`/`end_date` from `usePeriod()` (global context driven by TopNav's `PeriodPicker`)
+- The navbar calendar now controls all time-based filtering on the Budgets page
+
 ## Ad-hoc Fixes Sprint (post-M14)
 
 ### Import PDF 401/422 bug fixes + dev mode auth bypass
