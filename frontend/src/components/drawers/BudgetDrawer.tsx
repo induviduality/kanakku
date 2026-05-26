@@ -1,6 +1,7 @@
 import { Drawer, DrawerSection, DrawerRow } from '../Drawer'
 import { useGetBudget, useGetBudgetTransactions } from '../../api/budgets'
 import { rruleLabel } from '../../lib/rrule'
+import { usePeriod } from '../../lib/period-context'
 
 interface Props {
   budgetId: string | null
@@ -8,8 +9,13 @@ interface Props {
 }
 
 export function BudgetDrawer({ budgetId, onClose }: Props) {
+  const { dashboardParams } = usePeriod()
   const { data: budget, isLoading } = useGetBudget(budgetId ?? '')
-  const { data: txnsData, isLoading: txnsLoading } = useGetBudgetTransactions(budgetId ?? '')
+  const { data: txnsData, isLoading: txnsLoading } = useGetBudgetTransactions(
+    budgetId ?? '',
+    dashboardParams.start_date,
+    dashboardParams.end_date,
+  )
 
   const spent = parseFloat(txnsData?.total_spent ?? '0')
   const total = budget ? parseFloat(budget.amount) : 0

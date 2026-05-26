@@ -78,6 +78,7 @@ class TransactionResponse(BaseModel):
     import_record_id: uuid.UUID | None
     category_ids: list[uuid.UUID]
     tag_ids: list[uuid.UUID]
+    budget_ids: list[uuid.UUID]
     created_at: datetime
     updated_at: datetime
     deleted_at: datetime | None

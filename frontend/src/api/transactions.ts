@@ -22,6 +22,7 @@ export interface Transaction {
   import_record_id: string | null
   category_ids: string[]
   tag_ids: string[]
+  budget_ids: string[]
   created_at: string
   updated_at: string
   deleted_at: string | null

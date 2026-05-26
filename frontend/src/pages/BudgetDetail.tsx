@@ -3,6 +3,7 @@ import { useParams, Link } from '@tanstack/react-router'
 import { useGetBudget, useGetBudgetTransactions, type BudgetTransactionItem } from '../api/budgets'
 import { TransactionDrawer } from '../components/drawers/TransactionDrawer'
 import type { Transaction, TransactionType } from '../api/transactions'
+import { usePeriod } from '../lib/period-context'
 
 function toTransaction(item: BudgetTransactionItem): Transaction {
   return {
@@ -17,6 +18,7 @@ function toTransaction(item: BudgetTransactionItem): Transaction {
     subscription_id: null,
     import_record_id: null,
     tag_ids: [],
+    budget_ids: [],
     created_at: item.transacted_at,
     updated_at: item.transacted_at,
     deleted_at: null,
@@ -33,8 +35,13 @@ function badge(linkType: 'explicit' | 'category_match') {
 
 export default function BudgetDetail() {
   const { budgetId } = useParams({ from: '/budgets/$budgetId' })
+  const { dashboardParams } = usePeriod()
   const { data: budget, isLoading: budgetLoading } = useGetBudget(budgetId)
-  const { data: txnsData, isLoading: txnsLoading } = useGetBudgetTransactions(budgetId)
+  const { data: txnsData, isLoading: txnsLoading } = useGetBudgetTransactions(
+    budgetId,
+    dashboardParams.start_date,
+    dashboardParams.end_date,
+  )
   const [selectedTxn, setSelectedTxn] = useState<Transaction | null>(null)
 
   if (budgetLoading) {

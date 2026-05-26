@@ -2,6 +2,16 @@
 
 ## Ad-hoc Fixes (2026-05-26)
 
+### Budget transaction period-bucket filtering
+- `backend/app/routers/budgets.py` (`list_budget_transactions`): default window changed from `b.start_date/b.end_date` to `_current_period_window(b)` so the detail view always shows the current period by default
+- `backend/app/schemas/transaction.py`: added `budget_ids: list[uuid.UUID]` to `TransactionResponse`
+- `backend/app/routers/transactions.py`: added `_fetch_budget_ids` helper; `_to_response` now populates `budget_ids`
+- `frontend/src/api/transactions.ts`: added `budget_ids: string[]` to `Transaction` interface
+- `frontend/src/components/drawers/BudgetDrawer.tsx`: added `usePeriod()`, now passes `start_date`/`end_date` to `useGetBudgetTransactions`
+- `frontend/src/pages/BudgetDetail.tsx`: added `usePeriod()`, passes period dates to `useGetBudgetTransactions`; `toTransaction()` adapter includes `budget_ids: []`
+- `frontend/src/components/forms/TransactionForm.tsx`: added budget picker (expense-only chip toggle, single-select); sends `budget_ids` in create/patch payload
+- `frontend/src/test/handlers.ts`: added `budget_ids: []` to transaction mock
+
 ### Budget NaN fix + current-period spending
 - `frontend/src/test/handlers.ts`: added `current_spent: '500.00'` to `BUDGETS_RESPONSE` (was missing, causing `parseFloat(undefined)` = NaN in the Budgets list)
 - `backend/app/routers/budgets.py`: replaced `_batch_spent` with `_current_period_window` + `_compute_current_spent`. Recurring budgets now use `expand_budget(b, today, today)` to find the current occurrence's date window, so `current_spent` shows only this period's spending rather than all-time.

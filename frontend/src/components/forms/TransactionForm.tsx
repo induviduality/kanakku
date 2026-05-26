@@ -4,6 +4,7 @@ import { useAccounts, usePaymentMethods } from '../../api/accounts'
 import { useCategories } from '../../api/categories'
 import { useTags } from '../../api/tags'
 import { usePayees, useCreatePayee } from '../../api/payees'
+import { useGetBudgets } from '../../api/budgets'
 import { useCreateSplit } from '../../api/splits'
 import type { SplitShareCreate } from '../../api/splits'
 import Autocomplete from '../Autocomplete'
@@ -30,6 +31,7 @@ export default function TransactionForm({
   const { data: allCategories = [] } = useCategories()
   const { data: allTags = [] } = useTags()
   const { data: payees = [] } = usePayees()
+  const { data: allBudgets = [] } = useGetBudgets(false)
   const createPayeeMutation = useCreatePayee()
 
   const [type, setType] = useState<TransactionType>(initial?.type ?? 'expense')
@@ -52,6 +54,9 @@ export default function TransactionForm({
   const [selectedTags, setSelectedTags] = useState<string[]>(initial?.tag_ids ?? [])
   const [isSplit, setIsSplit] = useState(false)
   const [splitShares, setSplitShares] = useState<SplitShareCreate[]>([])
+  const [selectedBudgetId, setSelectedBudgetId] = useState<string | null>(
+    initial?.budget_ids?.[0] ?? null,
+  )
   const [error, setError] = useState('')
 
   const createSplit = useCreateSplit()
@@ -104,6 +109,7 @@ export default function TransactionForm({
       ...(type === 'transfer' && toAccountId && { to_account_id: toAccountId }),
       category_ids: selectedCategories,
       tag_ids: selectedTags,
+      ...(selectedBudgetId && { budget_ids: [selectedBudgetId] }),
     }
 
     if (type === 'expense' && isSplit) {
@@ -341,6 +347,28 @@ export default function TransactionForm({
                     : 'bg-white text-gray-600 border-gray-300 hover:border-indigo-400'}`}
               >
                 {t.name}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Budget (expense only) */}
+      {type === 'expense' && allBudgets.length > 0 && (
+        <div>
+          <label className="block text-sm font-medium text-gray-700">Budget</label>
+          <div className="mt-1 flex flex-wrap gap-1">
+            {allBudgets.map((b) => (
+              <button
+                key={b.id}
+                type="button"
+                onClick={() => setSelectedBudgetId(selectedBudgetId === b.id ? null : b.id)}
+                className={`rounded-full px-3 py-1 text-xs font-medium border transition-colors
+                  ${selectedBudgetId === b.id
+                    ? 'bg-indigo-600 text-white border-indigo-600'
+                    : 'bg-white text-gray-600 border-gray-300 hover:border-indigo-400'}`}
+              >
+                {b.name}
               </button>
             ))}
           </div>

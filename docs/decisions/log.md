@@ -1,5 +1,39 @@
 # Decision Log
 
+## 2026-05-26 — Budget transaction linking: period bucket derived from transaction date, not stored
+
+**Context:** When a user links a transaction to a budget, the system needs to show only the spending for the selected global period (e.g. May 2026), not the entire budget lifetime (Jan–May). The question was whether to store a "period key" in the `transaction_budgets` join table or derive it at query time.
+
+**Decision:** No new column needed in `transaction_budgets`. The period bucket is derived at query time by filtering `transacted_at` against the period window (`from`/`to` params passed from the global period context). Three coordinated fixes: (1) `list_budget_transactions` now defaults to `_current_period_window(b)` instead of `b.start_date/b.end_date`; (2) `BudgetDrawer` and `BudgetDetail` both pass global period dates to the transactions query; (3) `TransactionForm` now has a budget picker (expense-only chip toggle) that sends `budget_ids` in the create/patch payload. `TransactionResponse` extended with `budget_ids` so pre-population works on edit.
+
+**Alternatives considered:**
+- Store a `period_key` (e.g. "2026-05") in `transaction_budgets` — adds complexity and would need migration; date filtering achieves the same result without new schema
+- Period filtering only on the backend default — risk of stale frontend; better to have both the frontend pass explicit params AND the backend default to current period
+
+**Affects:** `backend/app/routers/budgets.py` (`list_budget_transactions`), `backend/app/schemas/transaction.py` (`TransactionResponse.budget_ids`), `backend/app/routers/transactions.py` (`_fetch_budget_ids`, `_to_response`), `frontend/src/components/drawers/BudgetDrawer.tsx`, `frontend/src/pages/BudgetDetail.tsx`, `frontend/src/components/forms/TransactionForm.tsx`, `frontend/src/api/transactions.ts`, `frontend/src/test/handlers.ts`
+
+## 2026-05-26 — Budget period filter uses activated_at + rrule.before/after for current-period detection
+
+**Context:** Budgets need a time-period filter (e.g. "last month") to show which budgets were active then and what was spent during that period. Needed both a field to record activation time and robust current-period detection for recurring budgets.
+
+**Decision:** Added `activated_at TIMESTAMPTZ` column (migration 0022). `list_budgets` now accepts `from_date`/`to_date` and filters by `activated_at <= to_date AND end_date >= from_date`. `_current_period_window` was rewritten from `expand_budget(b, today, today)` to `rrulestr.before(today)` + `rrulestr.after(today)` — the expand approach returned empty if today was not an exact occurrence date (e.g. mid-month). `_compute_current_spent` accepts explicit period params; period-filtered views pass them directly, bypassing the recurrence-window logic.
+
+**Custom interval:** Stored as `FREQ=DAILY;INTERVAL=X` in the existing `recurrence_rule` column — no new field needed; dateutil already handles it.
+
+**Affects:** `backend/alembic/versions/0022_budget_activated_at.py`, `models/budget.py`, `schemas/budget.py`, `routers/budgets.py`, `dev_seed.py`, `frontend/src/api/budgets.ts`, `frontend/src/pages/Budgets.tsx`, `frontend/src/test/handlers.ts`
+
+## 2026-05-26 — Budget current_spent uses per-budget current-period window via expand_budget
+
+**Context:** `_batch_spent` was using the budget's overall `start_date`/`end_date` to filter transactions, so a recurring monthly budget accumulated all spending since its creation instead of just the current month.
+
+**Decision:** Replaced `_batch_spent` with `_compute_current_spent` (per-budget) + `_current_period_window`. For recurring budgets, `expand_budget(b, today, today)` finds today's occurrence and returns its `start_date`/`end_date` as the window. For ad-hoc budgets, `start_date`/`end_date` are used unchanged. `_batch_spent` now just iterates and calls `_compute_current_spent` per budget.
+
+**Alternatives considered:**
+- Add `activated_at` column to track when a budget period starts (user's suggestion) — expand_budget already has the recurrence logic, no new DB column needed
+- Keep the batched JOIN query but pass per-budget windows via CASE/VALUES — overly complex for a list that's typically <50 rows
+
+**Affects:** `backend/app/routers/budgets.py`
+
 ## 2026-05-25 — Progress ring mount animation uses requestAnimationFrame + CSS transition
 
 **Context:** Four separate `ProgressRing` components needed to animate from 0% to the real value on initial render. Pure CSS transitions don't fire on mount because the element is painted with the final value immediately.

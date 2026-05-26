@@ -89,12 +89,25 @@ async def _fetch_tag_ids(txn_id: uuid.UUID, session: AsyncSession) -> list[uuid.
     return [r.tag_id for r in rows]
 
 
+async def _fetch_budget_ids(txn_id: uuid.UUID, session: AsyncSession) -> list[uuid.UUID]:
+    rows = (
+        await session.execute(
+            select(transaction_budgets.c.budget_id).where(
+                transaction_budgets.c.transaction_id == txn_id
+            )
+        )
+    ).fetchall()
+    return [r.budget_id for r in rows]
+
+
 async def _to_response(txn: Transaction, session: AsyncSession) -> TransactionResponse:
     category_ids = await _fetch_category_ids(txn.id, session)
     tag_ids = await _fetch_tag_ids(txn.id, session)
+    budget_ids = await _fetch_budget_ids(txn.id, session)
     data = {c.key: getattr(txn, c.key) for c in txn.__table__.columns}
     data["category_ids"] = category_ids
     data["tag_ids"] = tag_ids
+    data["budget_ids"] = budget_ids
     return TransactionResponse.model_validate(data)
 
 

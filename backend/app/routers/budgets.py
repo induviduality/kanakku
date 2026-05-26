@@ -2,6 +2,8 @@ import uuid
 from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
 
+import sqlalchemy as sa
+from dateutil.rrule import rrulestr
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 from sqlalchemy import delete, insert, select
@@ -124,91 +126,124 @@ def _budget_response(
         notes=b.notes,
         category_ids=category_ids,
         current_spent=current_spent,
+        activated_at=b.activated_at,
         created_at=b.created_at,
         updated_at=b.updated_at,
         deleted_at=b.deleted_at,
     )
 
 
-async def _batch_spent(
-    budgets: list[Budget], session: AsyncSession
-) -> dict[uuid.UUID, Decimal]:
-    """Return {budget_id: total_spent} using the same logic as list_budget_transactions.
+def _current_period_window(b: Budget) -> tuple[date | None, date | None]:
+    """Return (win_start, win_end) for a budget's current active period.
 
-    Counts both explicit transaction_budgets links and category-matched transactions,
-    each filtered to the budget's own start_date/end_date window.
+    For recurring budgets, uses rrule.before/after to find the most recent
+    occurrence on or before today (period start) and the next occurrence
+    (period end = next - 1 day). Works even on non-occurrence days mid-period.
+    For ad-hoc budgets, returns start_date/end_date unchanged.
     """
-    if not budgets:
-        return {}
-    import sqlalchemy as sa
-
-    totals: dict[uuid.UUID, Decimal] = {b.id: Decimal("0") for b in budgets}
-    budget_ids = [b.id for b in budgets]
-
-    # ── 1. Explicit links (transaction_budgets) ──────────────────────────────
-    # JOIN Budget to apply per-budget date windows in one query.
-    explicit_stmt = (
-        sa.select(
-            transaction_budgets.c.budget_id,
-            sa.func.coalesce(sa.func.sum(Transaction.amount), Decimal("0")).label("spent"),
+    if b.type == BudgetType.recurring and b.recurrence_rule:
+        today = date.today()
+        if b.start_date and b.start_date > today:
+            return None, None
+        dtstart = datetime(
+            b.start_date.year if b.start_date else today.year,
+            b.start_date.month if b.start_date else today.month,
+            b.start_date.day if b.start_date else today.day,
         )
-        .join(Transaction, Transaction.id == transaction_budgets.c.transaction_id)
-        .join(Budget, Budget.id == transaction_budgets.c.budget_id)
-        .where(
-            transaction_budgets.c.budget_id.in_(budget_ids),
+        rule = rrulestr(b.recurrence_rule, dtstart=dtstart)
+        today_dt = datetime(today.year, today.month, today.day, 12)
+        last_occ = rule.before(today_dt, inc=True)
+        if last_occ is None:
+            return None, None
+        period_start = last_occ.date()
+        next_occ = rule.after(today_dt, inc=False)
+        period_end: date | None = next_occ.date() - timedelta(days=1) if next_occ else b.end_date
+        return period_start, period_end
+    return b.start_date, b.end_date
+
+
+async def _compute_current_spent(
+    b: Budget,
+    session: AsyncSession,
+    period_start: date | None = None,
+    period_end: date | None = None,
+) -> Decimal:
+    """Return total expense amount for the given period window.
+
+    If period_start/period_end are provided they are used directly (period-filter
+    mode). Otherwise the current active period is derived from the recurrence rule.
+    """
+    if period_start is not None or period_end is not None:
+        win_start, win_end = period_start, period_end
+    else:
+        win_start, win_end = _current_period_window(b)
+
+    def _date_conds() -> list:
+        conds: list = [
             Transaction.type == TransactionType.expense,
             Transaction.deleted_at.is_(None),
-            sa.or_(
-                Budget.start_date.is_(None),
-                Transaction.transacted_at >= sa.cast(Budget.start_date, sa.DateTime),
-            ),
-            sa.or_(
-                Budget.end_date.is_(None),
-                Transaction.transacted_at <= sa.func.cast(
-                    sa.func.concat(Budget.end_date, " 23:59:59"), sa.DateTime
-                ),
-            ),
-        )
-        .group_by(transaction_budgets.c.budget_id)
-    )
-    for row in (await session.execute(explicit_stmt)).all():
-        totals[row.budget_id] = totals[row.budget_id] + row.spent
+        ]
+        if win_start:
+            conds.append(
+                Transaction.transacted_at >= datetime(win_start.year, win_start.month, win_start.day)
+            )
+        if win_end:
+            conds.append(
+                Transaction.transacted_at
+                <= datetime(win_end.year, win_end.month, win_end.day, 23, 59, 59)
+            )
+        return conds
 
-    # ── 2. Category-match (budget_categories → transaction_categories) ───────
-    # Exclude any transaction already counted via explicit link above.
-    cat_stmt = (
-        sa.select(
-            budget_cats.c.budget_id,
-            sa.func.coalesce(sa.func.sum(Transaction.amount), Decimal("0")).label("spent"),
+    # 1. Explicit links
+    explicit_total = (
+        await session.execute(
+            sa.select(sa.func.coalesce(sa.func.sum(Transaction.amount), Decimal("0")))
+            .join(transaction_budgets, transaction_budgets.c.transaction_id == Transaction.id)
+            .where(transaction_budgets.c.budget_id == b.id, *_date_conds())
         )
-        .join(transaction_categories, transaction_categories.c.category_id == budget_cats.c.category_id)
-        .join(Transaction, Transaction.id == transaction_categories.c.transaction_id)
-        .join(Budget, Budget.id == budget_cats.c.budget_id)
-        .where(
-            budget_cats.c.budget_id.in_(budget_ids),
-            Transaction.type == TransactionType.expense,
-            Transaction.deleted_at.is_(None),
-            Transaction.id.not_in(
-                sa.select(transaction_budgets.c.transaction_id).where(
-                    transaction_budgets.c.budget_id == budget_cats.c.budget_id
+    ).scalar() or Decimal("0")
+
+    # 2. Category-match (exclude explicit links)
+    cat_id_rows = (
+        await session.execute(
+            sa.select(budget_cats.c.category_id).where(budget_cats.c.budget_id == b.id)
+        )
+    ).all()
+    cat_ids = [r.category_id for r in cat_id_rows]
+
+    cat_total = Decimal("0")
+    if cat_ids:
+        explicit_subq = sa.select(transaction_budgets.c.transaction_id).where(
+            transaction_budgets.c.budget_id == b.id
+        )
+        cat_total = (
+            await session.execute(
+                sa.select(sa.func.coalesce(sa.func.sum(Transaction.amount), Decimal("0")))
+                .join(
+                    transaction_categories,
+                    transaction_categories.c.transaction_id == Transaction.id,
                 )
-            ),
-            sa.or_(
-                Budget.start_date.is_(None),
-                Transaction.transacted_at >= sa.cast(Budget.start_date, sa.DateTime),
-            ),
-            sa.or_(
-                Budget.end_date.is_(None),
-                Transaction.transacted_at <= sa.func.cast(
-                    sa.func.concat(Budget.end_date, " 23:59:59"), sa.DateTime
-                ),
-            ),
-        )
-        .group_by(budget_cats.c.budget_id)
-    )
-    for row in (await session.execute(cat_stmt)).all():
-        totals[row.budget_id] = totals[row.budget_id] + row.spent
+                .where(
+                    transaction_categories.c.category_id.in_(cat_ids),
+                    Transaction.id.not_in(explicit_subq),
+                    *_date_conds(),
+                )
+            )
+        ).scalar() or Decimal("0")
 
+    return explicit_total + cat_total
+
+
+async def _batch_spent(
+    budgets: list[Budget],
+    session: AsyncSession,
+    period_start: date | None = None,
+    period_end: date | None = None,
+) -> dict[uuid.UUID, Decimal]:
+    """Return {budget_id: period_spent} for each budget."""
+    totals: dict[uuid.UUID, Decimal] = {}
+    for b in budgets:
+        totals[b.id] = await _compute_current_spent(b, session, period_start, period_end)
     return totals
 
 
@@ -241,6 +276,7 @@ async def create_budget(
         recurrence_rule=body.recurrence_rule,
         is_active=body.is_active,
         notes=body.notes,
+        activated_at=body.activated_at or datetime.now(UTC),
     )
     session.add(budget)
     await session.flush()
@@ -254,6 +290,8 @@ async def create_budget(
 @router.get("", response_model=list[BudgetResponse])
 async def list_budgets(
     include_inactive: bool = Query(False),
+    from_date: date | None = Query(None),
+    to_date: date | None = Query(None),
     user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ) -> list[BudgetResponse]:
@@ -264,9 +302,22 @@ async def list_budgets(
     )
     if not include_inactive:
         q = q.where(Budget.is_active.is_(True))
+
+    # Period filter: only budgets that were active during [from_date, to_date].
+    # activated_at = when the budget was turned on; end_date = when it stopped.
+    if to_date:
+        to_dt = datetime(to_date.year, to_date.month, to_date.day, 23, 59, 59, tzinfo=UTC)
+        q = q.where(
+            sa.or_(Budget.activated_at.is_(None), Budget.activated_at <= to_dt)
+        )
+    if from_date:
+        q = q.where(
+            sa.or_(Budget.end_date.is_(None), Budget.end_date >= from_date)
+        )
+
     budgets = (await session.execute(q)).scalars().all()
 
-    spent_map = await _batch_spent(list(budgets), session)
+    spent_map = await _batch_spent(list(budgets), session, from_date, to_date)
 
     result = []
     for b in budgets:
@@ -437,9 +488,11 @@ async def list_budget_transactions(
 ) -> BudgetTransactionsResponse:
     b = await _get_budget_or_404(budget_id, user, session)
 
-    # Determine window from budget or query params
-    win_start = from_date or b.start_date
-    win_end = to_date or b.end_date
+    # Determine window: explicit params > current period window > full lifetime
+    if from_date is not None or to_date is not None:
+        win_start, win_end = from_date, to_date
+    else:
+        win_start, win_end = _current_period_window(b)
 
     # Explicit links
     explicit_q = (

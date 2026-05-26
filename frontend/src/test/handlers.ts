@@ -94,6 +94,7 @@ export const TRANSACTIONS_RESPONSE = {
       import_record_id: null,
       category_ids: ['cat-1'],
       tag_ids: ['tag-1'],
+      budget_ids: [],
       created_at: '2026-01-15T10:00:00Z',
       updated_at: '2026-01-15T10:00:00Z',
       deleted_at: null,
@@ -151,12 +152,36 @@ export const BUDGETS_RESPONSE: object[] = [
     start_date: '2026-01-01',
     end_date: null,
     type: 'recurring',
-    recurrence_rule: 'FREQ=MONTHLY',
+    recurrence_rule: 'FREQ=MONTHLY;BYMONTHDAY=1',
     parent_budget_id: null,
     is_modified_instance: false,
     is_active: true,
     notes: null,
     category_ids: ['cat-1'],
+    current_spent: '500.00',
+    activated_at: '2026-01-01T00:00:00Z',
+    created_at: '2026-01-01T00:00:00Z',
+    updated_at: '2026-01-01T00:00:00Z',
+    deleted_at: null,
+  },
+  {
+    id: 'budget-2',
+    user_id: 'user-1',
+    name: 'Transport',
+    amount: '3000.00',
+    currency: 'INR',
+    period: null,
+    start_date: '2026-01-01',
+    end_date: null,
+    type: 'recurring',
+    recurrence_rule: 'FREQ=DAILY;INTERVAL=14',
+    parent_budget_id: null,
+    is_modified_instance: false,
+    is_active: true,
+    notes: null,
+    category_ids: [],
+    current_spent: '1200.00',
+    activated_at: '2026-01-01T00:00:00Z',
     created_at: '2026-01-01T00:00:00Z',
     updated_at: '2026-01-01T00:00:00Z',
     deleted_at: null,
@@ -383,6 +408,96 @@ export const LLM_ACTIVITY_RESPONSE: Array<{
   },
 ]
 
+// Monthly closing balances Jan–May 2026, 4 accounts.
+// date = bucket start (first of month, matching date_trunc('month',...)).
+const CASHFLOW_MONTHLY = [
+  // Jan 2026
+  { date: '2026-01-01', account_id: 'acc-1', account_name: 'HDFC Savings',     balance: '100000.00', net: '50000.00'   },
+  { date: '2026-01-01', account_id: 'acc-2', account_name: 'ICICI Savings',    balance: '21000.00',  net: '-4000.00'   },
+  { date: '2026-01-01', account_id: 'acc-3', account_name: 'Wallet (Cash)',     balance: '4650.00',   net: '-350.00'    },
+  { date: '2026-01-01', account_id: 'acc-4', account_name: 'HDFC Credit Card', balance: '-1298.00',  net: '-1298.00'   },
+  // Feb 2026
+  { date: '2026-02-01', account_id: 'acc-1', account_name: 'HDFC Savings',     balance: '175000.00', net: '75000.00'   },
+  { date: '2026-02-01', account_id: 'acc-2', account_name: 'ICICI Savings',    balance: '19200.00',  net: '-1800.00'   },
+  { date: '2026-02-01', account_id: 'acc-3', account_name: 'Wallet (Cash)',     balance: '4370.00',   net: '-280.00'    },
+  { date: '2026-02-01', account_id: 'acc-4', account_name: 'HDFC Credit Card', balance: '-1947.00',  net: '-649.00'    },
+  // Mar 2026 — phone purchase dips HDFC
+  { date: '2026-03-01', account_id: 'acc-1', account_name: 'HDFC Savings',     balance: '130000.00', net: '-45000.00'  },
+  { date: '2026-03-01', account_id: 'acc-2', account_name: 'ICICI Savings',    balance: '17100.00',  net: '-2100.00'   },
+  { date: '2026-03-01', account_id: 'acc-3', account_name: 'Wallet (Cash)',     balance: '4370.00',   net: '0.00'       },
+  { date: '2026-03-01', account_id: 'acc-4', account_name: 'HDFC Credit Card', balance: '-2596.00',  net: '-649.00'    },
+  // Apr 2026
+  { date: '2026-04-01', account_id: 'acc-1', account_name: 'HDFC Savings',     balance: '205000.00', net: '75000.00'   },
+  { date: '2026-04-01', account_id: 'acc-2', account_name: 'ICICI Savings',    balance: '21500.00',  net: '4400.00'    },
+  { date: '2026-04-01', account_id: 'acc-3', account_name: 'Wallet (Cash)',     balance: '4370.00',   net: '0.00'       },
+  { date: '2026-04-01', account_id: 'acc-4', account_name: 'HDFC Credit Card', balance: '-4563.00',  net: '-1967.00'   },
+  // May 2026 — credit card bill settled, HDFC balance drops
+  { date: '2026-05-01', account_id: 'acc-1', account_name: 'HDFC Savings',     balance: '87430.00',  net: '-117570.00' },
+  { date: '2026-05-01', account_id: 'acc-2', account_name: 'ICICI Savings',    balance: '23500.00',  net: '2000.00'    },
+  { date: '2026-05-01', account_id: 'acc-3', account_name: 'Wallet (Cash)',     balance: '850.00',    net: '-3520.00'   },
+  { date: '2026-05-01', account_id: 'acc-4', account_name: 'HDFC Credit Card', balance: '-12400.00', net: '-7837.00'   },
+]
+
+// Daily data for May 2026 (3 accounts active; ICICI had no May transactions).
+// Every active account gets a row for every date that appears so lines stay continuous.
+const CASHFLOW_MAY_DAILY = [
+  // HDFC Savings
+  { date: '2026-05-01', account_id: 'acc-1', account_name: 'HDFC Savings',     balance: '290000.00', net: '85000.00'  },
+  { date: '2026-05-02', account_id: 'acc-1', account_name: 'HDFC Savings',     balance: '289240.00', net: '-760.00'   },
+  { date: '2026-05-03', account_id: 'acc-1', account_name: 'HDFC Savings',     balance: '289240.00', net: '0.00'      },
+  { date: '2026-05-05', account_id: 'acc-1', account_name: 'HDFC Savings',     balance: '286740.00', net: '-2500.00'  },
+  { date: '2026-05-08', account_id: 'acc-1', account_name: 'HDFC Savings',     balance: '286490.00', net: '-250.00'   },
+  { date: '2026-05-10', account_id: 'acc-1', account_name: 'HDFC Savings',     balance: '285950.00', net: '-540.00'   },
+  { date: '2026-05-12', account_id: 'acc-1', account_name: 'HDFC Savings',     balance: '285270.00', net: '-680.00'   },
+  { date: '2026-05-15', account_id: 'acc-1', account_name: 'HDFC Savings',     balance: '282870.00', net: '-2400.00'  },
+  { date: '2026-05-18', account_id: 'acc-1', account_name: 'HDFC Savings',     balance: '282560.00', net: '-310.00'   },
+  { date: '2026-05-20', account_id: 'acc-1', account_name: 'HDFC Savings',     balance: '282380.00', net: '-180.00'   },
+  { date: '2026-05-22', account_id: 'acc-1', account_name: 'HDFC Savings',     balance: '267380.00', net: '-15000.00' },
+  // HDFC Credit Card (salary payment on 22nd restores it to positive)
+  { date: '2026-05-01', account_id: 'acc-4', account_name: 'HDFC Credit Card', balance: '-4563.00',  net: '0.00'      },
+  { date: '2026-05-02', account_id: 'acc-4', account_name: 'HDFC Credit Card', balance: '-4563.00',  net: '0.00'      },
+  { date: '2026-05-03', account_id: 'acc-4', account_name: 'HDFC Credit Card', balance: '-6462.00',  net: '-1899.00'  },
+  { date: '2026-05-05', account_id: 'acc-4', account_name: 'HDFC Credit Card', balance: '-6462.00',  net: '0.00'      },
+  { date: '2026-05-08', account_id: 'acc-4', account_name: 'HDFC Credit Card', balance: '-6462.00',  net: '0.00'      },
+  { date: '2026-05-10', account_id: 'acc-4', account_name: 'HDFC Credit Card', balance: '-7111.00',  net: '-649.00'   },
+  { date: '2026-05-12', account_id: 'acc-4', account_name: 'HDFC Credit Card', balance: '-7111.00',  net: '0.00'      },
+  { date: '2026-05-15', account_id: 'acc-4', account_name: 'HDFC Credit Card', balance: '-9511.00',  net: '-2400.00'  },
+  { date: '2026-05-18', account_id: 'acc-4', account_name: 'HDFC Credit Card', balance: '-9511.00',  net: '0.00'      },
+  { date: '2026-05-20', account_id: 'acc-4', account_name: 'HDFC Credit Card', balance: '-9511.00',  net: '0.00'      },
+  { date: '2026-05-22', account_id: 'acc-4', account_name: 'HDFC Credit Card', balance: '5489.00',   net: '15000.00'  },
+  // Wallet (Cash) — one transaction on 18th, carried forward
+  { date: '2026-05-01', account_id: 'acc-3', account_name: 'Wallet (Cash)',     balance: '4370.00',   net: '0.00'      },
+  { date: '2026-05-02', account_id: 'acc-3', account_name: 'Wallet (Cash)',     balance: '4370.00',   net: '0.00'      },
+  { date: '2026-05-03', account_id: 'acc-3', account_name: 'Wallet (Cash)',     balance: '4370.00',   net: '0.00'      },
+  { date: '2026-05-05', account_id: 'acc-3', account_name: 'Wallet (Cash)',     balance: '4370.00',   net: '0.00'      },
+  { date: '2026-05-08', account_id: 'acc-3', account_name: 'Wallet (Cash)',     balance: '4370.00',   net: '0.00'      },
+  { date: '2026-05-10', account_id: 'acc-3', account_name: 'Wallet (Cash)',     balance: '4370.00',   net: '0.00'      },
+  { date: '2026-05-12', account_id: 'acc-3', account_name: 'Wallet (Cash)',     balance: '4370.00',   net: '0.00'      },
+  { date: '2026-05-15', account_id: 'acc-3', account_name: 'Wallet (Cash)',     balance: '4370.00',   net: '0.00'      },
+  { date: '2026-05-18', account_id: 'acc-3', account_name: 'Wallet (Cash)',     balance: '4060.00',   net: '-310.00'   },
+  { date: '2026-05-20', account_id: 'acc-3', account_name: 'Wallet (Cash)',     balance: '4060.00',   net: '0.00'      },
+  { date: '2026-05-22', account_id: 'acc-3', account_name: 'Wallet (Cash)',     balance: '4060.00',   net: '0.00'      },
+]
+
+function buildCashflowByAccount(startDate: string, endDate: string) {
+  const days = (new Date(endDate + 'T00:00:00').getTime() - new Date(startDate + 'T00:00:00').getTime()) / 86_400_000
+  if (days > 31) {
+    // Monthly buckets — filter to requested range
+    return CASHFLOW_MONTHLY.filter(b => b.date >= startDate && b.date <= endDate)
+  }
+  // Daily view for May 2026
+  if (startDate.startsWith('2026-05')) return CASHFLOW_MAY_DAILY
+  // Generic stub for any other month: 3 data points spread across the month
+  const monthPrefix = startDate.slice(0, 7)
+  const base = CASHFLOW_MONTHLY.filter(b => b.date.startsWith(monthPrefix))
+  if (base.length === 0) return []
+  return [
+    ...base,
+    ...base.map(b => ({ ...b, date: monthPrefix + '-15', net: '0.00' })),
+    ...base.map(b => ({ ...b, date: endDate,             net: '0.00' })),
+  ]
+}
+
 export const DASHBOARD_RESPONSE = {
   month: '2026-05',
   total_spent_net: '1410.00',
@@ -449,13 +564,10 @@ export const DASHBOARD_RESPONSE = {
     },
   ],
   account_balances: [
-    {
-      id: 'acc-1',
-      name: 'HDFC Savings',
-      type: 'bank',
-      currency: 'INR',
-      current_balance: '87430.00',
-    },
+    { id: 'acc-1', name: 'HDFC Savings',     type: 'bank',        currency: 'INR', current_balance: '87430.00'  },
+    { id: 'acc-2', name: 'ICICI Savings',    type: 'bank',        currency: 'INR', current_balance: '23500.00'  },
+    { id: 'acc-3', name: 'Wallet (Cash)',     type: 'cash',        currency: 'INR', current_balance: '850.00'    },
+    { id: 'acc-4', name: 'HDFC Credit Card', type: 'credit_card', currency: 'INR', current_balance: '-12400.00' },
   ],
   active_subscriptions: [
     {
@@ -473,6 +585,8 @@ export const DASHBOARD_RESPONSE = {
     { date: '2026-05-15', income: '42000.00', expense: '12000.00' },
     { date: '2026-05-22', income: '0.00',     expense: '5400.00' },
   ],
+  // Placeholder — handler always overrides this with buildCashflowByAccount()
+  cashflow_by_account: [] as typeof CASHFLOW_MONTHLY,
 }
 
 export const handlers = [
@@ -492,6 +606,7 @@ export const handlers = [
       period_start: startDate,
       period_end: endDate,
       recent_transactions: filteredTxns,
+      cashflow_by_account: buildCashflowByAccount(startDate, endDate),
     })
   }),
 
@@ -679,11 +794,20 @@ export const handlers = [
   ),
 
   // Budgets
-  http.get('/api/v1/budgets', () => HttpResponse.json(BUDGETS_RESPONSE)),
+  http.get('/api/v1/budgets', ({ request }) => {
+    const url = new URL(request.url)
+    const fromDate = url.searchParams.get('from_date')
+    const toDate   = url.searchParams.get('to_date')
+    // Filter by activated_at <= to_date when a period filter is applied
+    let result = BUDGETS_RESPONSE as Array<Record<string, unknown>>
+    if (toDate) result = result.filter(b => !b.activated_at || (b.activated_at as string) <= toDate + 'T23:59:59Z')
+    if (fromDate) result = result.filter(b => !b.end_date || (b.end_date as string) >= fromDate)
+    return HttpResponse.json(result)
+  }),
   http.post('/api/v1/budgets', async ({ request }) => {
     const body = await request.json() as Record<string, unknown>
     return HttpResponse.json(
-      { ...BUDGETS_RESPONSE[0], id: 'budget-new', name: body.name, type: body.type },
+      { ...BUDGETS_RESPONSE[0], id: 'budget-new', name: body.name, type: body.type, activated_at: new Date().toISOString() },
       { status: 201 },
     )
   }),
@@ -691,7 +815,8 @@ export const handlers = [
     if (params.budgetId === 'not-found') {
       return HttpResponse.json({ detail: 'Budget not found' }, { status: 404 })
     }
-    return HttpResponse.json({ ...BUDGETS_RESPONSE[0], id: params.budgetId })
+    const found = (BUDGETS_RESPONSE as Array<Record<string, unknown>>).find(b => b.id === params.budgetId)
+    return HttpResponse.json({ ...(found ?? BUDGETS_RESPONSE[0]), id: params.budgetId })
   }),
   http.patch('/api/v1/budgets/:budgetId', async ({ request, params }) => {
     const body = await request.json() as Record<string, unknown>
