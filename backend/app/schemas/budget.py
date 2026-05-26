@@ -31,6 +31,7 @@ class BudgetCreate(BaseModel):
     is_active: bool = True
     notes: str | None = None
     category_ids: list[uuid.UUID] = []
+    activated_at: datetime | None = None
 
     @field_validator("amount")
     @classmethod
@@ -77,6 +78,7 @@ class BudgetResponse(BaseModel):
     notes: str | None
     category_ids: list[uuid.UUID]
     current_spent: Decimal = Decimal("0")
+    activated_at: datetime | None
     created_at: datetime
     updated_at: datetime
     deleted_at: datetime | None

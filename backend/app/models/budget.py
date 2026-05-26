@@ -75,6 +75,9 @@ class Budget(Base):
         sa.Boolean, nullable=False, default=True, server_default="true"
     )
     notes: Mapped[str | None] = mapped_column(sa.Text, nullable=True)
+    activated_at: Mapped[datetime | None] = mapped_column(
+        sa.TIMESTAMP(timezone=True), nullable=True
+    )
     created_at: Mapped[datetime] = mapped_column(
         sa.TIMESTAMP(timezone=True), server_default=sa.func.now(), nullable=False
     )

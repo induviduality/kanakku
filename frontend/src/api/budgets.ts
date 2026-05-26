@@ -23,6 +23,7 @@ export interface Budget {
   notes: string | null
   category_ids: string[]
   current_spent: string
+  activated_at: string | null
   created_at: string
   updated_at: string
   deleted_at: string | null
@@ -39,7 +40,6 @@ export interface BudgetCreate {
   recurrence_rule?: string
   is_active?: boolean
   notes?: string
-  category_ids?: string[]
 }
 
 export interface BudgetPatch {
@@ -73,11 +73,21 @@ export interface BudgetTransactionsResponse {
   total_spent: string
 }
 
-export function useGetBudgets(includeInactive = false) {
+export function useGetBudgets(
+  includeInactive = false,
+  fromDate?: string,
+  toDate?: string,
+) {
   return useQuery({
-    queryKey: ['budgets', { includeInactive }],
-    queryFn: () =>
-      apiGet<Budget[]>(`/budgets${includeInactive ? '?include_inactive=true' : ''}`),
+    queryKey: ['budgets', { includeInactive, fromDate, toDate }],
+    queryFn: () => {
+      const params = new URLSearchParams()
+      if (includeInactive) params.set('include_inactive', 'true')
+      if (fromDate) params.set('from_date', fromDate)
+      if (toDate) params.set('to_date', toDate)
+      const qs = params.toString() ? `?${params.toString()}` : ''
+      return apiGet<Budget[]>(`/budgets${qs}`)
+    },
   })
 }
 
