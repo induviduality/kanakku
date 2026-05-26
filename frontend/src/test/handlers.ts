@@ -823,9 +823,25 @@ export const handlers = [
     return HttpResponse.json({ ...BUDGETS_RESPONSE[0], id: params.budgetId, ...body })
   }),
   http.delete('/api/v1/budgets/:budgetId', () => new HttpResponse(null, { status: 204 })),
-  http.get('/api/v1/budgets/:budgetId/transactions', () =>
-    HttpResponse.json(BUDGET_TRANSACTIONS_RESPONSE),
-  ),
+  http.get('/api/v1/budgets/:budgetId/transactions', ({ request }) => {
+    const url = new URL(request.url)
+    const from = url.searchParams.get('from')
+    const to = url.searchParams.get('to')
+    let items = BUDGET_TRANSACTIONS_RESPONSE.items
+    if (from || to) {
+      const fromMs = from ? new Date(from).getTime() : -Infinity
+      const toMs = to ? new Date(to + 'T23:59:59Z').getTime() : Infinity
+      items = items.filter(t => {
+        const ms = new Date(t.transacted_at).getTime()
+        return ms >= fromMs && ms <= toMs
+      })
+    }
+    const total_spent = items
+      .filter(t => t.type === 'expense')
+      .reduce((sum, t) => sum + parseFloat(t.amount), 0)
+      .toFixed(2)
+    return HttpResponse.json({ items, total_spent })
+  }),
 
   // Subscriptions
   http.get('/api/v1/subscriptions', () => HttpResponse.json(SUBSCRIPTIONS_RESPONSE)),

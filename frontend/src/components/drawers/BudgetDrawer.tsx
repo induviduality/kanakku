@@ -1,11 +1,54 @@
-import { Drawer, DrawerSection, DrawerRow } from '../Drawer'
+import { Drawer } from '../Drawer'
 import { useGetBudget, useGetBudgetTransactions } from '../../api/budgets'
 import { rruleLabel } from '../../lib/rrule'
 import { usePeriod } from '../../lib/period-context'
+import { Calendar, Clock } from 'lucide-react'
 
 interface Props {
   budgetId: string | null
   onClose: () => void
+}
+
+const RING_R = 50
+const RING_CIRC = 2 * Math.PI * RING_R
+
+function RingProgress({ pct }: { pct: number }) {
+  const clamped = Math.min(pct, 100)
+  const offset = RING_CIRC * (1 - clamped / 100)
+  const stroke =
+    clamped >= 90 ? 'var(--kk-negative)' :
+    clamped >= 70 ? 'var(--kk-warning)' :
+    'var(--kk-positive)'
+
+  return (
+    <div className="relative w-28 h-28 shrink-0">
+      <svg viewBox="0 0 120 120" className="w-full h-full -rotate-90" fill="none">
+        <circle cx="60" cy="60" r={RING_R} strokeWidth="9" stroke="rgba(255,255,255,0.06)" />
+        <circle
+          cx="60" cy="60" r={RING_R}
+          strokeWidth="9"
+          stroke={stroke}
+          strokeLinecap="round"
+          strokeDasharray={RING_CIRC}
+          strokeDashoffset={offset}
+          style={{ transition: 'stroke-dashoffset 0.6s cubic-bezier(0.4,0,0.2,1)' }}
+        />
+      </svg>
+      <div className="absolute inset-0 flex flex-col items-center justify-center gap-0.5">
+        <span className="text-[18px] font-bold text-fg leading-none kk-mono">{clamped.toFixed(0)}%</span>
+        <span className="text-[10px] text-fg-faint leading-none tracking-wide">used</span>
+      </div>
+    </div>
+  )
+}
+
+function fmtLong(dateStr: string | null | undefined): string {
+  if (!dateStr) return '—'
+  return new Date(dateStr).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })
+}
+
+function fmtShort(dateStr: string): string {
+  return new Date(dateStr).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })
 }
 
 export function BudgetDrawer({ budgetId, onClose }: Props) {
@@ -19,9 +62,9 @@ export function BudgetDrawer({ budgetId, onClose }: Props) {
 
   const spent = parseFloat(txnsData?.total_spent ?? '0')
   const total = budget ? parseFloat(budget.amount) : 0
-  const pct   = total > 0 ? Math.min(100, (spent / total) * 100) : 0
-  const barCls =
-    pct >= 90 ? 'kk-bar-fill--negative' : pct >= 70 ? 'kk-bar-fill--warning' : 'kk-bar-fill--positive'
+  const pct = total > 0 ? Math.min(100, (spent / total) * 100) : 0
+  const remaining = Math.max(0, total - spent)
+  const overBudget = spent > total
 
   return (
     <Drawer open={!!budgetId} onClose={onClose} title={budget?.name ?? 'Budget'}>
@@ -30,45 +73,112 @@ export function BudgetDrawer({ budgetId, onClose }: Props) {
           {[0, 1, 2].map(i => <div key={i} className="h-14 animate-pulse rounded-lg bg-surface-2" />)}
         </div>
       ) : budget ? (
-        <div className="space-y-6 p-5">
-          {/* Progress card */}
-          <div className="kk-panel space-y-3">
-            <div className="flex justify-between text-sm">
-              <span className="text-fg-muted">Spent</span>
-              <span className="font-semibold text-fg kk-mono">
-                ₹{spent.toLocaleString('en-IN')} <span className="text-fg-muted font-normal">/ ₹{total.toLocaleString('en-IN')}</span>
+        <div className="space-y-4 p-5">
+
+          {/* ── Hero: circular ring + spend info ── */}
+          <div className="kk-panel flex items-center gap-5 p-5">
+            <RingProgress pct={pct} />
+            <div className="flex-1 min-w-0 space-y-2">
+              <div>
+                <p className="text-[10px] font-semibold uppercase tracking-widest text-fg-faint mb-1">
+                  Spent this period
+                </p>
+                <p className="text-[26px] font-bold text-fg kk-mono leading-none">
+                  ₹{spent.toLocaleString('en-IN')}
+                </p>
+                <p className="text-sm text-fg-muted kk-mono mt-0.5">
+                  of ₹{total.toLocaleString('en-IN')}
+                </p>
+              </div>
+              <span className={`kk-chip ${overBudget ? 'kk-chip-negative' : remaining === 0 && total > 0 ? 'kk-chip-warning' : 'kk-chip-positive'}`}>
+                {overBudget
+                  ? `₹${(spent - total).toLocaleString('en-IN')} over budget`
+                  : `₹${remaining.toLocaleString('en-IN')} remaining`}
               </span>
             </div>
-            <div className="kk-bar">
-              <div className={`kk-bar-fill kk-bar-grow ${barCls}`} style={{ width: `${pct}%` }} />
-            </div>
-            <p className="text-right text-xs text-fg-faint">{pct.toFixed(0)}% used</p>
           </div>
 
-          {/* Details */}
-          <DrawerSection label="Details">
-            <div className="kk-panel">
-              <DrawerRow label="Type" value={budget.type === 'recurring' ? 'Recurring' : 'Ad-hoc'} />
-              {budget.recurrence_rule && <DrawerRow label="Recurrence" value={rruleLabel(budget.recurrence_rule)} />}
-              {budget.start_date && <DrawerRow label="From" value={budget.start_date} />}
-              {budget.end_date && <DrawerRow label="To" value={budget.end_date} />}
-              <DrawerRow label="Amount" value={<span className="kk-mono">₹{total.toLocaleString('en-IN')}</span>} />
+          {/* ── Period + Created ── */}
+          <div className="grid grid-cols-2 gap-3">
+            <div className="kk-panel p-4">
+              <div className="flex items-center gap-1.5 mb-2">
+                <Calendar className="w-3.5 h-3.5 text-accent shrink-0" />
+                <span className="text-[10px] font-semibold uppercase tracking-widest text-fg-faint">
+                  Period
+                </span>
+              </div>
+              <p className="text-sm font-semibold text-fg leading-snug">
+                {fmtShort(dashboardParams.start_date)}
+                {' – '}
+                {fmtShort(dashboardParams.end_date)}
+              </p>
+              <p className="text-xs text-fg-faint mt-1">
+                {new Date(dashboardParams.start_date).getFullYear()}
+              </p>
             </div>
-          </DrawerSection>
 
-          {/* Linked transactions */}
-          <DrawerSection label={`Transactions${txnsData ? ` (${txnsData.items.length})` : ''}`}>
+            <div className="kk-panel p-4">
+              <div className="flex items-center gap-1.5 mb-2">
+                <Clock className="w-3.5 h-3.5 text-fg-muted shrink-0" />
+                <span className="text-[10px] font-semibold uppercase tracking-widest text-fg-faint">
+                  Created
+                </span>
+              </div>
+              <p className="text-sm font-semibold text-fg leading-snug">
+                {fmtLong(budget.created_at)}
+              </p>
+            </div>
+          </div>
+
+          {/* ── Budget details ── */}
+          <div className="kk-panel p-0 overflow-hidden">
+            <div className="flex items-center justify-between px-4 py-3 border-b border-border">
+              <span className="text-xs text-fg-muted">Type</span>
+              <span className={`kk-chip ${budget.type === 'recurring' ? 'kk-chip-accent' : 'kk-chip-neutral'}`}>
+                {budget.type === 'recurring' ? 'Recurring' : 'Ad-hoc'}
+              </span>
+            </div>
+            {budget.recurrence_rule && (
+              <div className="flex items-center justify-between px-4 py-3 border-b border-border">
+                <span className="text-xs text-fg-muted">Schedule</span>
+                <span className="text-sm text-fg">{rruleLabel(budget.recurrence_rule)}</span>
+              </div>
+            )}
+            {budget.end_date && (
+              <div className="flex items-center justify-between px-4 py-3 border-b border-border">
+                <span className="text-xs text-fg-muted">Ends on</span>
+                <span className="text-sm text-fg">{fmtLong(budget.end_date)}</span>
+              </div>
+            )}
+            <div className="flex items-center justify-between px-4 py-3">
+              <span className="text-xs text-fg-muted">Budget amount</span>
+              <span className="text-sm font-semibold text-fg kk-mono">
+                ₹{total.toLocaleString('en-IN')}
+              </span>
+            </div>
+          </div>
+
+          {/* ── Transactions ── */}
+          <div>
+            <p className="kk-section-label">
+              Transactions{txnsData ? ` (${txnsData.items.length})` : ''}
+            </p>
             {txnsLoading ? (
               <div className="h-10 animate-pulse rounded-lg bg-surface-2" />
             ) : !txnsData || txnsData.items.length === 0 ? (
-              <p className="text-xs text-fg-faint">No transactions linked yet.</p>
+              <div className="kk-panel py-7 text-center">
+                <p className="text-xs text-fg-faint">No transactions in this period.</p>
+              </div>
             ) : (
-              <div className="kk-panel divide-y divide-border p-0 overflow-hidden">
-                {txnsData.items.map(t => (
-                  <div key={t.id} className="flex items-center justify-between px-4 py-3">
+              <div className="kk-panel p-0 overflow-hidden">
+                {txnsData.items.map((t, i) => (
+                  <div
+                    key={t.id}
+                    className={`flex items-center justify-between px-4 py-3 gap-3 ${i < txnsData.items.length - 1 ? 'border-b border-border' : ''}`}
+                  >
                     <div className="min-w-0">
                       <p className="text-sm font-medium text-fg truncate">{t.description ?? t.type}</p>
-                      <p className="text-xs text-fg-faint">
+                      <p className="text-xs text-fg-faint mt-0.5">
                         {new Date(t.transacted_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })}
                         {' · '}
                         <span className={t.link_type === 'explicit' ? 'text-accent' : 'text-fg-faint'}>
@@ -76,14 +186,15 @@ export function BudgetDrawer({ budgetId, onClose }: Props) {
                         </span>
                       </p>
                     </div>
-                    <span className="text-sm font-semibold text-fg kk-mono shrink-0 ml-3">
+                    <span className="text-sm font-semibold text-fg kk-mono shrink-0">
                       ₹{parseFloat(t.amount).toLocaleString('en-IN')}
                     </span>
                   </div>
                 ))}
               </div>
             )}
-          </DrawerSection>
+          </div>
+
         </div>
       ) : (
         <p className="p-5 text-sm text-negative-dim">Budget not found.</p>

@@ -185,12 +185,12 @@ async def _compute_current_spent(
         ]
         if win_start:
             conds.append(
-                Transaction.transacted_at >= datetime(win_start.year, win_start.month, win_start.day)
+                Transaction.transacted_at >= datetime(win_start.year, win_start.month, win_start.day, tzinfo=UTC)
             )
         if win_end:
             conds.append(
                 Transaction.transacted_at
-                <= datetime(win_end.year, win_end.month, win_end.day, 23, 59, 59)
+                <= datetime(win_end.year, win_end.month, win_end.day, 23, 59, 59, tzinfo=UTC)
             )
         return conds
 
@@ -505,10 +505,10 @@ async def list_budget_transactions(
         )
     )
     if win_start:
-        ws_dt = datetime(win_start.year, win_start.month, win_start.day)
+        ws_dt = datetime(win_start.year, win_start.month, win_start.day, tzinfo=UTC)
         explicit_q = explicit_q.where(Transaction.transacted_at >= ws_dt)
     if win_end:
-        we_dt = datetime(win_end.year, win_end.month, win_end.day, 23, 59, 59)
+        we_dt = datetime(win_end.year, win_end.month, win_end.day, 23, 59, 59, tzinfo=UTC)
         explicit_q = explicit_q.where(Transaction.transacted_at <= we_dt)
 
     explicit_txns = (await session.execute(explicit_q)).scalars().all()
