@@ -2,6 +2,11 @@
 
 ## Ad-hoc Fixes (2026-05-26)
 
+### BudgetDrawer redesign + period transaction filtering fix
+- `frontend/src/components/drawers/BudgetDrawer.tsx`: full redesign — circular SVG progress ring (green/amber/red thresholds), hero spend panel, 2-col Period/Created grid, details rows, transactions list with empty state "No transactions in this period."
+- `backend/app/routers/budgets.py`: `_compute_current_spent` and `list_budget_transactions` now use `tzinfo=UTC` in datetime comparisons to match asyncpg TIMESTAMPTZ columns
+- `frontend/src/test/handlers.ts`: budget transactions MSW handler now parses `from`/`to` query params and filters by date range; previously returned January fixtures regardless of selected period
+
 ### Budget transaction period-bucket filtering
 - `backend/app/routers/budgets.py` (`list_budget_transactions`): default window changed from `b.start_date/b.end_date` to `_current_period_window(b)` so the detail view always shows the current period by default
 - `backend/app/schemas/transaction.py`: added `budget_ids: list[uuid.UUID]` to `TransactionResponse`
