@@ -2,6 +2,16 @@
 
 ## Ad-hoc Fixes (2026-05-27)
 
+### Splits UI revamp — uniform transaction rows with badges
+- Removed `SplitInlinePanel` component entirely (was bundling split+shares in a non-standard layout)
+- All transactions now render as uniform rows; split identity shown via badges:
+  - **Split** badge (accent/indigo) when `t.is_split === true`
+  - **Split Share** badge (green) for settlement income transactions identified via `splitsBySettlementTxnId` map
+- `openDrawer()` helper resolves `drawerSplitId` + `drawerSplitTitle` before opening the drawer
+- `TransactionDrawer` — simplified "Linked Split" section shows only the expense title; added `splitId` + `splitTitle` props
+- `frontend/src/test/handlers.ts` — added `split_id` to 3 split expense transactions; added 3 settlement income transactions; wired `settlement_transaction_id` on settled shares; fixed `GET /splits/:splitId` to do a real lookup (was always returning `SPLIT_DINNER`)
+- `backend/app/dev_seed.py` — added settlement income transactions + wired `settlement_transaction_id` on settled shares
+
 ### Transaction details drawer — full details + external_ref field
 - `backend/alembic/versions/0023_transaction_external_ref.py`: migration adding `external_ref TEXT NULL` to transactions
 - `backend/app/models/transaction.py`: added `external_ref` mapped column

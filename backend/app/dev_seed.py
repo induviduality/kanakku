@@ -21,6 +21,7 @@ from app.models.payee import Payee, PayeeType
 from app.models.payment_method import PaymentMethod, PaymentMethodType
 from app.models.piggy_bank import ContributionType, PiggyBank, PiggyBankContribution
 from app.models.subscription import BillingCycle, Subscription
+from app.models.split import Split, SplitShare, SplitShareStatus
 from app.models.tag import Tag
 from app.models.transaction import (
     Transaction,
@@ -73,6 +74,10 @@ PAYEE_NETFLIX   = uuid.UUID("e5000001-0000-0000-0000-000000000004")
 PAYEE_PHARMACY  = uuid.UUID("e5000001-0000-0000-0000-000000000005")
 PAYEE_AMAZON    = uuid.UUID("e5000001-0000-0000-0000-000000000006")
 PAYEE_SPOTIFY   = uuid.UUID("e5000001-0000-0000-0000-000000000007")
+# Friends (used in split scenarios)
+PAYEE_RAHUL     = uuid.UUID("e5000001-0000-0000-0000-000000000010")
+PAYEE_PRIYA     = uuid.UUID("e5000001-0000-0000-0000-000000000011")
+PAYEE_NEEL      = uuid.UUID("e5000001-0000-0000-0000-000000000012")
 
 # Transactions
 TXN_SALARY_APR  = uuid.UUID("f6000001-0000-0000-0000-000000000001")
@@ -130,6 +135,34 @@ TXN_SPOTIFY_FEB  = uuid.UUID("f6000001-0000-0000-0000-000000000075")
 TXN_SPOTIFY_MAR  = uuid.UUID("f6000001-0000-0000-0000-000000000076")
 TXN_SPOTIFY_MAY  = uuid.UUID("f6000001-0000-0000-0000-000000000077")
 TXN_NETFLIX_MAY  = uuid.UUID("f6000001-0000-0000-0000-000000000078")
+
+# May single transactions (no split)
+TXN_GROCERY_MAY  = uuid.UUID("f6000001-0000-0000-0000-000000000080")
+TXN_PETROL_MAY   = uuid.UUID("f6000001-0000-0000-0000-000000000081")
+TXN_COFFEE_MAY   = uuid.UUID("f6000001-0000-0000-0000-000000000082")
+
+# May split expense transactions (the parent expense that gets split)
+TXN_SPLIT_DINNER = uuid.UUID("f6000001-0000-0000-0000-000000000090")  # 4-way, 25% settled
+TXN_SPLIT_FUEL   = uuid.UUID("f6000001-0000-0000-0000-000000000091")  # 3-way, 100% settled
+TXN_SPLIT_MOVIE  = uuid.UUID("f6000001-0000-0000-0000-000000000092")  # 2-way, 50% settled
+
+# Split share settlement income transactions
+TXN_SETTLE_FUEL_RAHUL = uuid.UUID("f6000001-0000-0000-0000-000000000093")
+TXN_SETTLE_FUEL_PRIYA = uuid.UUID("f6000001-0000-0000-0000-000000000094")
+TXN_SETTLE_MOVIE_NEEL = uuid.UUID("f6000001-0000-0000-0000-000000000095")
+
+# Splits
+SPLIT_DINNER     = uuid.UUID("91000001-0000-0000-0000-000000000001")
+SPLIT_FUEL       = uuid.UUID("91000001-0000-0000-0000-000000000002")
+SPLIT_MOVIE      = uuid.UUID("91000001-0000-0000-0000-000000000003")
+
+# Split shares
+SHARE_DINNER_RAHUL  = uuid.UUID("92000001-0000-0000-0000-000000000001")
+SHARE_DINNER_PRIYA  = uuid.UUID("92000001-0000-0000-0000-000000000002")
+SHARE_DINNER_NEEL   = uuid.UUID("92000001-0000-0000-0000-000000000003")
+SHARE_FUEL_RAHUL    = uuid.UUID("92000001-0000-0000-0000-000000000004")
+SHARE_FUEL_PRIYA    = uuid.UUID("92000001-0000-0000-0000-000000000005")
+SHARE_MOVIE_NEEL    = uuid.UUID("92000001-0000-0000-0000-000000000006")
 
 # Budgets
 BUD_FOOD_CURR   = uuid.UUID("b7000001-0000-0000-0000-000000000001")
@@ -228,6 +261,9 @@ async def seed_dev_data() -> None:
         session.add(Payee(id=PAYEE_PHARMACY, user_id=USER_ID, name="Apollo Pharmacy", type=PayeeType.merchant))
         session.add(Payee(id=PAYEE_AMAZON, user_id=USER_ID, name="Amazon", type=PayeeType.merchant))
         session.add(Payee(id=PAYEE_SPOTIFY, user_id=USER_ID, name="Spotify", type=PayeeType.merchant))
+        session.add(Payee(id=PAYEE_RAHUL, user_id=USER_ID, name="Rahul", type=PayeeType.individual))
+        session.add(Payee(id=PAYEE_PRIYA, user_id=USER_ID, name="Priya", type=PayeeType.individual))
+        session.add(Payee(id=PAYEE_NEEL, user_id=USER_ID, name="Neel", type=PayeeType.individual))
         await session.flush()
 
         # Payee default categories
@@ -456,6 +492,55 @@ async def seed_dev_data() -> None:
                         transacted_at=_dt(2026, 5, 15), amount=Decimal("649"),
                         currency="INR", account_id=ACC_CREDIT, payee_id=PAYEE_NETFLIX,
                         payment_method_id=PM_CREDIT_CC, description="Netflix May"),
+
+            # Scenario: standalone May transactions (no split)
+            Transaction(id=TXN_GROCERY_MAY, user_id=USER_ID, type=TransactionType.expense,
+                        transacted_at=_dt(2026, 5, 9), amount=Decimal("1250"),
+                        currency="INR", account_id=ACC_HDFC, payment_method_id=PM_HDFC_UPI,
+                        description="Weekly groceries"),
+            Transaction(id=TXN_PETROL_MAY, user_id=USER_ID, type=TransactionType.expense,
+                        transacted_at=_dt(2026, 5, 16), amount=Decimal("2000"),
+                        currency="INR", account_id=ACC_HDFC, payment_method_id=PM_HDFC_UPI,
+                        description="Petrol"),
+            Transaction(id=TXN_COFFEE_MAY, user_id=USER_ID, type=TransactionType.expense,
+                        transacted_at=_dt(2026, 5, 23), amount=Decimal("380"),
+                        currency="INR", account_id=ACC_CASH, payee_id=PAYEE_SWIGGY,
+                        description="Coffee & snacks"),
+
+            # Scenario: split — Dinner at Taj (4-way, only my share counted → 25% settled)
+            # Total ₹3600: me ₹900, Rahul ₹900 pending, Priya ₹900 pending, Neel ₹900 pending
+            Transaction(id=TXN_SPLIT_DINNER, user_id=USER_ID, type=TransactionType.expense,
+                        transacted_at=_dt(2026, 5, 7), amount=Decimal("3600"),
+                        currency="INR", account_id=ACC_CREDIT, payee_id=PAYEE_SWIGGY,
+                        payment_method_id=PM_CREDIT_CC, description="Dinner at Taj"),
+
+            # Scenario: split — Weekend trip fuel (3-way, all payees settled → 100% settled)
+            # Total ₹2400: me ₹800, Rahul ₹800 settled, Priya ₹800 settled
+            Transaction(id=TXN_SPLIT_FUEL, user_id=USER_ID, type=TransactionType.expense,
+                        transacted_at=_dt(2026, 5, 14), amount=Decimal("2400"),
+                        currency="INR", account_id=ACC_HDFC, payment_method_id=PM_HDFC_UPI,
+                        description="Weekend trip fuel"),
+
+            # Scenario: split — Movie + dinner (2-way, Neel settled → 50% settled)
+            # Total ₹1800: me ₹900, Neel ₹900 settled
+            Transaction(id=TXN_SPLIT_MOVIE, user_id=USER_ID, type=TransactionType.expense,
+                        transacted_at=_dt(2026, 5, 21), amount=Decimal("1800"),
+                        currency="INR", account_id=ACC_CREDIT, payment_method_id=PM_CREDIT_CC,
+                        description="Movie + dinner"),
+
+            # Scenario: split share settlements (income received from friends)
+            Transaction(id=TXN_SETTLE_FUEL_RAHUL, user_id=USER_ID, type=TransactionType.income,
+                        transacted_at=_dt(2026, 5, 16), amount=Decimal("800"),
+                        currency="INR", account_id=ACC_HDFC, payee_id=PAYEE_RAHUL,
+                        description="Rahul's share – fuel split"),
+            Transaction(id=TXN_SETTLE_FUEL_PRIYA, user_id=USER_ID, type=TransactionType.income,
+                        transacted_at=_dt(2026, 5, 17), amount=Decimal("800"),
+                        currency="INR", account_id=ACC_HDFC, payee_id=PAYEE_PRIYA,
+                        description="Priya's share – fuel split"),
+            Transaction(id=TXN_SETTLE_MOVIE_NEEL, user_id=USER_ID, type=TransactionType.income,
+                        transacted_at=_dt(2026, 5, 22), amount=Decimal("900"),
+                        currency="INR", account_id=ACC_HDFC, payee_id=PAYEE_NEEL,
+                        description="Neel's share – movie + dinner"),
         ]
         for txn in txns:
             session.add(txn)
@@ -547,6 +632,44 @@ async def seed_dev_data() -> None:
             await session.execute(
                 transaction_budgets.insert().values(transaction_id=txn_id, budget_id=bud_id)
             )
+
+        # ── Splits ────────────────────────────────────────────────────────────
+        # Scenario: Dinner at Taj — 4-way, all payees pending (ring shows 25%)
+        session.add(Split(id=SPLIT_DINNER, user_id=USER_ID,
+                          expense_transaction_id=TXN_SPLIT_DINNER))
+        session.add(SplitShare(id=SHARE_DINNER_RAHUL, split_id=SPLIT_DINNER,
+                               payee_id=PAYEE_RAHUL, amount=Decimal("900"),
+                               status=SplitShareStatus.pending))
+        session.add(SplitShare(id=SHARE_DINNER_PRIYA, split_id=SPLIT_DINNER,
+                               payee_id=PAYEE_PRIYA, amount=Decimal("900"),
+                               status=SplitShareStatus.pending))
+        session.add(SplitShare(id=SHARE_DINNER_NEEL, split_id=SPLIT_DINNER,
+                               payee_id=PAYEE_NEEL, amount=Decimal("900"),
+                               status=SplitShareStatus.pending))
+
+        # Scenario: Weekend trip fuel — 3-way, both payees settled (ring shows 100%)
+        session.add(Split(id=SPLIT_FUEL, user_id=USER_ID,
+                          expense_transaction_id=TXN_SPLIT_FUEL))
+        session.add(SplitShare(id=SHARE_FUEL_RAHUL, split_id=SPLIT_FUEL,
+                               payee_id=PAYEE_RAHUL, amount=Decimal("800"),
+                               status=SplitShareStatus.settled,
+                               settled_at=_dt(2026, 5, 16),
+                               settlement_transaction_id=TXN_SETTLE_FUEL_RAHUL))
+        session.add(SplitShare(id=SHARE_FUEL_PRIYA, split_id=SPLIT_FUEL,
+                               payee_id=PAYEE_PRIYA, amount=Decimal("800"),
+                               status=SplitShareStatus.settled,
+                               settled_at=_dt(2026, 5, 17),
+                               settlement_transaction_id=TXN_SETTLE_FUEL_PRIYA))
+
+        # Scenario: Movie + dinner — 2-way, Neel settled (ring shows 50%)
+        session.add(Split(id=SPLIT_MOVIE, user_id=USER_ID,
+                          expense_transaction_id=TXN_SPLIT_MOVIE))
+        session.add(SplitShare(id=SHARE_MOVIE_NEEL, split_id=SPLIT_MOVIE,
+                               payee_id=PAYEE_NEEL, amount=Decimal("900"),
+                               status=SplitShareStatus.settled,
+                               settled_at=_dt(2026, 5, 22),
+                               settlement_transaction_id=TXN_SETTLE_MOVIE_NEEL))
+        await session.flush()
 
         # ── Subscriptions ─────────────────────────────────────────────────────
         due_soon_day = (today + timedelta(days=2)).day

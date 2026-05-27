@@ -21,12 +21,6 @@ const TYPE_LABEL: Record<TransactionType, string> = {
   opening_balance: 'opening balance',
 }
 
-const SHARE_STATUS_CLS: Record<string, string> = {
-  pending:  'kk-chip kk-chip-neutral',
-  settled:  'kk-chip kk-chip-positive',
-  forgiven: 'kk-chip kk-chip-accent',
-}
-
 function useLookupMaps() {
   const { data: accounts   = [] } = useAccounts()
   const { data: payees     = [] } = usePayees()
@@ -45,12 +39,14 @@ function useLookupMaps() {
 
 interface Props {
   transaction: Transaction | null
+  splitId?: string | null
+  splitTitle?: string | null
   onClose: () => void
 }
 
-export function TransactionDrawer({ transaction: txn, onClose }: Props) {
+export function TransactionDrawer({ transaction: txn, splitId, splitTitle, onClose }: Props) {
   const { accountMap, payeeMap, categoryMap, tagMap, budgetMap } = useLookupMaps()
-  const { data: split } = useGetSplit(txn?.split_id ?? null)
+  const { data: split } = useGetSplit(splitId ?? txn?.split_id ?? null)
 
   const amount = txn ? parseFloat(txn.amount) : 0
   const isExpense        = txn?.type === 'expense'
@@ -156,28 +152,11 @@ export function TransactionDrawer({ transaction: txn, onClose }: Props) {
             </DrawerSection>
           )}
 
-          {/* Split */}
+          {/* Linked Split */}
           {split && (
-            <DrawerSection label="Split">
-              <div className="kk-panel space-y-2">
-                {split.shares.map(share => (
-                  <div key={share.id} className="flex items-center justify-between gap-3">
-                    <div className="flex items-center gap-2 min-w-0">
-                      <span className="text-sm text-fg-dim truncate">
-                        {share.payee_id ? (payeeMap[share.payee_id] ?? share.payee_id.slice(0, 8) + '…') : 'You'}
-                      </span>
-                      <span className={SHARE_STATUS_CLS[share.status] ?? 'kk-chip kk-chip-neutral'}>
-                        {share.status}
-                      </span>
-                    </div>
-                    <span className="kk-mono text-sm text-fg shrink-0">
-                      ₹{parseFloat(share.amount).toLocaleString('en-IN')}
-                    </span>
-                  </div>
-                ))}
-                {split.notes && (
-                  <p className="mt-2 text-xs text-fg-faint border-t border-border pt-2">{split.notes}</p>
-                )}
+            <DrawerSection label="Linked Split">
+              <div className="kk-panel">
+                <p className="text-sm text-fg">{splitTitle ?? '—'}</p>
               </div>
             </DrawerSection>
           )}

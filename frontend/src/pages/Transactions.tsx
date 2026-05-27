@@ -16,7 +16,6 @@ import ConfirmDialog from '../components/ConfirmDialog'
 import BundleAsSplitModal from '../components/BundleAsSplitModal'
 import { EmptyState } from '../components/EmptyState'
 import { TransactionDrawer } from '../components/drawers/TransactionDrawer'
-import { SplitInlinePanel } from '../components/SplitInlinePanel'
 
 function formatAmount(t: Transaction): string {
   const sign = t.type === 'expense' ? '-' : t.type === 'transfer' ? '⇄' : '+'
@@ -66,6 +65,8 @@ export default function Transactions() {
   const [activeFilters, setActiveFilters] = useState<TransactionFilters>({})
   const [deleteTarget, setDeleteTarget] = useState<Transaction | null>(null)
   const [drawerTransaction, setDrawerTransaction] = useState<Transaction | null>(null)
+  const [drawerSplitId, setDrawerSplitId] = useState<string | null>(null)
+  const [drawerSplitTitle, setDrawerSplitTitle] = useState<string | null>(null)
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [showFilters, setShowFilters] = useState(false)
   const [bundleTarget, setBundleTarget] = useState<Transaction | null>(null)
@@ -77,15 +78,15 @@ export default function Transactions() {
   const { data: splitsData } = useListSplits()
   const deleteTxn = useDeleteTransaction()
 
-  const payeeMap = useMemo(
-    () => Object.fromEntries(payees.map(p => [p.id, p.name])),
-    [payees],
-  )
-
-  const splitsByTxnId = useMemo(() => {
+  const splitsBySettlementTxnId = useMemo(() => {
     const map = new Map<string, Split>()
     for (const s of splitsData ?? []) {
-      if (!s.deleted_at) map.set(s.expense_transaction_id, s)
+      if (s.deleted_at) continue
+      for (const sh of s.shares) {
+        if (sh.settlement_transaction_id) {
+          map.set(sh.settlement_transaction_id, s)
+        }
+      }
     }
     return map
   }, [splitsData])
@@ -130,6 +131,20 @@ export default function Transactions() {
       else next.add(id)
       return next
     })
+  }
+
+  function openDrawer(t: Transaction) {
+    setDrawerTransaction(t)
+    const settlementSplit = splitsBySettlementTxnId.get(t.id)
+    setDrawerSplitId(settlementSplit?.id ?? t.split_id ?? null)
+    if (settlementSplit) {
+      const expenseTxn = allItems.find(item => item.id === settlementSplit.expense_transaction_id)
+      setDrawerSplitTitle(expenseTxn?.description ?? null)
+    } else if (t.is_split) {
+      setDrawerSplitTitle(t.description)
+    } else {
+      setDrawerSplitTitle(null)
+    }
   }
 
   const hasActiveFilters = Object.keys(activeFilters).length > 0
@@ -314,7 +329,7 @@ export default function Transactions() {
       ) : (
         <>
           {/* Desktop table */}
-          <div className="hidden md:block overflow-x-auto rounded-xl border border-border bg-surface-1/60 backdrop-blur-sm shadow-sm">
+          <div className="hidden md:block overflow-x-auto rounded-xl border border-border bg-surface-1 shadow-sm">
             <table className="w-full text-sm">
               <thead className="bg-surface-2/80 border-b border-border">
                 <tr>
@@ -333,65 +348,64 @@ export default function Transactions() {
                 {allItems.map((t) => {
                   const acc = accounts.find((a) => a.id === t.account_id)
                   const payee = payees.find((p) => p.id === t.payee_id)
-                  const split = splitsByTxnId.get(t.id)
+                  const isSplitShare = splitsBySettlementTxnId.has(t.id)
                   return (
-                    <>
-                      <tr
-                        key={t.id}
-                        className={`hover:bg-surface-2/50 cursor-pointer ${split ? 'border-b-0' : ''}`}
-                        onClick={() => setDrawerTransaction(t)}
-                      >
-                        <td className="px-3 py-2" onClick={(e) => e.stopPropagation()}>
-                          <input
-                            type="checkbox"
-                            checked={selectedIds.has(t.id)}
-                            onChange={() => toggleSelect(t.id)}
-                            aria-label={`Select ${t.description ?? t.id}`}
-                          />
-                        </td>
-                        <td className="px-3 py-2 text-gray-500 whitespace-nowrap">{formatDate(t.transacted_at)}</td>
-                        <td className="px-3 py-2">
-                          <p className="font-medium text-gray-900">{t.description ?? '—'}</p>
-                          {payee && <p className="text-xs text-gray-400">{payee.name}</p>}
-                        </td>
-                        <td className={`px-3 py-2 text-right font-medium whitespace-nowrap ${TYPE_COLORS[t.type]}`}>
-                          {formatAmount(t)}
-                        </td>
-                        <td className="px-3 py-2">
-                          <span className={`text-xs font-medium ${TYPE_COLORS[t.type]}`}>
+                    <tr
+                      key={t.id}
+                      className="hover:bg-surface-2/50 cursor-pointer"
+                      onClick={() => openDrawer(t)}
+                    >
+                      <td className="px-3 py-2" onClick={(e) => e.stopPropagation()}>
+                        <input
+                          type="checkbox"
+                          checked={selectedIds.has(t.id)}
+                          onChange={() => toggleSelect(t.id)}
+                          aria-label={`Select ${t.description ?? t.id}`}
+                        />
+                      </td>
+                      <td className="px-3 py-2 text-gray-500 whitespace-nowrap">{formatDate(t.transacted_at)}</td>
+                      <td className="px-3 py-2">
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <span className="font-medium text-gray-900">{t.description ?? '—'}</span>
+                          {t.is_split && (
+                            <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-accent/15 text-accent shrink-0">
+                              Split
+                            </span>
+                          )}
+                          {isSplitShare && (
+                            <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-positive/10 text-positive-dim shrink-0">
+                              Split Share
+                            </span>
+                          )}
+                        </div>
+                        {payee && <p className="text-xs text-gray-400">{payee.name}</p>}
+                      </td>
+                      <td className={`px-3 py-2 text-right font-medium whitespace-nowrap ${TYPE_COLORS[t.type]}`}>
+                        {formatAmount(t)}
+                      </td>
+                      <td className="px-3 py-2">
+                        <span className={`text-xs font-medium ${TYPE_COLORS[t.type]}`}>
                           {t.type === 'opening_balance' ? 'Opening Balance' : t.type.charAt(0).toUpperCase() + t.type.slice(1)}
                         </span>
-                        </td>
-                        <td className="px-3 py-2 text-gray-500">{acc?.name ?? '—'}</td>
-                        <td className="px-3 py-2" onClick={(e) => e.stopPropagation()}>
-                          <div className="flex gap-2">
-                            <button
-                              onClick={() => navigate({ to: '/transactions/new', search: { editId: t.id } })}
-                              className="text-xs text-gray-500 hover:text-gray-700"
-                            >
-                              Edit
-                            </button>
-                            <button
-                              onClick={() => setDeleteTarget(t)}
-                              className="text-xs text-red-500 hover:text-red-700"
-                            >
-                              Delete
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                      {split && (
-                        <tr key={`${t.id}-split`} className="border-b border-gray-100">
-                          <td colSpan={7} className="p-0">
-                            <SplitInlinePanel
-                              split={split}
-                              transactionAmount={parseFloat(t.amount)}
-                              payeeMap={payeeMap}
-                            />
-                          </td>
-                        </tr>
-                      )}
-                    </>
+                      </td>
+                      <td className="px-3 py-2 text-gray-500">{acc?.name ?? '—'}</td>
+                      <td className="px-3 py-2" onClick={(e) => e.stopPropagation()}>
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => navigate({ to: '/transactions/new', search: { editId: t.id } })}
+                            className="text-xs text-gray-500 hover:text-gray-700"
+                          >
+                            Edit
+                          </button>
+                          <button
+                            onClick={() => setDeleteTarget(t)}
+                            className="text-xs text-red-500 hover:text-red-700"
+                          >
+                            Delete
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
                   )
                 })}
               </tbody>
@@ -403,12 +417,12 @@ export default function Transactions() {
             {allItems.map((t) => {
               const acc = accounts.find((a) => a.id === t.account_id)
               const payee = payees.find((p) => p.id === t.payee_id)
-              const split = splitsByTxnId.get(t.id)
+              const isSplitShare = splitsBySettlementTxnId.has(t.id)
               return (
                 <div
                   key={`mobile-${t.id}`}
                   className="rounded-lg border border-gray-200 bg-white overflow-hidden cursor-pointer"
-                  onClick={() => setDrawerTransaction(t)}
+                  onClick={() => openDrawer(t)}
                 >
                   <div className="p-3 flex gap-3">
                     <input
@@ -421,8 +435,20 @@ export default function Transactions() {
                     />
                     <div className="flex-1 min-w-0">
                       <div className="flex justify-between items-start">
-                        <div>
-                          <p className="font-medium text-gray-900 truncate">{t.description ?? '—'}</p>
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <span className="font-medium text-gray-900 truncate">{t.description ?? '—'}</span>
+                            {t.is_split && (
+                              <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-accent/15 text-accent shrink-0">
+                                Split
+                              </span>
+                            )}
+                            {isSplitShare && (
+                              <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-positive/10 text-positive-dim shrink-0">
+                                Split Share
+                              </span>
+                            )}
+                          </div>
                           {payee && <p className="text-xs text-gray-400">{payee.name}</p>}
                           <p className="text-xs text-gray-400">{acc?.name ?? '—'} · {formatDate(t.transacted_at)}</p>
                         </div>
@@ -446,15 +472,6 @@ export default function Transactions() {
                       </div>
                     </div>
                   </div>
-                  {split && (
-                    <div onClick={e => e.stopPropagation()}>
-                      <SplitInlinePanel
-                        split={split}
-                        transactionAmount={parseFloat(t.amount)}
-                        payeeMap={payeeMap}
-                      />
-                    </div>
-                  )}
                 </div>
               )
             })}
@@ -495,7 +512,9 @@ export default function Transactions() {
 
       <TransactionDrawer
         transaction={drawerTransaction}
-        onClose={() => setDrawerTransaction(null)}
+        splitId={drawerSplitId}
+        splitTitle={drawerSplitTitle}
+        onClose={() => { setDrawerTransaction(null); setDrawerSplitId(null); setDrawerSplitTitle(null) }}
       />
     </main>
   )

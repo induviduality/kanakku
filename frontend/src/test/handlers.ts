@@ -84,21 +84,25 @@ export const TRANSACTIONS_RESPONSE = {
     txn('txn-may-amazon',  'expense',  '2026-05-03', '1899.00',  'USB hub',           { account_id: 'acc-4' }),
     txn('txn-may-gym',     'expense',  '2026-05-05', '2500.00',  'Gym membership'),
     // Scenario: 4-way split — Dinner at Taj (ring 25%, my share pending)
-    txn('txn-split-dinner','expense',  '2026-05-07', '3600.00',  'Dinner at Taj',     { account_id: 'acc-4', payee_id: 'payee-1', is_split: true }),
+    txn('txn-split-dinner','expense',  '2026-05-07', '3600.00',  'Dinner at Taj',     { account_id: 'acc-4', payee_id: 'payee-1', is_split: true, split_id: 'split-dinner' }),
     txn('txn-may-uber',    'expense',  '2026-05-08', '250.00',   'Ride to airport',   { payee_id: 'payee-2', payment_method_id: 'pm-1', payment_method_name: 'HDFC Visa', external_ref: 'UPI/261537891204/UBER', tag_ids: ['tag-1'] }),
     txn('txn-may-grocery', 'expense',  '2026-05-09', '1250.00',  'Weekly groceries',  { budget_ids: ['budget-1'], category_ids: ['cat-1'] }),
     txn('txn-may-meds',    'expense',  '2026-05-10', '540.00',   'Monthly meds'),
     txn('txn-may-food1',   'expense',  '2026-05-12', '680.00',   'Weekend lunch',     { payee_id: 'payee-1', category_ids: ['cat-1'], tag_ids: ['tag-1'] }),
     // Scenario: 3-way split — Weekend trip fuel (ring 100%, both payees settled)
-    txn('txn-split-fuel',  'expense',  '2026-05-14', '2400.00',  'Weekend trip fuel', { is_split: true }),
+    txn('txn-split-fuel',  'expense',  '2026-05-14', '2400.00',  'Weekend trip fuel', { is_split: true, split_id: 'split-fuel' }),
     txn('txn-may-netflix', 'expense',  '2026-05-15', '649.00',   'Netflix May',       { account_id: 'acc-4', payee_id: 'payee-3' }),
     txn('txn-may-lunch',   'expense',  '2026-05-15', '2400.00',  'Team lunch',        { account_id: 'acc-4', payee_id: 'payee-1' }),
     txn('txn-may-petrol',  'expense',  '2026-05-16', '2000.00',  'Petrol'),
+    // Scenario: split share settlements — income from friends who paid back
+    txn('txn-settle-fuel-rahul', 'income', '2026-05-16', '800.00', "Rahul's share – fuel split", { payee_id: 'payee-rahul' }),
+    txn('txn-settle-fuel-priya', 'income', '2026-05-17', '800.00', "Priya's share – fuel split", { payee_id: 'payee-priya' }),
     txn('txn-may-food2',   'expense',  '2026-05-18', '310.00',   'Street food',       { account_id: 'acc-3' }),
     txn('txn-may-uber2',   'expense',  '2026-05-20', '180.00',   'Ride to office',    { payee_id: 'payee-2' }),
     // Scenario: 2-way split — Movie + dinner (ring 50%, Neel pending)
-    txn('txn-split-movie', 'expense',  '2026-05-21', '1800.00',  'Movie + dinner',    { account_id: 'acc-4', is_split: true }),
+    txn('txn-split-movie', 'expense',  '2026-05-21', '1800.00',  'Movie + dinner',    { account_id: 'acc-4', is_split: true, split_id: 'split-movie' }),
     txn('txn-may-cc',      'transfer', '2026-05-22', '15000.00', 'CC bill payment',   { to_account_id: 'acc-4', to_amount: '15000.00', to_currency: 'INR' }),
+    txn('txn-settle-movie-neel', 'income', '2026-05-22', '900.00', "Neel's share – movie + dinner", { payee_id: 'payee-neel' }),
     txn('txn-may-coffee',  'expense',  '2026-05-23', '380.00',   'Coffee & snacks',   { account_id: 'acc-3', payee_id: 'payee-1' }),
   ],
   next_cursor: null,
@@ -129,18 +133,18 @@ const SPLIT_FUEL = {
   notes: null, deleted_at: null,
   created_at: '2026-05-14T10:00:00Z', updated_at: '2026-05-17T10:00:00Z',
   shares: [
-    shareBase('sh-f1', 'split-fuel', 'payee-rahul', '800.00', 'settled', { settled_at: '2026-05-16T10:00:00Z', updated_at: '2026-05-16T10:00:00Z' }),
-    shareBase('sh-f2', 'split-fuel', 'payee-priya', '800.00', 'settled', { settled_at: '2026-05-17T10:00:00Z', updated_at: '2026-05-17T10:00:00Z' }),
+    shareBase('sh-f1', 'split-fuel', 'payee-rahul', '800.00', 'settled', { settled_at: '2026-05-16T10:00:00Z', updated_at: '2026-05-16T10:00:00Z', settlement_transaction_id: 'txn-settle-fuel-rahul' }),
+    shareBase('sh-f2', 'split-fuel', 'payee-priya', '800.00', 'settled', { settled_at: '2026-05-17T10:00:00Z', updated_at: '2026-05-17T10:00:00Z', settlement_transaction_id: 'txn-settle-fuel-priya' }),
   ],
 }
 
-// Scenario: Movie + dinner — 2-way, Neel pending → ring 50% (my ₹900 / total ₹1800)
+// Scenario: Movie + dinner — 2-way, Neel settled → ring 50% (my ₹900 / total ₹1800)
 const SPLIT_MOVIE = {
   id: 'split-movie', user_id: 'user-1', expense_transaction_id: 'txn-split-movie',
   notes: null, deleted_at: null,
-  created_at: '2026-05-21T10:00:00Z', updated_at: '2026-05-21T10:00:00Z',
+  created_at: '2026-05-21T10:00:00Z', updated_at: '2026-05-22T10:00:00Z',
   shares: [
-    shareBase('sh-m1', 'split-movie', 'payee-neel', '900.00', 'pending'),
+    shareBase('sh-m1', 'split-movie', 'payee-neel', '900.00', 'settled', { settled_at: '2026-05-22T10:00:00Z', updated_at: '2026-05-22T10:00:00Z', settlement_transaction_id: 'txn-settle-movie-neel' }),
   ],
 }
 
@@ -733,7 +737,9 @@ export const handlers = [
     if (params.splitId === 'not-found') {
       return HttpResponse.json({ detail: 'Split not found' }, { status: 404 })
     }
-    return HttpResponse.json({ ...SPLIT_RESPONSE, id: params.splitId })
+    const all = [SPLIT_DINNER, SPLIT_FUEL, SPLIT_MOVIE]
+    const found = all.find(s => s.id === params.splitId)
+    return HttpResponse.json(found ?? { ...SPLIT_RESPONSE, id: params.splitId })
   }),
   http.post('/api/v1/splits/:splitId/shares/:shareId/settle', async ({ request, params }) => {
     const body = await request.json() as Record<string, unknown>
