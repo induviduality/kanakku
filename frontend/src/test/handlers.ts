@@ -68,7 +68,7 @@ export const CATEGORIES_RESPONSE = [
   },
 ]
 
-const TXN_BASE = { user_id: 'user-1', currency: 'INR', notes: null, external_ref: null, payment_method_id: null, payment_method_name: null, to_account_id: null, to_amount: null, to_currency: null, subscription_id: null, import_record_id: null, split_id: null, category_ids: [], tag_ids: [], budget_ids: [], deleted_at: null }
+const TXN_BASE = { user_id: 'user-1', currency: 'INR', notes: null, external_ref: null, payment_method_id: null, payment_method_name: null, to_account_id: null, to_amount: null, to_currency: null, subscription_id: null, import_record_id: null, split_id: null, is_split: false, category_ids: [], tag_ids: [], budget_ids: [], deleted_at: null }
 const txn = (id: string, type: string, date: string, amount: string, desc: string, extra: Record<string, unknown> = {}) => ({
   ...TXN_BASE, id, type, transacted_at: `${date}T10:00:00Z`, amount, description: desc,
   account_id: 'acc-1', payee_id: null,
@@ -84,20 +84,20 @@ export const TRANSACTIONS_RESPONSE = {
     txn('txn-may-amazon',  'expense',  '2026-05-03', '1899.00',  'USB hub',           { account_id: 'acc-4' }),
     txn('txn-may-gym',     'expense',  '2026-05-05', '2500.00',  'Gym membership'),
     // Scenario: 4-way split — Dinner at Taj (ring 25%, my share pending)
-    txn('txn-split-dinner','expense',  '2026-05-07', '3600.00',  'Dinner at Taj',     { account_id: 'acc-4', payee_id: 'payee-1' }),
-    txn('txn-may-uber',    'expense',  '2026-05-08', '250.00',   'Ride to airport',   { payee_id: 'payee-2' }),
-    txn('txn-may-grocery', 'expense',  '2026-05-09', '1250.00',  'Weekly groceries'),
+    txn('txn-split-dinner','expense',  '2026-05-07', '3600.00',  'Dinner at Taj',     { account_id: 'acc-4', payee_id: 'payee-1', is_split: true }),
+    txn('txn-may-uber',    'expense',  '2026-05-08', '250.00',   'Ride to airport',   { payee_id: 'payee-2', payment_method_id: 'pm-1', payment_method_name: 'HDFC Visa', external_ref: 'UPI/261537891204/UBER' }),
+    txn('txn-may-grocery', 'expense',  '2026-05-09', '1250.00',  'Weekly groceries',  { budget_ids: ['budget-1'] }),
     txn('txn-may-meds',    'expense',  '2026-05-10', '540.00',   'Monthly meds'),
     txn('txn-may-food1',   'expense',  '2026-05-12', '680.00',   'Weekend lunch',     { payee_id: 'payee-1' }),
     // Scenario: 3-way split — Weekend trip fuel (ring 100%, both payees settled)
-    txn('txn-split-fuel',  'expense',  '2026-05-14', '2400.00',  'Weekend trip fuel'),
+    txn('txn-split-fuel',  'expense',  '2026-05-14', '2400.00',  'Weekend trip fuel', { is_split: true }),
     txn('txn-may-netflix', 'expense',  '2026-05-15', '649.00',   'Netflix May',       { account_id: 'acc-4', payee_id: 'payee-3' }),
     txn('txn-may-lunch',   'expense',  '2026-05-15', '2400.00',  'Team lunch',        { account_id: 'acc-4', payee_id: 'payee-1' }),
     txn('txn-may-petrol',  'expense',  '2026-05-16', '2000.00',  'Petrol'),
     txn('txn-may-food2',   'expense',  '2026-05-18', '310.00',   'Street food',       { account_id: 'acc-3' }),
     txn('txn-may-uber2',   'expense',  '2026-05-20', '180.00',   'Ride to office',    { payee_id: 'payee-2' }),
     // Scenario: 2-way split — Movie + dinner (ring 50%, Neel pending)
-    txn('txn-split-movie', 'expense',  '2026-05-21', '1800.00',  'Movie + dinner',    { account_id: 'acc-4' }),
+    txn('txn-split-movie', 'expense',  '2026-05-21', '1800.00',  'Movie + dinner',    { account_id: 'acc-4', is_split: true }),
     txn('txn-may-cc',      'transfer', '2026-05-22', '15000.00', 'CC bill payment',   { to_account_id: 'acc-4', to_amount: '15000.00', to_currency: 'INR' }),
     txn('txn-may-coffee',  'expense',  '2026-05-23', '380.00',   'Coffee & snacks',   { account_id: 'acc-3', payee_id: 'payee-1' }),
   ],

@@ -20,6 +20,7 @@ function toTransaction(item: BudgetTransactionItem): Transaction {
     subscription_id: null,
     import_record_id: null,
     split_id: null,
+    is_split: false,
     tag_ids: [],
     budget_ids: [],
     created_at: item.transacted_at,

@@ -139,6 +139,7 @@ async def _to_response(txn: Transaction, session: AsyncSession) -> TransactionRe
     data["budget_ids"] = budget_ids
     data["payment_method_name"] = payment_method_name
     data["split_id"] = split_id
+    data["is_split"] = split_id is not None
     return TransactionResponse.model_validate(data)
 
 

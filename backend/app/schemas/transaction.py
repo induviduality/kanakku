@@ -81,6 +81,7 @@ class TransactionResponse(BaseModel):
     subscription_id: uuid.UUID | None
     import_record_id: uuid.UUID | None
     split_id: uuid.UUID | None  # set if this transaction is a split parent
+    is_split: bool  # True if this transaction has an associated split
     category_ids: list[uuid.UUID]
     tag_ids: list[uuid.UUID]
     budget_ids: list[uuid.UUID]

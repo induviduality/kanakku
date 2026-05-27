@@ -23,6 +23,7 @@ export interface Transaction {
   subscription_id: string | null
   import_record_id: string | null
   split_id: string | null
+  is_split: boolean
   category_ids: string[]
   tag_ids: string[]
   budget_ids: string[]
