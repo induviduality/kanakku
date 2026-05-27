@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { Drawer, DrawerSection, DrawerRow } from '../Drawer'
 import { type Transaction, type TransactionType } from '../../api/transactions'
 import { useAccounts } from '../../api/accounts'
@@ -6,6 +7,7 @@ import { useCategories } from '../../api/categories'
 import { useTags } from '../../api/tags'
 import { useGetBudgets } from '../../api/budgets'
 import { useGetSplit } from '../../api/splits'
+import { SplitDrawer } from './SplitDrawer'
 
 const TYPE_CLS: Record<TransactionType, string> = {
   expense:         'kk-chip kk-chip-negative',
@@ -47,6 +49,9 @@ interface Props {
 export function TransactionDrawer({ transaction: txn, splitId, splitTitle, onClose }: Props) {
   const { accountMap, payeeMap, categoryMap, tagMap, budgetMap } = useLookupMaps()
   const { data: split } = useGetSplit(splitId ?? txn?.split_id ?? null)
+  const [splitDrawerOpen, setSplitDrawerOpen] = useState(false)
+
+  const resolvedSplitId = splitId ?? txn?.split_id ?? null
 
   const amount = txn ? parseFloat(txn.amount) : 0
   const isExpense        = txn?.type === 'expense'
@@ -155,9 +160,13 @@ export function TransactionDrawer({ transaction: txn, splitId, splitTitle, onClo
           {/* Linked Split */}
           {split && (
             <DrawerSection label="Linked Split">
-              <div className="kk-panel">
+              <button
+                onClick={() => setSplitDrawerOpen(true)}
+                className="kk-panel w-full text-left hover:border-accent/40 transition-colors cursor-pointer"
+              >
                 <p className="text-sm text-fg">{splitTitle ?? '—'}</p>
-              </div>
+                <p className="text-xs text-accent mt-1">View split details →</p>
+              </button>
             </DrawerSection>
           )}
 
@@ -192,6 +201,11 @@ export function TransactionDrawer({ transaction: txn, splitId, splitTitle, onClo
           </DrawerSection>
         </div>
       )}
+
+      <SplitDrawer
+        splitId={splitDrawerOpen ? resolvedSplitId : null}
+        onClose={() => setSplitDrawerOpen(false)}
+      />
     </Drawer>
   )
 }
