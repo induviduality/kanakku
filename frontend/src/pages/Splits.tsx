@@ -24,8 +24,11 @@ function SplitCard({ split, onSelect }: { split: Split; onSelect: (id: string) =
   const forgiven = split.shares.filter(s => s.status === 'forgiven')
   const total    = split.shares.reduce((sum, s) => sum + parseFloat(s.amount), 0)
 
+  // A split is "unsettled" if any share has remaining balance
   const overallStatus: SplitShareStatus =
-    pending.length > 0 ? 'pending' : settled.length > 0 ? 'settled' : 'forgiven'
+    split.shares.some(s => parseFloat(s.amount) - parseFloat(s.paid_amount) - parseFloat(s.forgiven_amount) > 0.005)
+      ? 'pending'
+      : settled.length > 0 ? 'settled' : 'forgiven'
 
   return (
     <div
@@ -107,7 +110,9 @@ export default function Splits() {
   }
 
   const periodSplits  = allSplits.filter(inPeriod)
-  const unsettled     = periodSplits.filter(s => s.shares.some(sh => sh.status === 'pending'))
+  const unsettled = periodSplits.filter(s =>
+    s.shares.some(sh => parseFloat(sh.amount) - parseFloat(sh.paid_amount) - parseFloat(sh.forgiven_amount) > 0.005),
+  )
 
   return (
     <>

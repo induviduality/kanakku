@@ -5,113 +5,238 @@ import {
   useSettleShare,
   useForgiveShare,
   useUnsettleShare,
+  useUnlinkSettlement,
   type SplitShare,
+  type SplitShareSettlement,
   type SplitShareStatus,
 } from '../api/splits'
 import { useTransactions } from '../api/transactions'
+import { usePayees } from '../api/payees'
 import ConfirmDialog from '../components/ConfirmDialog'
 
 const STATUS_BADGES: Record<SplitShareStatus, string> = {
-  pending: 'bg-amber-100 text-amber-800',
-  settled: 'bg-green-100 text-green-800',
-  forgiven: 'bg-gray-100 text-gray-600',
+  pending: 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400',
+  settled: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400',
+  forgiven: 'bg-surface-3 text-fg-muted',
+}
+
+function fmt(v: string | number) {
+  return parseFloat(String(v)).toLocaleString('en-IN', { maximumFractionDigits: 2 })
+}
+
+function SettlementItem({
+  s, txnMap, splitId, shareId,
+}: {
+  s: SplitShareSettlement
+  txnMap: Record<string, { description: string | null; amount: string }>
+  splitId: string
+  shareId: string
+}) {
+  const unlink = useUnlinkSettlement(splitId)
+  const txn = txnMap[s.transaction_id]
+  const label = txn?.description ?? `Payment ${s.transaction_id.slice(0, 8)}…`
+  const date = new Date(s.created_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })
+
+  return (
+    <li className="flex items-center justify-between gap-2 py-1 text-xs">
+      <div className="min-w-0">
+        <span className="text-fg truncate block">{label}</span>
+        <span className="text-fg-faint kk-mono">₹{fmt(s.amount)} · {date}</span>
+      </div>
+      <button
+        onClick={() => unlink.mutate({ shareId, settlementId: s.id })}
+        disabled={unlink.isPending}
+        className="text-negative-dim hover:underline disabled:opacity-40"
+      >×</button>
+    </li>
+  )
 }
 
 function ShareRow({
-  share,
-  splitId,
+  share, splitId, payeeName, txnMap, incomeTransactions,
 }: {
   share: SplitShare
   splitId: string
+  payeeName: string | null
+  txnMap: Record<string, { description: string | null; amount: string }>
+  incomeTransactions: Array<{ id: string; description: string | null; amount: string }>
 }) {
   const [settleOpen, setSettleOpen] = useState(false)
   const [forgiveOpen, setForgiveOpen] = useState(false)
+  const [unsettleOpen, setUnsettleOpen] = useState(false)
   const [settleTxnId, setSettleTxnId] = useState('')
-  const { data: txnData } = useTransactions({ type: 'income' })
-  const incomeTransactions = txnData?.items ?? []
+  const [settleAmount, setSettleAmount] = useState('')
+  const [forgiveAmount, setForgiveAmount] = useState('')
 
-  const settle = useSettleShare(splitId)
-  const forgive = useForgiveShare(splitId)
+  const settle   = useSettleShare(splitId)
+  const forgive  = useForgiveShare(splitId)
   const unsettle = useUnsettleShare(splitId)
+
+  const paid      = parseFloat(share.paid_amount)
+  const forgiven  = parseFloat(share.forgiven_amount)
+  const total     = parseFloat(share.amount)
+  const remaining = Math.max(0, total - paid - forgiven)
+  const isResolved  = remaining <= 0
+  const hasActivity = paid > 0 || forgiven > 0
+
+  function onTxnSelect(id: string) {
+    setSettleTxnId(id)
+    const t = incomeTransactions.find(i => i.id === id)
+    if (t) setSettleAmount(Math.min(parseFloat(t.amount), remaining).toFixed(2))
+  }
 
   async function handleSettle() {
     if (!settleTxnId) return
-    await settle.mutateAsync({ shareId: share.id, body: { settlement_transaction_id: settleTxnId } })
-    setSettleOpen(false)
-    setSettleTxnId('')
+    const body: { transaction_id: string; amount?: string } = { transaction_id: settleTxnId }
+    if (settleAmount && settleAmount !== incomeTransactions.find(t => t.id === settleTxnId)?.amount)
+      body.amount = settleAmount
+    await settle.mutateAsync({ shareId: share.id, body })
+    setSettleOpen(false); setSettleTxnId(''); setSettleAmount('')
+  }
+
+  async function handleForgive() {
+    await forgive.mutateAsync({ shareId: share.id, amount: forgiveAmount })
+    setForgiveOpen(false); setForgiveAmount('')
   }
 
   return (
-    <tr className="border-t border-gray-100">
-      <td className="py-3 px-4 text-sm text-gray-700">
-        {share.payee_id ? <span className="italic">{share.payee_id.slice(0, 8)}…</span> : <span className="text-gray-400">My share</span>}
+    <tr className="border-t border-gray-200 dark:border-border align-top">
+      {/* Payee */}
+      <td className="py-3 px-4 text-sm">
+        {payeeName
+          ? <span className="font-medium text-fg">{payeeName}</span>
+          : <span className="text-fg-muted italic">My share</span>}
       </td>
-      <td className="py-3 px-4 text-sm font-medium text-right">₹{share.amount}</td>
+      {/* Amount + breakdown */}
+      <td className="py-3 px-4 text-sm text-right kk-mono">
+        <div>₹{fmt(share.amount)}</div>
+        {hasActivity && (
+          <div className="text-xs text-fg-faint space-y-0.5 mt-0.5">
+            {paid > 0 && <div className="text-positive-dim">Paid ₹{fmt(paid)}</div>}
+            {forgiven > 0 && <div>Forgiven ₹{fmt(forgiven)}</div>}
+            {!isResolved && <div className="text-warning-dim">Due ₹{fmt(remaining)}</div>}
+          </div>
+        )}
+      </td>
+      {/* Status */}
       <td className="py-3 px-4 text-center">
         <span className={`inline-block rounded-full px-2 py-0.5 text-xs font-medium ${STATUS_BADGES[share.status]}`}>
           {share.status}
         </span>
       </td>
-      <td className="py-3 px-4 text-right">
-        <div className="flex gap-2 justify-end">
-          {share.status === 'pending' && (
+      {/* Settlements + Actions */}
+      <td className="py-3 px-4">
+        {/* Linked payments */}
+        {share.settlements.length > 0 && (
+          <ul className="mb-2 space-y-0.5">
+            {share.settlements.map(s => (
+              <SettlementItem key={s.id} s={s} txnMap={txnMap} splitId={splitId} shareId={share.id} />
+            ))}
+          </ul>
+        )}
+
+        {/* Action buttons */}
+        <div className="flex flex-wrap gap-2">
+          {!isResolved && (
             <>
-              <button
-                onClick={() => setSettleOpen(true)}
-                className="text-xs text-green-700 hover:underline"
-              >
-                Settle
+              <button onClick={() => { setSettleAmount(remaining.toFixed(2)); setSettleOpen(true) }}
+                className="text-xs text-green-700 hover:underline">
+                + Payment
               </button>
-              <button
-                onClick={() => setForgiveOpen(true)}
-                className="text-xs text-gray-500 hover:underline"
-              >
-                Forgive
+              <button onClick={() => { setForgiveAmount(remaining.toFixed(2)); setForgiveOpen(true) }}
+                className="text-xs text-gray-500 hover:underline">
+                {forgiven > 0 ? 'Edit forgiven' : 'Forgive'}
               </button>
             </>
           )}
-          {share.status === 'settled' && (
-            <button
-              onClick={() => unsettle.mutate(share.id)}
-              disabled={unsettle.isPending}
-              className="text-xs text-amber-600 hover:underline disabled:opacity-50"
-            >
-              Unsettle
+          {hasActivity && (
+            <button onClick={() => setUnsettleOpen(true)} className="text-xs text-amber-600 hover:underline">
+              Reset
             </button>
           )}
         </div>
 
-        {/* Settle modal (inline) */}
+        {/* Settle inline modal */}
         {settleOpen && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-            <div className="bg-white rounded-xl shadow-xl p-6 w-80">
-              <h3 className="text-base font-semibold mb-3">Settle share</h3>
-              <label className="block text-sm text-gray-700 mb-1">Link income transaction</label>
+            <div className="bg-surface rounded-xl shadow-xl p-6 w-80 space-y-3">
+              <h3 className="text-base font-semibold text-fg">Link payment</h3>
+              <label className="block text-sm text-fg-muted">Income transaction</label>
               <select
                 value={settleTxnId}
-                onChange={(e) => setSettleTxnId(e.target.value)}
-                className="w-full rounded-md border border-gray-300 px-2 py-1.5 text-sm mb-4"
+                onChange={e => onTxnSelect(e.target.value)}
+                className="kk-input"
               >
                 <option value="">Select…</option>
-                {incomeTransactions.map((t) => (
+                {incomeTransactions.map(t => (
                   <option key={t.id} value={t.id}>
                     {t.description ?? t.id.slice(0, 8)} — ₹{t.amount}
                   </option>
                 ))}
               </select>
+              {settleTxnId && (
+                <div>
+                  <label className="block text-sm text-fg-muted mb-1">
+                    Credit amount <span className="text-fg-faint text-xs">(max ₹{fmt(remaining)})</span>
+                  </label>
+                  <input
+                    type="number" step="0.01" min="0.01" max={remaining}
+                    value={settleAmount}
+                    onChange={e => setSettleAmount(e.target.value)}
+                    className="kk-input"
+                  />
+                </div>
+              )}
               <div className="flex gap-2">
-                <button
-                  onClick={() => { setSettleOpen(false); setSettleTxnId('') }}
-                  className="flex-1 rounded-md border border-gray-300 px-3 py-1.5 text-sm"
-                >
+                <button onClick={() => { setSettleOpen(false); setSettleTxnId(''); setSettleAmount('') }}
+                  className="flex-1 rounded-md border border-border px-3 py-1.5 text-sm text-fg">
                   Cancel
                 </button>
                 <button
                   onClick={handleSettle}
-                  disabled={!settleTxnId || settle.isPending}
-                  className="flex-1 rounded-md bg-green-600 px-3 py-1.5 text-sm font-medium text-white disabled:opacity-50"
-                >
-                  Confirm
+                  disabled={!settleTxnId || !settleAmount || settle.isPending}
+                  className="flex-1 rounded-md bg-green-600 px-3 py-1.5 text-sm font-medium text-white disabled:opacity-50">
+                  {settle.isPending ? 'Saving…' : 'Confirm'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Forgive inline modal */}
+        {forgiveOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+            <div className="bg-surface rounded-xl shadow-xl p-6 w-80 space-y-3">
+              <h3 className="text-base font-semibold text-fg">Forgive share</h3>
+              {forgiven > 0 && (
+                <p className="text-sm text-fg-muted">Currently forgiven: ₹{fmt(forgiven)}</p>
+              )}
+              <div>
+                <label className="block text-sm text-fg-muted mb-1">
+                  Forgiven amount <span className="text-fg-faint text-xs">(max ₹{fmt(total - paid)})</span>
+                </label>
+                <input
+                  type="number" step="0.01" min="0" max={total - paid}
+                  value={forgiveAmount}
+                  onChange={e => setForgiveAmount(e.target.value)}
+                  className="kk-input"
+                />
+                <button
+                  onClick={() => setForgiveAmount((total - paid).toFixed(2))}
+                  className="text-xs text-accent hover:underline mt-1">
+                  Set to full remaining
+                </button>
+              </div>
+              <div className="flex gap-2">
+                <button onClick={() => { setForgiveOpen(false); setForgiveAmount('') }}
+                  className="flex-1 rounded-md border border-border px-3 py-1.5 text-sm text-fg">
+                  Cancel
+                </button>
+                <button
+                  onClick={handleForgive}
+                  disabled={!forgiveAmount || forgive.isPending}
+                  className="flex-1 rounded-md border border-border bg-surface-3 px-3 py-1.5 text-sm font-medium disabled:opacity-50">
+                  {forgive.isPending ? 'Saving…' : 'Set forgiven'}
                 </button>
               </div>
             </div>
@@ -119,11 +244,11 @@ function ShareRow({
         )}
 
         <ConfirmDialog
-          open={forgiveOpen}
-          title="Forgive share"
-          description={`Write off ₹${share.amount} — the amount will count toward your net expense.`}
-          onConfirm={() => { forgive.mutate(share.id); setForgiveOpen(false) }}
-          onCancel={() => setForgiveOpen(false)}
+          open={unsettleOpen}
+          title="Reset share"
+          description="Remove all linked payments and forgiveness for this share."
+          onConfirm={() => { unsettle.mutate(share.id); setUnsettleOpen(false) }}
+          onCancel={() => setUnsettleOpen(false)}
         />
       </td>
     </tr>
@@ -133,45 +258,65 @@ function ShareRow({
 export default function SplitDetail() {
   const { splitId } = useParams({ strict: false }) as { splitId: string }
   const { data: split, isLoading, isError } = useGetSplit(splitId)
+  const { data: payeesRaw } = usePayees()
+  const { data: txnData } = useTransactions({ type: 'income' })
 
-  if (isLoading) return <div className="p-8 text-gray-500">Loading…</div>
-  if (isError || !split) return <div className="p-8 text-red-600">Split not found.</div>
+  const payeeMap: Record<string, string> = {}
+  for (const p of payeesRaw ?? []) payeeMap[p.id] = p.name
 
-  const totalAmount = split.shares.reduce((sum, s) => sum + Number(s.amount), 0)
-  const netExpense = split.shares.reduce(
-    (sum, s) => (s.payee_id === null || s.status === 'forgiven' ? sum + Number(s.amount) : sum),
-    0,
-  )
+  const txnMap: Record<string, { description: string | null; amount: string }> = {}
+  const incomeTransactions: Array<{ id: string; description: string | null; amount: string }> = []
+  for (const t of txnData?.items ?? []) {
+    txnMap[t.id] = { description: t.description, amount: t.amount }
+    incomeTransactions.push({ id: t.id, description: t.description, amount: t.amount })
+  }
+
+  if (isLoading) return <div className="p-8 text-fg-muted">Loading…</div>
+  if (isError || !split) return <div className="p-8 text-negative-dim">Split not found.</div>
+
+  const totalAmount = split.shares.reduce((sum, s) => sum + parseFloat(s.amount), 0)
+  const netExpense  = split.shares.reduce((sum, s) => {
+    return sum + (s.payee_id === null ? parseFloat(s.amount) : 0) + parseFloat(s.forgiven_amount)
+  }, 0)
 
   return (
     <main className="p-4 md:p-6 max-w-3xl mx-auto">
-      <h1 className="text-2xl font-bold text-gray-900 mb-1">Split Detail</h1>
-      <p className="text-sm text-gray-500 mb-6">Transaction ID: {split.expense_transaction_id}</p>
+      <h1 className="text-2xl font-bold text-fg mb-1">{split.notes ?? 'Split Detail'}</h1>
+      <p className="text-sm text-fg-muted mb-6">
+        Expense: <span className="kk-mono">{split.expense_transaction_id.slice(0, 16)}…</span>
+      </p>
 
-      <div className="rounded-lg border border-gray-200 overflow-hidden mb-6">
-        <div className="bg-gray-50 px-4 py-3 flex justify-between text-sm">
-          <span className="font-medium text-gray-700">Total: ₹{totalAmount.toFixed(2)}</span>
-          <span className="text-indigo-600 font-medium">Net expense: ₹{netExpense.toFixed(2)}</span>
+      <div className="rounded-lg border border-border overflow-hidden mb-6">
+        <div className="bg-surface-2 px-4 py-3 flex justify-between text-sm border-b border-border">
+          <span className="font-medium text-fg">Total: <span className="kk-mono">₹{fmt(totalAmount)}</span></span>
+          <span className="text-negative-dim font-medium">Net expense: <span className="kk-mono">₹{fmt(netExpense)}</span></span>
         </div>
         <table className="w-full">
-          <thead className="bg-gray-50 border-t border-gray-200">
+          <thead className="bg-surface-2 border-b border-border">
             <tr>
-              <th className="py-2 px-4 text-left text-xs font-medium text-gray-500 uppercase">Payee</th>
-              <th className="py-2 px-4 text-right text-xs font-medium text-gray-500 uppercase">Amount</th>
-              <th className="py-2 px-4 text-center text-xs font-medium text-gray-500 uppercase">Status</th>
-              <th className="py-2 px-4 text-right text-xs font-medium text-gray-500 uppercase">Actions</th>
+              <th className="py-2 px-4 text-left text-xs font-medium text-fg-muted uppercase tracking-wide">Payee</th>
+              <th className="py-2 px-4 text-right text-xs font-medium text-fg-muted uppercase tracking-wide">Amount</th>
+              <th className="py-2 px-4 text-center text-xs font-medium text-fg-muted uppercase tracking-wide">Status</th>
+              <th className="py-2 px-4 text-left text-xs font-medium text-fg-muted uppercase tracking-wide">Payments / Actions</th>
             </tr>
           </thead>
           <tbody>
-            {split.shares.map((share) => (
-              <ShareRow key={share.id} share={share} splitId={split.id} />
+            {split.shares.map(share => (
+              <ShareRow
+                key={share.id}
+                share={share}
+                splitId={split.id}
+                payeeName={share.payee_id ? (payeeMap[share.payee_id] ?? share.payee_id.slice(0, 8)) : null}
+                txnMap={txnMap}
+                incomeTransactions={incomeTransactions}
+              />
             ))}
           </tbody>
         </table>
       </div>
 
       {split.notes && (
-        <p className="text-sm text-gray-600 italic">Notes: {split.notes}</p>
+        <p className="text-sm text-fg-muted italic">Notes: {split.notes}</p>
       )}
     </main>
   )

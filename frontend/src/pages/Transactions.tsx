@@ -83,8 +83,8 @@ export default function Transactions() {
     for (const s of splitsData ?? []) {
       if (s.deleted_at) continue
       for (const sh of s.shares) {
-        if (sh.settlement_transaction_id) {
-          map.set(sh.settlement_transaction_id, s)
+        for (const settlement of sh.settlements) {
+          map.set(settlement.transaction_id, s)
         }
       }
     }

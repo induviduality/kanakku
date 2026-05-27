@@ -1,7 +1,15 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { apiGet, apiPost } from '../lib/api-client'
+import { apiDelete, apiGet, apiPost } from '../lib/api-client'
 
 export type SplitShareStatus = 'pending' | 'settled' | 'forgiven'
+
+export interface SplitShareSettlement {
+  id: string
+  share_id: string
+  transaction_id: string
+  amount: string
+  created_at: string
+}
 
 export interface SplitShare {
   id: string
@@ -9,9 +17,9 @@ export interface SplitShare {
   payee_id: string | null
   amount: string
   status: SplitShareStatus
-  settled_at: string | null
-  settlement_transaction_id: string | null
-  forgiven_at: string | null
+  forgiven_amount: string
+  paid_amount: string
+  settlements: SplitShareSettlement[]
   notes: string | null
   created_at: string
   updated_at: string
@@ -53,8 +61,15 @@ export interface BundleCreate {
   notes?: string
 }
 
+/** Link an income transaction to a share. amount defaults to the full transaction amount. */
 export interface SettleRequest {
-  settlement_transaction_id: string
+  transaction_id: string
+  amount?: string
+}
+
+/** SET the forgiven_amount for a share (replaces prior value). */
+export interface ForgiveRequest {
+  amount: string
 }
 
 export function useListSplits() {
@@ -105,11 +120,22 @@ export function useSettleShare(splitId: string) {
   })
 }
 
+export function useUnlinkSettlement(splitId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ shareId, settlementId }: { shareId: string; settlementId: string }) =>
+      apiDelete<SplitShare>(`/splits/${splitId}/shares/${shareId}/settlements/${settlementId}`),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['splits', splitId] })
+    },
+  })
+}
+
 export function useForgiveShare(splitId: string) {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: (shareId: string) =>
-      apiPost<SplitShare>(`/splits/${splitId}/shares/${shareId}/forgive`, {}),
+    mutationFn: ({ shareId, amount }: { shareId: string; amount: string }) =>
+      apiPost<SplitShare>(`/splits/${splitId}/shares/${shareId}/forgive`, { amount }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['splits', splitId] })
     },

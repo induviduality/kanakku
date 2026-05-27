@@ -7,27 +7,35 @@ vi.mock('@tanstack/react-router', async () => {
   const actual = await vi.importActual('@tanstack/react-router')
   return {
     ...actual,
-    useParams: () => ({ splitId: 'split-1' }),
+    useParams: () => ({ splitId: 'split-dinner' }),
     useNavigate: () => vi.fn(),
   }
 })
 
 describe('SplitDetail', () => {
-  it('renders split shares table', async () => {
+  it('renders split heading and shares table', async () => {
     renderWithQuery(<SplitDetail />)
-    expect(await screen.findByText('Split Detail')).toBeInTheDocument()
-    expect((await screen.findAllByText(/300\.00/)).length).toBeGreaterThanOrEqual(1)
-    expect((await screen.findAllByText(/200\.00/)).length).toBeGreaterThanOrEqual(1)
+    expect(await screen.findByText('Dinner at Taj')).toBeInTheDocument()
+    // 4 shares × ₹900.00 each
+    const amounts = await screen.findAllByText(/900\.00/)
+    expect(amounts.length).toBeGreaterThanOrEqual(1)
   })
 
-  it('shows pending status badges', async () => {
+  it('shows status badges', async () => {
     renderWithQuery(<SplitDetail />)
-    const badges = await screen.findAllByText('pending')
-    expect(badges.length).toBeGreaterThanOrEqual(1)
+    // Priya's share is forgiven, others pending/partial
+    expect(await screen.findByText('forgiven')).toBeInTheDocument()
+    const pending = await screen.findAllByText('pending')
+    expect(pending.length).toBeGreaterThanOrEqual(1)
   })
 
   it('shows net expense calculation', async () => {
     renderWithQuery(<SplitDetail />)
     expect(await screen.findByText(/Net expense/)).toBeInTheDocument()
+  })
+
+  it('shows linked payment for Rahul partial share', async () => {
+    renderWithQuery(<SplitDetail />)
+    expect(await screen.findByText(/Rahul.*partial|partial.*dinner/i)).toBeInTheDocument()
   })
 })

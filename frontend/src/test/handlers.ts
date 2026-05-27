@@ -95,6 +95,7 @@ export const TRANSACTIONS_RESPONSE = {
     txn('txn-may-lunch',   'expense',  '2026-05-15', '2400.00',  'Team lunch',        { account_id: 'acc-4', payee_id: 'payee-1' }),
     txn('txn-may-petrol',  'expense',  '2026-05-16', '2000.00',  'Petrol'),
     // Scenario: split share settlements — income from friends who paid back
+    txn('txn-settle-dinner-rahul', 'income', '2026-05-12', '450.00', "Rahul's partial – dinner", { payee_id: 'payee-rahul' }),
     txn('txn-settle-fuel-rahul', 'income', '2026-05-16', '800.00', "Rahul's share – fuel split", { payee_id: 'payee-rahul' }),
     txn('txn-settle-fuel-priya', 'income', '2026-05-17', '800.00', "Priya's share – fuel split", { payee_id: 'payee-priya' }),
     txn('txn-may-food2',   'expense',  '2026-05-18', '310.00',   'Street food',       { account_id: 'acc-3' }),
@@ -108,43 +109,75 @@ export const TRANSACTIONS_RESPONSE = {
   next_cursor: null,
 }
 
-const shareBase = (id: string, splitId: string, payeeId: string | null, amount: string, status: string, extra: Record<string, unknown> = {}) => ({
+const shareBase = (
+  id: string, splitId: string, payeeId: string | null, amount: string, status: string,
+  extra: { paid_amount?: string; forgiven_amount?: string; settlements?: object[]; notes?: string; updated_at?: string } = {},
+) => ({
   id, split_id: splitId, payee_id: payeeId, amount, status,
-  settled_at: null, settlement_transaction_id: null, forgiven_at: null, notes: null,
-  created_at: '2026-05-07T10:00:00Z', updated_at: '2026-05-07T10:00:00Z',
-  ...extra,
+  paid_amount: extra.paid_amount ?? '0.00',
+  forgiven_amount: extra.forgiven_amount ?? '0.00',
+  settlements: extra.settlements ?? [],
+  notes: extra.notes ?? null,
+  created_at: '2026-05-07T10:00:00Z',
+  updated_at: extra.updated_at ?? '2026-05-07T10:00:00Z',
 })
 
-// Scenario: Dinner at Taj — 4-way, all payees pending → ring 25% (only my ₹900 counted)
+const settlement = (id: string, shareId: string, txnId: string, amount: string, date: string) => ({
+  id, share_id: shareId, transaction_id: txnId, amount, created_at: date,
+})
+
+// Scenario: Dinner at Taj — 4-way split
+//   - own share: ₹900 pending
+//   - Rahul: ₹900 pending but ₹450 paid (partial payment received)
+//   - Priya: ₹900 forgiven (absorbed by user)
+//   - Neel: ₹900 pending (untouched)
 const SPLIT_DINNER = {
   id: 'split-dinner', user_id: 'user-1', expense_transaction_id: 'txn-split-dinner',
-  notes: null, deleted_at: null,
-  created_at: '2026-05-07T10:00:00Z', updated_at: '2026-05-07T10:00:00Z',
+  notes: 'Dinner at Taj', deleted_at: null,
+  created_at: '2026-05-07T10:00:00Z', updated_at: '2026-05-12T10:00:00Z',
   shares: [
-    shareBase('sh-d1', 'split-dinner', 'payee-rahul', '900.00', 'pending'),
-    shareBase('sh-d2', 'split-dinner', 'payee-priya', '900.00', 'pending'),
-    shareBase('sh-d3', 'split-dinner', 'payee-neel',  '900.00', 'pending'),
+    shareBase('sh-d-own', 'split-dinner', null,          '900.00', 'pending'),
+    shareBase('sh-d1',    'split-dinner', 'payee-rahul', '900.00', 'pending', {
+      paid_amount: '450.00',
+      settlements: [settlement('sset-d1', 'sh-d1', 'txn-settle-dinner-rahul', '450.00', '2026-05-12T10:00:00Z')],
+    }),
+    shareBase('sh-d2',    'split-dinner', 'payee-priya', '900.00', 'forgiven', {
+      forgiven_amount: '900.00',
+      updated_at: '2026-05-09T10:00:00Z',
+    }),
+    shareBase('sh-d3',    'split-dinner', 'payee-neel',  '900.00', 'pending'),
   ],
 }
 
-// Scenario: Weekend trip fuel — 3-way, both payees settled → ring 100%
+// Scenario: Weekend trip fuel — 3-way, both payees fully settled via linked transactions
 const SPLIT_FUEL = {
   id: 'split-fuel', user_id: 'user-1', expense_transaction_id: 'txn-split-fuel',
-  notes: null, deleted_at: null,
+  notes: 'Weekend trip fuel', deleted_at: null,
   created_at: '2026-05-14T10:00:00Z', updated_at: '2026-05-17T10:00:00Z',
   shares: [
-    shareBase('sh-f1', 'split-fuel', 'payee-rahul', '800.00', 'settled', { settled_at: '2026-05-16T10:00:00Z', updated_at: '2026-05-16T10:00:00Z', settlement_transaction_id: 'txn-settle-fuel-rahul' }),
-    shareBase('sh-f2', 'split-fuel', 'payee-priya', '800.00', 'settled', { settled_at: '2026-05-17T10:00:00Z', updated_at: '2026-05-17T10:00:00Z', settlement_transaction_id: 'txn-settle-fuel-priya' }),
+    shareBase('sh-f-own', 'split-fuel', null,          '800.00', 'pending'),
+    shareBase('sh-f1',    'split-fuel', 'payee-rahul', '800.00', 'settled', {
+      paid_amount: '800.00', updated_at: '2026-05-16T10:00:00Z',
+      settlements: [settlement('sset-f1', 'sh-f1', 'txn-settle-fuel-rahul', '800.00', '2026-05-16T10:00:00Z')],
+    }),
+    shareBase('sh-f2',    'split-fuel', 'payee-priya', '800.00', 'settled', {
+      paid_amount: '800.00', updated_at: '2026-05-17T10:00:00Z',
+      settlements: [settlement('sset-f2', 'sh-f2', 'txn-settle-fuel-priya', '800.00', '2026-05-17T10:00:00Z')],
+    }),
   ],
 }
 
-// Scenario: Movie + dinner — 2-way, Neel settled → ring 50% (my ₹900 / total ₹1800)
+// Scenario: Movie + dinner — 2-way, Neel fully settled; my ₹900 pending
 const SPLIT_MOVIE = {
   id: 'split-movie', user_id: 'user-1', expense_transaction_id: 'txn-split-movie',
-  notes: null, deleted_at: null,
+  notes: 'Movie + dinner', deleted_at: null,
   created_at: '2026-05-21T10:00:00Z', updated_at: '2026-05-22T10:00:00Z',
   shares: [
-    shareBase('sh-m1', 'split-movie', 'payee-neel', '900.00', 'settled', { settled_at: '2026-05-22T10:00:00Z', updated_at: '2026-05-22T10:00:00Z', settlement_transaction_id: 'txn-settle-movie-neel' }),
+    shareBase('sh-m-own', 'split-movie', null,         '900.00', 'pending'),
+    shareBase('sh-m1',    'split-movie', 'payee-neel', '900.00', 'settled', {
+      paid_amount: '900.00', updated_at: '2026-05-22T10:00:00Z',
+      settlements: [settlement('sset-m1', 'sh-m1', 'txn-settle-movie-neel', '900.00', '2026-05-22T10:00:00Z')],
+    }),
   ],
 }
 
@@ -743,33 +776,38 @@ export const handlers = [
   }),
   http.post('/api/v1/splits/:splitId/shares/:shareId/settle', async ({ request, params }) => {
     const body = await request.json() as Record<string, unknown>
+    const txnId = body.transaction_id as string
+    const creditAmount = (body.amount as string | undefined) ?? '800.00'
+    const newSettlement = settlement(`sset-new-${Date.now()}`, params.shareId as string, txnId, creditAmount, new Date().toISOString())
     return HttpResponse.json({
-      ...SPLIT_RESPONSE.shares[0],
-      id: params.shareId,
-      split_id: params.splitId,
-      status: 'settled',
-      settled_at: '2026-01-16T10:00:00Z',
-      settlement_transaction_id: body.settlement_transaction_id,
+      ...shareBase(params.shareId as string, params.splitId as string, 'payee-rahul', '800.00', 'settled', {
+        paid_amount: creditAmount,
+        settlements: [newSettlement],
+      }),
     })
   }),
-  http.post('/api/v1/splits/:splitId/shares/:shareId/forgive', ({ params }) =>
-    HttpResponse.json({
-      ...SPLIT_RESPONSE.shares[0],
-      id: params.shareId,
-      split_id: params.splitId,
-      status: 'forgiven',
-      forgiven_at: '2026-01-16T10:00:00Z',
-    }),
-  ),
+  http.post('/api/v1/splits/:splitId/shares/:shareId/forgive', async ({ request, params }) => {
+    const body = await request.json() as Record<string, unknown>
+    const amount = body.amount as string
+    const paid = '0.00'
+    const shareAmt = '900.00'
+    const isFullyForgiven = parseFloat(paid) + parseFloat(amount) >= parseFloat(shareAmt)
+    return HttpResponse.json({
+      ...shareBase(params.shareId as string, params.splitId as string, null, shareAmt, isFullyForgiven ? 'forgiven' : 'pending', {
+        forgiven_amount: amount,
+        paid_amount: paid,
+      }),
+    })
+  }),
   http.post('/api/v1/splits/:splitId/shares/:shareId/unsettle', ({ params }) =>
-    HttpResponse.json({
-      ...SPLIT_RESPONSE.shares[0],
-      id: params.shareId,
-      split_id: params.splitId,
-      status: 'pending',
-      settled_at: null,
-      settlement_transaction_id: null,
-    }),
+    HttpResponse.json(
+      shareBase(params.shareId as string, params.splitId as string, null, '900.00', 'pending'),
+    ),
+  ),
+  http.delete('/api/v1/splits/:splitId/shares/:shareId/settlements/:settlementId', ({ params }) =>
+    HttpResponse.json(
+      shareBase(params.shareId as string, params.splitId as string, null, '900.00', 'pending'),
+    ),
   ),
 
   // Budgets

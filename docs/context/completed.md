@@ -2,6 +2,16 @@
 
 ## Ad-hoc Fixes (2026-05-27) — continued
 
+### Split settlement UI: multi-payment + partial forgiveness frontend
+- `frontend/src/api/splits.ts`: `SplitShareSettlement` type; `SplitShare` updated with `paid_amount`, `forgiven_amount`, `settlements[]`; `useSettleShare` body is `{shareId, body: SettleRequest}`; new `useForgiveShare`; `useUnlinkSettlement(splitId)` uses `apiDelete<SplitShare>`
+- `frontend/src/lib/api-client.ts`: `apiDelete<T=void>` made generic to handle DELETE responses with body
+- `frontend/src/test/handlers.ts`: `SPLIT_DINNER` fixture (4 shares: own, Rahul partial+settlement row, Priya forgiven, Neel pending); settle/forgive/unsettle/unlink handlers updated; new income txn `txn-settle-dinner-rahul`
+- `frontend/src/components/drawers/SplitDrawer.tsx`: full rewrite — `SettlementRow` with unlink ×; `ShareRow` with paid/forgiven/remaining breakdown, settlements list, inline "Add payment" form (income txn select + capped amount), inline "Forgive" form with "All remaining" shortcut, Reset ConfirmDialog; parent builds `payeeMap` + `txnMap` + `incomeTransactions` once
+- `frontend/src/pages/SplitDetail.tsx`: full rewrite — table layout with same settlement detail; `SettlementItem` unlink; inline settle/forgive modals; payees + income txns fetched in parent
+- `frontend/src/pages/Splits.tsx`: `overallStatus` and `unsettled` filter now use `amount - paid_amount - forgiven_amount` remaining-balance logic
+- `frontend/src/pages/Transactions.tsx`: settlement map now iterates `sh.settlements[]` array instead of removed `sh.settlement_transaction_id`
+- `frontend/src/pages/SplitDetail.test.tsx`: updated to use `split-dinner` fixture; assertions match new shape
+
 ### Split settlement redesign: multi-payment + partial forgiveness
 - `backend/alembic/versions/0024_split_settlements.py`: new `split_share_settlements` join table; `forgiven_amount` added to `split_shares`; `settlement_transaction_id`, `settled_at`, `forgiven_at` dropped
 - `backend/app/models/split.py`: added `SplitShareSettlement` model; `SplitShare` updated (removed old fields, added `forgiven_amount`)
