@@ -10,6 +10,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.db.session import get_session
 from app.dependencies import get_current_user
 from app.models.account import Account, AccountType
+from app.models.payment_method import PaymentMethod
+from app.models.split import Split
 from app.models.transaction import (
     Transaction,
     TransactionType,
@@ -100,14 +102,43 @@ async def _fetch_budget_ids(txn_id: uuid.UUID, session: AsyncSession) -> list[uu
     return [r.budget_id for r in rows]
 
 
+async def _fetch_payment_method_name(
+    pm_id: uuid.UUID | None, session: AsyncSession
+) -> str | None:
+    if pm_id is None:
+        return None
+    row = (
+        await session.execute(
+            select(PaymentMethod.name).where(PaymentMethod.id == pm_id)
+        )
+    ).scalar_one_or_none()
+    return row
+
+
+async def _fetch_split_id(txn_id: uuid.UUID, session: AsyncSession) -> uuid.UUID | None:
+    row = (
+        await session.execute(
+            select(Split.id).where(
+                Split.expense_transaction_id == txn_id,
+                Split.deleted_at.is_(None),
+            )
+        )
+    ).scalar_one_or_none()
+    return row
+
+
 async def _to_response(txn: Transaction, session: AsyncSession) -> TransactionResponse:
     category_ids = await _fetch_category_ids(txn.id, session)
     tag_ids = await _fetch_tag_ids(txn.id, session)
     budget_ids = await _fetch_budget_ids(txn.id, session)
+    payment_method_name = await _fetch_payment_method_name(txn.payment_method_id, session)
+    split_id = await _fetch_split_id(txn.id, session)
     data = {c.key: getattr(txn, c.key) for c in txn.__table__.columns}
     data["category_ids"] = category_ids
     data["tag_ids"] = tag_ids
     data["budget_ids"] = budget_ids
+    data["payment_method_name"] = payment_method_name
+    data["split_id"] = split_id
     return TransactionResponse.model_validate(data)
 
 

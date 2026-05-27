@@ -48,6 +48,7 @@ export default function TransactionForm({
   const [payeeId, setPayeeId] = useState<string | null>(initial?.payee_id ?? null)
   const [description, setDescription] = useState(initial?.description ?? '')
   const [notes, setNotes] = useState(initial?.notes ?? '')
+  const [externalRef, setExternalRef] = useState(initial?.external_ref ?? '')
   const [selectedCategories, setSelectedCategories] = useState<string[]>(
     initial?.category_ids ?? [],
   )
@@ -104,6 +105,7 @@ export default function TransactionForm({
       ...(currency && { currency }),
       ...(description && { description }),
       ...(notes && { notes }),
+      ...(externalRef && { external_ref: externalRef }),
       ...(paymentMethodId && { payment_method_id: paymentMethodId }),
       ...(payeeId && { payee_id: payeeId }),
       ...(type === 'transfer' && toAccountId && { to_account_id: toAccountId }),
@@ -315,6 +317,19 @@ export default function TransactionForm({
           value={description}
           onChange={(e) => setDescription(e.target.value)}
           placeholder="What was this for?"
+          className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+        />
+      </div>
+
+      {/* Reference / UTR */}
+      <div>
+        <label htmlFor="txn-ref" className="block text-sm font-medium text-gray-700">Ref / UTR</label>
+        <input
+          id="txn-ref"
+          type="text"
+          value={externalRef}
+          onChange={(e) => setExternalRef(e.target.value)}
+          placeholder="UPI ref, UTR, cheque no., …"
           className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
         />
       </div>

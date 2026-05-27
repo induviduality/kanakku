@@ -14,6 +14,7 @@ class TransactionCreate(BaseModel):
     currency: str | None = None  # defaults to account's currency
     description: str | None = None
     notes: str | None = None
+    external_ref: str | None = None
     account_id: uuid.UUID
     payment_method_id: uuid.UUID | None = None
     payee_id: uuid.UUID | None = None
@@ -40,6 +41,7 @@ class TransactionPatch(BaseModel):
     currency: str | None = None
     description: str | None = None
     notes: str | None = None
+    external_ref: str | None = None
     account_id: uuid.UUID | None = None
     payment_method_id: uuid.UUID | None = None
     payee_id: uuid.UUID | None = None
@@ -68,14 +70,17 @@ class TransactionResponse(BaseModel):
     currency: str
     description: str | None
     notes: str | None
+    external_ref: str | None
     account_id: uuid.UUID
     payment_method_id: uuid.UUID | None
+    payment_method_name: str | None  # denormalized for display
     payee_id: uuid.UUID | None
     to_account_id: uuid.UUID | None
     to_amount: Decimal | None
     to_currency: str | None
     subscription_id: uuid.UUID | None
     import_record_id: uuid.UUID | None
+    split_id: uuid.UUID | None  # set if this transaction is a split parent
     category_ids: list[uuid.UUID]
     tag_ids: list[uuid.UUID]
     budget_ids: list[uuid.UUID]

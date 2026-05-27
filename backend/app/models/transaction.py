@@ -132,6 +132,8 @@ class Transaction(Base):
     import_record_id: Mapped[uuid.UUID | None] = mapped_column(
         sa.UUID(as_uuid=True), nullable=True
     )
+    # external reference from the payment provider (UPI ref, UTR, cheque no., etc.)
+    external_ref: Mapped[str | None] = mapped_column(sa.Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         sa.TIMESTAMP(timezone=True), server_default=sa.func.now(), nullable=False
     )

@@ -44,19 +44,14 @@ export const PAYMENT_METHODS_RESPONSE = [
   },
 ]
 
+const PAYEE_BASE = { user_id: 'user-1', notes: null, is_active: true, default_category_ids: [], created_at: '2026-01-01T00:00:00Z', updated_at: '2026-01-01T00:00:00Z', deleted_at: null }
 export const PAYEES_RESPONSE = [
-  {
-    id: 'payee-1',
-    user_id: 'user-1',
-    name: 'Swiggy',
-    type: 'merchant',
-    notes: null,
-    is_active: true,
-    default_category_ids: ['cat-1'],
-    created_at: '2026-01-01T00:00:00Z',
-    updated_at: '2026-01-01T00:00:00Z',
-    deleted_at: null,
-  },
+  { ...PAYEE_BASE, id: 'payee-1', name: 'Swiggy',   type: 'merchant',  default_category_ids: ['cat-1'] },
+  { ...PAYEE_BASE, id: 'payee-2', name: 'Uber',      type: 'merchant' },
+  { ...PAYEE_BASE, id: 'payee-3', name: 'Netflix',   type: 'merchant' },
+  { ...PAYEE_BASE, id: 'payee-rahul', name: 'Rahul', type: 'individual' },
+  { ...PAYEE_BASE, id: 'payee-priya', name: 'Priya', type: 'individual' },
+  { ...PAYEE_BASE, id: 'payee-neel',  name: 'Neel',  type: 'individual' },
 ]
 
 export const CATEGORIES_RESPONSE = [
@@ -73,73 +68,83 @@ export const CATEGORIES_RESPONSE = [
   },
 ]
 
+const TXN_BASE = { user_id: 'user-1', currency: 'INR', notes: null, external_ref: null, payment_method_id: null, payment_method_name: null, to_account_id: null, to_amount: null, to_currency: null, subscription_id: null, import_record_id: null, split_id: null, category_ids: [], tag_ids: [], budget_ids: [], deleted_at: null }
+const txn = (id: string, type: string, date: string, amount: string, desc: string, extra: Record<string, unknown> = {}) => ({
+  ...TXN_BASE, id, type, transacted_at: `${date}T10:00:00Z`, amount, description: desc,
+  account_id: 'acc-1', payee_id: null,
+  created_at: `${date}T10:00:00Z`, updated_at: `${date}T10:00:00Z`,
+  ...extra,
+})
+
 export const TRANSACTIONS_RESPONSE = {
   items: [
-    {
-      id: 'txn-1',
-      user_id: 'user-1',
-      type: 'expense',
-      transacted_at: '2026-01-15T10:00:00Z',
-      amount: '500.00',
-      currency: 'INR',
-      description: 'Coffee',
-      notes: null,
-      account_id: 'acc-1',
-      payment_method_id: null,
-      payee_id: 'payee-1',
-      to_account_id: null,
-      to_amount: null,
-      to_currency: null,
-      subscription_id: null,
-      import_record_id: null,
-      category_ids: ['cat-1'],
-      tag_ids: ['tag-1'],
-      budget_ids: [],
-      created_at: '2026-01-15T10:00:00Z',
-      updated_at: '2026-01-15T10:00:00Z',
-      deleted_at: null,
-    },
+    // May 2026 — sorted newest first
+    txn('txn-may-salary',  'income',   '2026-05-01', '85000.00', 'May salary',        { payee_id: 'payee-employer' }),
+    txn('txn-may-transfer','transfer', '2026-05-02', '10000.00', 'Top-up ICICI',      { to_account_id: 'acc-2', to_amount: '10000.00', to_currency: 'INR' }),
+    txn('txn-may-amazon',  'expense',  '2026-05-03', '1899.00',  'USB hub',           { account_id: 'acc-4' }),
+    txn('txn-may-gym',     'expense',  '2026-05-05', '2500.00',  'Gym membership'),
+    // Scenario: 4-way split — Dinner at Taj (ring 25%, my share pending)
+    txn('txn-split-dinner','expense',  '2026-05-07', '3600.00',  'Dinner at Taj',     { account_id: 'acc-4', payee_id: 'payee-1' }),
+    txn('txn-may-uber',    'expense',  '2026-05-08', '250.00',   'Ride to airport',   { payee_id: 'payee-2' }),
+    txn('txn-may-grocery', 'expense',  '2026-05-09', '1250.00',  'Weekly groceries'),
+    txn('txn-may-meds',    'expense',  '2026-05-10', '540.00',   'Monthly meds'),
+    txn('txn-may-food1',   'expense',  '2026-05-12', '680.00',   'Weekend lunch',     { payee_id: 'payee-1' }),
+    // Scenario: 3-way split — Weekend trip fuel (ring 100%, both payees settled)
+    txn('txn-split-fuel',  'expense',  '2026-05-14', '2400.00',  'Weekend trip fuel'),
+    txn('txn-may-netflix', 'expense',  '2026-05-15', '649.00',   'Netflix May',       { account_id: 'acc-4', payee_id: 'payee-3' }),
+    txn('txn-may-lunch',   'expense',  '2026-05-15', '2400.00',  'Team lunch',        { account_id: 'acc-4', payee_id: 'payee-1' }),
+    txn('txn-may-petrol',  'expense',  '2026-05-16', '2000.00',  'Petrol'),
+    txn('txn-may-food2',   'expense',  '2026-05-18', '310.00',   'Street food',       { account_id: 'acc-3' }),
+    txn('txn-may-uber2',   'expense',  '2026-05-20', '180.00',   'Ride to office',    { payee_id: 'payee-2' }),
+    // Scenario: 2-way split — Movie + dinner (ring 50%, Neel pending)
+    txn('txn-split-movie', 'expense',  '2026-05-21', '1800.00',  'Movie + dinner',    { account_id: 'acc-4' }),
+    txn('txn-may-cc',      'transfer', '2026-05-22', '15000.00', 'CC bill payment',   { to_account_id: 'acc-4', to_amount: '15000.00', to_currency: 'INR' }),
+    txn('txn-may-coffee',  'expense',  '2026-05-23', '380.00',   'Coffee & snacks',   { account_id: 'acc-3', payee_id: 'payee-1' }),
   ],
   next_cursor: null,
 }
 
-export const SPLIT_RESPONSE = {
-  id: 'split-1',
-  user_id: 'user-1',
-  expense_transaction_id: 'txn-1',
-  notes: 'dinner split',
+const shareBase = (id: string, splitId: string, payeeId: string | null, amount: string, status: string, extra: Record<string, unknown> = {}) => ({
+  id, split_id: splitId, payee_id: payeeId, amount, status,
+  settled_at: null, settlement_transaction_id: null, forgiven_at: null, notes: null,
+  created_at: '2026-05-07T10:00:00Z', updated_at: '2026-05-07T10:00:00Z',
+  ...extra,
+})
+
+// Scenario: Dinner at Taj — 4-way, all payees pending → ring 25% (only my ₹900 counted)
+const SPLIT_DINNER = {
+  id: 'split-dinner', user_id: 'user-1', expense_transaction_id: 'txn-split-dinner',
+  notes: null, deleted_at: null,
+  created_at: '2026-05-07T10:00:00Z', updated_at: '2026-05-07T10:00:00Z',
   shares: [
-    {
-      id: 'share-1',
-      split_id: 'split-1',
-      payee_id: null,
-      amount: '300.00',
-      status: 'pending',
-      settled_at: null,
-      settlement_transaction_id: null,
-      forgiven_at: null,
-      notes: null,
-      created_at: '2026-01-15T10:00:00Z',
-      updated_at: '2026-01-15T10:00:00Z',
-    },
-    {
-      id: 'share-2',
-      split_id: 'split-1',
-      payee_id: 'payee-1',
-      amount: '200.00',
-      status: 'pending',
-      settled_at: null,
-      settlement_transaction_id: null,
-      forgiven_at: null,
-      notes: null,
-      created_at: '2026-01-15T10:00:00Z',
-      updated_at: '2026-01-15T10:00:00Z',
-    },
+    shareBase('sh-d1', 'split-dinner', 'payee-rahul', '900.00', 'pending'),
+    shareBase('sh-d2', 'split-dinner', 'payee-priya', '900.00', 'pending'),
+    shareBase('sh-d3', 'split-dinner', 'payee-neel',  '900.00', 'pending'),
   ],
-  created_at: '2026-01-15T10:00:00Z',
-  updated_at: '2026-01-15T10:00:00Z',
-  deleted_at: null,
 }
+
+// Scenario: Weekend trip fuel — 3-way, both payees settled → ring 100%
+const SPLIT_FUEL = {
+  id: 'split-fuel', user_id: 'user-1', expense_transaction_id: 'txn-split-fuel',
+  notes: null, deleted_at: null,
+  created_at: '2026-05-14T10:00:00Z', updated_at: '2026-05-17T10:00:00Z',
+  shares: [
+    shareBase('sh-f1', 'split-fuel', 'payee-rahul', '800.00', 'settled', { settled_at: '2026-05-16T10:00:00Z', updated_at: '2026-05-16T10:00:00Z' }),
+    shareBase('sh-f2', 'split-fuel', 'payee-priya', '800.00', 'settled', { settled_at: '2026-05-17T10:00:00Z', updated_at: '2026-05-17T10:00:00Z' }),
+  ],
+}
+
+// Scenario: Movie + dinner — 2-way, Neel pending → ring 50% (my ₹900 / total ₹1800)
+const SPLIT_MOVIE = {
+  id: 'split-movie', user_id: 'user-1', expense_transaction_id: 'txn-split-movie',
+  notes: null, deleted_at: null,
+  created_at: '2026-05-21T10:00:00Z', updated_at: '2026-05-21T10:00:00Z',
+  shares: [
+    shareBase('sh-m1', 'split-movie', 'payee-neel', '900.00', 'pending'),
+  ],
+}
+
+export const SPLIT_RESPONSE = SPLIT_DINNER
 
 export const BUDGETS_RESPONSE: object[] = [
   {
@@ -709,39 +714,7 @@ export const handlers = [
   http.delete('/api/v1/transactions/:id', () => new HttpResponse(null, { status: 204 })),
 
   // Splits
-  http.get('/api/v1/splits', () =>
-    HttpResponse.json([
-      {
-        ...SPLIT_RESPONSE,
-        id: 'split-1',
-        notes: 'Dinner split',
-        created_at: '2026-05-10T10:00:00Z',
-        updated_at: '2026-05-10T10:00:00Z',
-        shares: [
-          { ...SPLIT_RESPONSE.shares[0], id: 'share-1', split_id: 'split-1', created_at: '2026-05-10T10:00:00Z', updated_at: '2026-05-10T10:00:00Z' },
-          { ...SPLIT_RESPONSE.shares[1], id: 'share-2', split_id: 'split-1', created_at: '2026-05-10T10:00:00Z', updated_at: '2026-05-10T10:00:00Z' },
-        ],
-      },
-      {
-        ...SPLIT_RESPONSE,
-        id: 'split-2',
-        notes: 'Lunch bill',
-        created_at: '2026-05-15T12:00:00Z',
-        updated_at: '2026-05-15T12:00:00Z',
-        shares: [
-          { ...SPLIT_RESPONSE.shares[0], id: 'share-3', split_id: 'split-2', status: 'settled', settled_at: '2026-05-20T10:00:00Z', created_at: '2026-05-15T12:00:00Z', updated_at: '2026-05-20T10:00:00Z' },
-          { ...SPLIT_RESPONSE.shares[1], id: 'share-4', split_id: 'split-2', status: 'forgiven', forgiven_at: '2026-05-20T10:00:00Z', created_at: '2026-05-15T12:00:00Z', updated_at: '2026-05-20T10:00:00Z' },
-        ],
-      },
-      {
-        ...SPLIT_RESPONSE,
-        id: 'split-3',
-        notes: 'Old dinner',
-        created_at: '2026-01-15T10:00:00Z',
-        updated_at: '2026-01-15T10:00:00Z',
-      },
-    ]),
-  ),
+  http.get('/api/v1/splits', () => HttpResponse.json([SPLIT_DINNER, SPLIT_FUEL, SPLIT_MOVIE])),
   http.post('/api/v1/splits', async ({ request }) => {
     const body = await request.json() as Record<string, unknown>
     return HttpResponse.json(

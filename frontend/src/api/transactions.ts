@@ -12,14 +12,17 @@ export interface Transaction {
   currency: string
   description: string | null
   notes: string | null
+  external_ref: string | null
   account_id: string
   payment_method_id: string | null
+  payment_method_name: string | null
   payee_id: string | null
   to_account_id: string | null
   to_amount: string | null
   to_currency: string | null
   subscription_id: string | null
   import_record_id: string | null
+  split_id: string | null
   category_ids: string[]
   tag_ids: string[]
   budget_ids: string[]
@@ -40,6 +43,7 @@ export interface TransactionCreate {
   currency?: string
   description?: string
   notes?: string
+  external_ref?: string
   account_id: string
   payment_method_id?: string
   payee_id?: string
@@ -58,6 +62,7 @@ export interface TransactionPatch {
   currency?: string
   description?: string
   notes?: string
+  external_ref?: string | null
   account_id?: string
   payment_method_id?: string | null
   payee_id?: string | null

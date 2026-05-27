@@ -1,5 +1,18 @@
 # Completed Milestones
 
+## Ad-hoc Fixes (2026-05-27)
+
+### Transaction details drawer — full details + external_ref field
+- `backend/alembic/versions/0023_transaction_external_ref.py`: migration adding `external_ref TEXT NULL` to transactions
+- `backend/app/models/transaction.py`: added `external_ref` mapped column
+- `backend/app/schemas/transaction.py`: added `external_ref` to Create/Patch/Response; added `payment_method_name: str | None` and `split_id: uuid.UUID | None` to Response (denormalized for display)
+- `backend/app/routers/transactions.py`: added `_fetch_payment_method_name` and `_fetch_split_id` helpers; `_to_response` now populates both
+- `frontend/src/api/transactions.ts`: added `external_ref`, `payment_method_name`, `split_id` to `Transaction`; `external_ref` to Create/Patch
+- `frontend/src/components/drawers/TransactionDrawer.tsx`: shows all details — payment method, external ref (UTR), budget names, split shares with status badges, currency, import record, time-of-day, updated_at
+- `frontend/src/components/forms/TransactionForm.tsx`: added Ref/UTR field (`external_ref`), state + payload
+- `frontend/src/components/drawers/BudgetDrawer.tsx` + `frontend/src/pages/BudgetDetail.tsx`: `toTransaction()` adapter updated with new nullable fields
+- `frontend/src/test/handlers.ts`: added `external_ref`, `payment_method_name`, `split_id` to `TXN_BASE`
+
 ## Ad-hoc Fixes (2026-05-26)
 
 ### BudgetDrawer redesign + period transaction filtering fix
