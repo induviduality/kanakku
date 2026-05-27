@@ -21,7 +21,7 @@ from app.models.payee import Payee, PayeeType
 from app.models.payment_method import PaymentMethod, PaymentMethodType
 from app.models.piggy_bank import ContributionType, PiggyBank, PiggyBankContribution
 from app.models.subscription import BillingCycle, Subscription
-from app.models.split import Split, SplitShare, SplitShareStatus
+from app.models.split import Split, SplitShare, SplitShareSettlement, SplitShareStatus
 from app.models.tag import Tag
 from app.models.transaction import (
     Transaction,
@@ -163,6 +163,11 @@ SHARE_DINNER_NEEL   = uuid.UUID("92000001-0000-0000-0000-000000000003")
 SHARE_FUEL_RAHUL    = uuid.UUID("92000001-0000-0000-0000-000000000004")
 SHARE_FUEL_PRIYA    = uuid.UUID("92000001-0000-0000-0000-000000000005")
 SHARE_MOVIE_NEEL    = uuid.UUID("92000001-0000-0000-0000-000000000006")
+
+# Split share settlements (join table rows)
+SETTLEMENT_FUEL_RAHUL = uuid.UUID("93000001-0000-0000-0000-000000000001")
+SETTLEMENT_FUEL_PRIYA = uuid.UUID("93000001-0000-0000-0000-000000000002")
+SETTLEMENT_MOVIE_NEEL = uuid.UUID("93000001-0000-0000-0000-000000000003")
 
 # Budgets
 BUD_FOOD_CURR   = uuid.UUID("b7000001-0000-0000-0000-000000000001")
@@ -653,13 +658,11 @@ async def seed_dev_data() -> None:
         session.add(SplitShare(id=SHARE_FUEL_RAHUL, split_id=SPLIT_FUEL,
                                payee_id=PAYEE_RAHUL, amount=Decimal("800"),
                                status=SplitShareStatus.settled,
-                               settled_at=_dt(2026, 5, 16),
-                               settlement_transaction_id=TXN_SETTLE_FUEL_RAHUL))
+                               forgiven_amount=Decimal("0")))
         session.add(SplitShare(id=SHARE_FUEL_PRIYA, split_id=SPLIT_FUEL,
                                payee_id=PAYEE_PRIYA, amount=Decimal("800"),
                                status=SplitShareStatus.settled,
-                               settled_at=_dt(2026, 5, 17),
-                               settlement_transaction_id=TXN_SETTLE_FUEL_PRIYA))
+                               forgiven_amount=Decimal("0")))
 
         # Scenario: Movie + dinner — 2-way, Neel settled (ring shows 50%)
         session.add(Split(id=SPLIT_MOVIE, user_id=USER_ID,
@@ -667,8 +670,17 @@ async def seed_dev_data() -> None:
         session.add(SplitShare(id=SHARE_MOVIE_NEEL, split_id=SPLIT_MOVIE,
                                payee_id=PAYEE_NEEL, amount=Decimal("900"),
                                status=SplitShareStatus.settled,
-                               settled_at=_dt(2026, 5, 22),
-                               settlement_transaction_id=TXN_SETTLE_MOVIE_NEEL))
+                               forgiven_amount=Decimal("0")))
+        await session.flush()
+
+        # Settlement links — income transactions linked to settled shares
+        for sid, share_id, txn_id, amount in [
+            (SETTLEMENT_FUEL_RAHUL, SHARE_FUEL_RAHUL,  TXN_SETTLE_FUEL_RAHUL, Decimal("800")),
+            (SETTLEMENT_FUEL_PRIYA, SHARE_FUEL_PRIYA,  TXN_SETTLE_FUEL_PRIYA, Decimal("800")),
+            (SETTLEMENT_MOVIE_NEEL, SHARE_MOVIE_NEEL,  TXN_SETTLE_MOVIE_NEEL, Decimal("900")),
+        ]:
+            session.add(SplitShareSettlement(id=sid, share_id=share_id,
+                                             transaction_id=txn_id, amount=amount))
         await session.flush()
 
         # ── Subscriptions ─────────────────────────────────────────────────────

@@ -75,7 +75,9 @@ async def test_create_split_happy_path(authed) -> None:
     assert amounts == {"200.00", "100.00"}
     for share in data["shares"]:
         assert share["status"] == "pending"
-        assert share["settled_at"] is None
+        assert share["paid_amount"] == "0.00"
+        assert share["forgiven_amount"] == "0.00"
+        assert share["settlements"] == []
 
 
 async def test_get_split(authed) -> None:

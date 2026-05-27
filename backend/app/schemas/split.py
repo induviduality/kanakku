@@ -54,7 +54,38 @@ class SplitCreate(BaseModel):
 
 
 class SettleRequest(BaseModel):
-    settlement_transaction_id: uuid.UUID
+    """Link an income transaction to a share. amount defaults to the full transaction amount."""
+    transaction_id: uuid.UUID
+    amount: Decimal | None = None
+
+    @field_validator("amount")
+    @classmethod
+    def amount_positive(cls, v: Decimal | None) -> Decimal | None:
+        if v is not None and v <= 0:
+            raise ValueError("amount must be positive")
+        return v
+
+
+class ForgiveRequest(BaseModel):
+    """Set the forgiven_amount for a share (replaces any prior value)."""
+    amount: Decimal
+
+    @field_validator("amount")
+    @classmethod
+    def amount_non_negative(cls, v: Decimal) -> Decimal:
+        if v < 0:
+            raise ValueError("amount must be non-negative")
+        return v
+
+
+class SplitShareSettlementResponse(BaseModel):
+    id: uuid.UUID
+    share_id: uuid.UUID
+    transaction_id: uuid.UUID
+    amount: Decimal
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
 
 
 class SplitShareResponse(BaseModel):
@@ -63,9 +94,9 @@ class SplitShareResponse(BaseModel):
     payee_id: uuid.UUID | None
     amount: Decimal
     status: SplitShareStatus
-    settled_at: datetime | None
-    settlement_transaction_id: uuid.UUID | None
-    forgiven_at: datetime | None
+    forgiven_amount: Decimal
+    paid_amount: Decimal
+    settlements: list[SplitShareSettlementResponse]
     notes: str | None
     created_at: datetime
     updated_at: datetime

@@ -1,5 +1,15 @@
 # Completed Milestones
 
+## Ad-hoc Fixes (2026-05-27) — continued
+
+### Split settlement redesign: multi-payment + partial forgiveness
+- `backend/alembic/versions/0024_split_settlements.py`: new `split_share_settlements` join table; `forgiven_amount` added to `split_shares`; `settlement_transaction_id`, `settled_at`, `forgiven_at` dropped
+- `backend/app/models/split.py`: added `SplitShareSettlement` model; `SplitShare` updated (removed old fields, added `forgiven_amount`)
+- `backend/app/schemas/split.py`: `SplitShareSettlementResponse`; `SplitShareResponse` now has `paid_amount` + `settlements` list; `SettleRequest` body is `{transaction_id, amount?}`; new `ForgiveRequest { amount }` (SET semantics)
+- `backend/app/routers/splits.py`: `POST settle` links income txn to share via join table, accepts optional partial `amount`; `DELETE settlements/{id}` unlinks one payment; `POST forgive {amount}` sets `forgiven_amount`; `POST unsettle` clears everything; status derived by `_derive_status(amount, paid, forgiven)` helper
+- `backend/app/dev_seed.py`: updated settled shares to use `SplitShareSettlement` rows; removed old `settled_at`/`settlement_transaction_id` kwargs
+- Tests: `test_splits_settle.py` fully rewritten (15 tests); `test_splits_bundle.py` assertions updated; `test_splits.py` assertions updated
+
 ## Ad-hoc Fixes (2026-05-27)
 
 ### Splits UI revamp — uniform transaction rows with badges

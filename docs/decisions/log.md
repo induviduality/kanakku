@@ -1,5 +1,18 @@
 # Decision Log
 
+## 2026-05-27 — Split settlement redesigned to multi-payment join table + partial forgiveness
+
+**Context:** The original settlement model used a single `settlement_transaction_id` FK on `split_shares`, meaning only one income transaction could settle a payee's share. The user wanted: (1) multiple income transactions adding up to settle one share, (2) partial forgiveness (absorb only part of the unpaid remainder), (3) payee tracking kept on shares for traceability.
+
+**Decision:** Replaced the single FK with a `split_share_settlements` join table (`share_id`, `transaction_id`, `amount`, `created_at`) — UNIQUE on `(share_id, transaction_id)`. Each income transaction remains 1:1 with one share (no cross-share splitting), but the same share can accumulate many payment rows. Added `forgiven_amount NUMERIC(15,2) DEFAULT 0` to `split_shares`; removed `settlement_transaction_id`, `settled_at`, `forgiven_at`. Status is derived at write time: `paid + forgiven >= amount` → settled (if `paid > 0`) or forgiven (if `paid == 0`); otherwise pending. `POST /forgive { amount }` is a SET operation (replaces prior value, not incremental). `POST /unsettle` is a nuclear reset: deletes all settlements + zeros forgiven_amount.
+
+**Alternatives considered:**
+- Keep single FK, require exact match — doesn't allow partial payments or multi-payment flows
+- Make `forgiven_amount` incremental (add on each call) — SET is simpler and avoids drift; caller can always calculate the new total
+- Allow one income transaction to settle parts of multiple shares — useful edge case but adds complexity; deferred
+
+**Affects:** `0024_split_settlements.py`, `models/split.py`, `schemas/split.py`, `routers/splits.py`, `dev_seed.py`, `test_splits_settle.py`, `test_splits_bundle.py`, `test_splits.py`
+
 ## 2026-05-26 — Budget transaction linking: period bucket derived from transaction date, not stored
 
 **Context:** When a user links a transaction to a budget, the system needs to show only the spending for the selected global period (e.g. May 2026), not the entire budget lifetime (Jan–May). The question was whether to store a "period key" in the `transaction_budgets` join table or derive it at query time.

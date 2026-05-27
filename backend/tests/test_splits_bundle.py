@@ -89,7 +89,8 @@ async def test_bundle_with_income_leg(authed) -> None:
     pending = [s for s in shares if s["status"] == "pending"]
     assert len(settled) == 1
     assert settled[0]["amount"] == "200.00"
-    assert settled[0]["settlement_transaction_id"] == inc_id
+    assert settled[0]["paid_amount"] == "200.00"
+    assert settled[0]["settlements"][0]["transaction_id"] == inc_id
     assert pending[0]["amount"] == "100.00"
 
 
@@ -196,8 +197,8 @@ async def test_bundle_nonexistent_income_leg(authed) -> None:
     assert resp.status_code == 404
 
 
-async def test_bundle_income_leg_already_settled(authed) -> None:
-    """Income transaction already used as settlement leg → 409."""
+async def test_bundle_income_leg_already_linked(authed) -> None:
+    """Income transaction already used as a settlement → 409."""
     client, headers, acc_id = authed
     exp1_id = await _create_txn(client, headers, acc_id, "expense", "300.00")
     exp2_id = await _create_txn(client, headers, acc_id, "expense", "200.00")
