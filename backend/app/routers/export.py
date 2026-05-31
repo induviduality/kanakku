@@ -129,7 +129,7 @@ _IMPORT_TABLE_ORDER = [t for t, _ in _EXPORT_TABLES]
 _USER_ID_TABLES = {
     "user_settings", "accounts", "categories", "payees", "tags",
     "subscriptions", "budgets", "piggy_banks", "transactions", "splits",
-    "import_batches", "gpay_matches", "report_dashboards", "llm_activity_logs",
+    "import_batches", "report_dashboards", "llm_activity_logs",
 }
 
 

@@ -86,7 +86,6 @@ _EXPORT_TABLES: list[tuple[str, str]] = [
         "SELECT rir.* FROM raw_import_records rir "
         "JOIN import_batches ib ON ib.id = rir.batch_id WHERE ib.user_id = :user_id",
     ),
-    ("gpay_matches", "SELECT * FROM gpay_matches WHERE user_id = :user_id"),
     ("report_dashboards", "SELECT * FROM report_dashboards WHERE user_id = :user_id"),
     (
         "report_widgets",

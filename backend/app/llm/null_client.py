@@ -1,6 +1,6 @@
 """NullClient — safe no-op implementation for testing and LLM_BACKEND=none."""
 
-from app.llm.base import BankCandidate, GPayRecord, LLMClient, Match
+from app.llm.base import LLMClient
 
 
 class NullClient(LLMClient):
@@ -13,10 +13,3 @@ class NullClient(LLMClient):
         available_categories: list[str],
     ) -> str | None:
         return None
-
-    async def match_gpay_to_bank(
-        self,
-        gpay_records: list[GPayRecord],
-        bank_candidates: list[list[BankCandidate]],
-    ) -> list[Match]:
-        return [Match(gpay_index=i, bank_index=-1) for i in range(len(gpay_records))]

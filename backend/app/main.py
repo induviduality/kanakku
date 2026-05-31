@@ -11,7 +11,6 @@ from app.routers.budgets import router as budgets_router
 from app.routers.categories import router as categories_router
 from app.routers.dashboard import router as dashboard_router
 from app.routers.export import router as export_router
-from app.routers.gpay import router as gpay_router
 from app.routers.imports import router as imports_router
 from app.routers.payees import router as payees_router
 from app.routers.payment_methods import router as payment_methods_router
@@ -46,7 +45,6 @@ app.include_router(splits_router, prefix="/api/v1")
 app.include_router(budgets_router, prefix="/api/v1")
 app.include_router(subscriptions_router, prefix="/api/v1")
 app.include_router(piggy_banks_router, prefix="/api/v1")
-app.include_router(gpay_router, prefix="/api/v1")
 app.include_router(imports_router, prefix="/api/v1")
 app.include_router(export_router, prefix="/api/v1")
 app.include_router(reports_router, prefix="/api/v1")

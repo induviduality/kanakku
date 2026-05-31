@@ -2,7 +2,6 @@ from app.models.account import Account
 from app.models.budget import Budget, BudgetPeriod, BudgetType, budget_categories
 from app.models.category import Category, payee_default_categories
 from app.models.export_job import ExportJob, ExportJobStatus
-from app.models.gpay_match import GPayMatch, GPayMatchStatus
 from app.models.import_batch import (
     ImportBatch,
     ImportBatchStatus,
@@ -44,7 +43,6 @@ __all__ = [
     "ImportBatch", "ImportBatchStatus", "ImportSource", "VerificationStatus",
     "RawImportRecord", "RecordStatus", "RecordConfidence", "RecordMatchType",
     "LLMActivityLog",
-    "GPayMatch", "GPayMatchStatus",
     "ReportDashboard", "ReportWidget", "VizType",
     "ExportJob", "ExportJobStatus",
 ]

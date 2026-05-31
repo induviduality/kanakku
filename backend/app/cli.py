@@ -159,7 +159,7 @@ async def _import_archive(email: str, input_path: str) -> None:
         user_id_tables = {
             "user_settings", "accounts", "categories", "payees", "tags",
             "subscriptions", "budgets", "piggy_banks", "transactions", "splits",
-            "import_batches", "gpay_matches", "report_dashboards", "llm_activity_logs",
+            "import_batches", "report_dashboards", "llm_activity_logs",
         }
         if archived_uid != target_uid:
             for tname, rows in table_data.items():

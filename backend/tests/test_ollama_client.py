@@ -4,7 +4,6 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from app.llm.base import BankCandidate, GPayRecord
 from app.llm.ollama_client import OllamaClient
 
 CATEGORIES = ["Food", "Transport", "Shopping", "Utilities"]
@@ -62,51 +61,3 @@ async def test_suggest_category_empty_categories_returns_none():
     client = _make_client()
     result = await client.suggest_category("Zomato", "Food", [])
     assert result is None
-
-
-@pytest.mark.asyncio
-async def test_match_gpay_returns_index():
-    client = _make_client()
-    gpay = [GPayRecord(date="2024-01-01", amount=100.0, merchant="Zomato")]
-    candidates = [[
-        BankCandidate(transaction_id="t1", date="2024-01-01", amount=100.0, description="UPI/Zomato"),
-        BankCandidate(transaction_id="t2", date="2024-01-01", amount=100.0, description="UPI/Food"),
-    ]]
-    with patch.object(client, "_ask", new=AsyncMock(return_value="0")):
-        matches = await client.match_gpay_to_bank(gpay, candidates)
-    assert len(matches) == 1
-    assert matches[0].gpay_index == 0
-    assert matches[0].bank_index == 0
-
-
-@pytest.mark.asyncio
-async def test_match_gpay_no_candidates_returns_minus_one():
-    client = _make_client()
-    gpay = [GPayRecord(date="2024-01-01", amount=100.0, merchant="Zomato")]
-    matches = await client.match_gpay_to_bank(gpay, [[]])
-    assert matches[0].bank_index == -1
-
-
-@pytest.mark.asyncio
-async def test_match_gpay_parses_index_from_prose():
-    client = _make_client()
-    gpay = [GPayRecord(date="2024-01-02", amount=50.0, merchant="Swiggy")]
-    candidates = [[
-        BankCandidate(transaction_id="t1", date="2024-01-02", amount=50.0, description="UPI/Swiggy"),
-    ]]
-    # LLM returns index embedded in prose
-    with patch.object(client, "_ask", new=AsyncMock(return_value="The answer is 0.")):
-        matches = await client.match_gpay_to_bank(gpay, candidates)
-    assert matches[0].bank_index == 0
-
-
-@pytest.mark.asyncio
-async def test_match_gpay_out_of_range_returns_minus_one():
-    client = _make_client()
-    gpay = [GPayRecord(date="2024-01-01", amount=100.0, merchant="X")]
-    candidates = [[
-        BankCandidate(transaction_id="t1", date="2024-01-01", amount=100.0, description="X"),
-    ]]
-    with patch.object(client, "_ask", new=AsyncMock(return_value="5")):
-        matches = await client.match_gpay_to_bank(gpay, candidates)
-    assert matches[0].bank_index == -1

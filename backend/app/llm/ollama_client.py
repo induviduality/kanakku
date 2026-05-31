@@ -4,7 +4,7 @@ import re
 
 from ollama import AsyncClient
 
-from app.llm.base import BankCandidate, GPayRecord, LLMClient, Match
+from app.llm.base import LLMClient
 
 _FENCE_RE = re.compile(r"```[a-z]*\n?(.*?)```", re.DOTALL)
 
@@ -23,8 +23,6 @@ class OllamaClient(LLMClient):
 
     def _client(self) -> AsyncClient:
         return AsyncClient(host=self._host)
-
-    # ── suggest_category ──────────────────────────────────────────────────────
 
     async def suggest_category(
         self,
@@ -59,36 +57,6 @@ class OllamaClient(LLMClient):
         candidate = _strip_fences(result)
         return candidate if candidate in available_categories else None
 
-    # ── match_gpay_to_bank ────────────────────────────────────────────────────
-
-    async def match_gpay_to_bank(
-        self,
-        gpay_records: list[GPayRecord],
-        bank_candidates: list[list[BankCandidate]],
-    ) -> list[Match]:
-        matches: list[Match] = []
-        for i, (gpay, candidates) in enumerate(zip(gpay_records, bank_candidates)):
-            if not candidates:
-                matches.append(Match(gpay_index=i, bank_index=-1))
-                continue
-
-            cand_list = "\n".join(
-                f"{j}: date={c.date} amount={c.amount} desc={c.description}"
-                for j, c in enumerate(candidates)
-            )
-            prompt = (
-                f"GPay record: date={gpay.date} amount={gpay.amount} merchant={gpay.merchant}\n"
-                f"Bank candidates (numbered from 0):\n{cand_list}\n\n"
-                f"Reply with ONLY the index number (0-based) of the best matching bank candidate, "
-                f"or -1 if none match. No explanation."
-            )
-            raw = await self._ask(prompt)
-            idx = self._parse_int(raw, default=-1, lo=-1, hi=len(candidates) - 1)
-            matches.append(Match(gpay_index=i, bank_index=idx))
-        return matches
-
-    # ── helpers ───────────────────────────────────────────────────────────────
-
     async def _ask(self, prompt: str) -> str:
         client = self._client()
         resp = await client.generate(model=self._model, prompt=prompt)
@@ -103,7 +71,6 @@ class OllamaClient(LLMClient):
                 return val
         except (ValueError, TypeError):
             pass
-        # Try extracting first integer from text
         m = re.search(r"-?\d+", stripped)
         if m:
             try:

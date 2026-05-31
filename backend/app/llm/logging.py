@@ -44,16 +44,6 @@ def _payload_for_suggest_category(
     }
 
 
-def _payload_for_match_gpay(
-    gpay_count: int,
-    candidate_count: int,
-) -> dict[str, Any]:
-    return {
-        "gpay_count": gpay_count,
-        "candidate_count": candidate_count,
-    }
-
-
 class LoggingLLMClient:
     """Wraps any LLMClient and logs every call to llm_activity_log."""
 
@@ -99,27 +89,3 @@ class LoggingLLMClient:
                 succeeded=succeeded,
             )
 
-    async def match_gpay_to_bank(
-        self,
-        gpay_records: list[Any],
-        bank_candidates: list[list[Any]],
-    ) -> list[Any]:
-        t0 = time.monotonic()
-        succeeded = False
-        try:
-            result = await self._inner.match_gpay_to_bank(gpay_records, bank_candidates)
-            succeeded = True
-            return result  # type: ignore[no-any-return]
-        finally:
-            ms = int((time.monotonic() - t0) * 1000)
-            total_candidates = sum(len(c) for c in bank_candidates)
-            await log_llm_call(
-                session=self._session,
-                user_id=self._user_id,
-                operation="match_gpay_to_bank",
-                backend=self._backend,
-                model=self._model,
-                payload_summary=_payload_for_match_gpay(len(gpay_records), total_candidates),
-                duration_ms=ms,
-                succeeded=succeeded,
-            )

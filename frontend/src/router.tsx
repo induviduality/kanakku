@@ -29,9 +29,6 @@ import ImportReview from './pages/ImportReview'
 import SettingsLLMActivity from './pages/SettingsLLMActivity'
 import Splits from './pages/Splits'
 import { SplitsPendingPage, SplitsHistoryPage } from './pages/SplitsAll'
-import GPayImport from './pages/GPayImport'
-import GPayResolve from './pages/GPayResolve'
-import GPayOrphans from './pages/GPayOrphans'
 import Reports from './pages/Reports'
 import ReportDashboard from './pages/ReportDashboard'
 import SettingsDataExport from './pages/SettingsDataExport'
@@ -251,24 +248,6 @@ const settingsLLMActivityRoute = createRoute({
   component: SettingsLLMActivity,
 })
 
-const gpayImportRoute = createRoute({
-  getParentRoute: () => rootRoute,
-  path: '/gpay/import',
-  component: GPayImport,
-})
-
-const gpayResolveRoute = createRoute({
-  getParentRoute: () => rootRoute,
-  path: '/gpay/resolve',
-  component: GPayResolve,
-})
-
-const gpayOrphansRoute = createRoute({
-  getParentRoute: () => rootRoute,
-  path: '/gpay/orphans',
-  component: GPayOrphans,
-})
-
 const reportsRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/reports',
@@ -331,9 +310,6 @@ const routeTree = rootRoute.addChildren([
   importUploadRoute,
   importReviewRoute,
   settingsLLMActivityRoute,
-  gpayImportRoute,
-  gpayResolveRoute,
-  gpayOrphansRoute,
   reportsRoute,
   reportDashboardRoute,
   settingsDataExportRoute,

@@ -13,7 +13,6 @@ const ROOT_LABELS: Record<string, string> = {
   imports:          'Import',
   settings:         'Settings',
   reports:          'Reports',
-  gpay:             'GPay',
   splits:           'Splits',
   'recently-deleted': 'Recently Deleted',
   payees:           'Payees',
@@ -32,9 +31,6 @@ const STATIC_LEAF: Record<string, string> = {
   '/settings/llm-activity':    'LLM Activity',
   '/settings/export':          'Export Data',
   '/settings/import':          'Import Data',
-  '/gpay/import':              'Import',
-  '/gpay/resolve':             'Resolve',
-  '/gpay/orphans':             'Orphans',
 }
 
 // UUID-ish pattern — any segment that looks like an ID

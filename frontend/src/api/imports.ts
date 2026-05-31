@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { getAccessToken } from '../lib/auth-storage'
 import { apiGet, apiPatch, apiPost } from '../lib/api-client'
 
-export type ImportSource = 'pdf' | 'gpay_takeout' | 'manual'
+export type ImportSource = 'pdf' | 'manual'
 export type ImportBatchStatus = 'pending' | 'processing' | 'completed' | 'failed'
 export type VerificationStatus = 'verified' | 'discrepancy' | 'indeterminate'
 export type RecordStatus = 'pending' | 'confirmed' | 'rejected' | 'duplicate'

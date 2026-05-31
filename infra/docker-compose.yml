@@ -43,9 +43,6 @@ services:
     environment:
       DATABASE_URL: ${DATABASE_URL}
       JWT_SECRET: ${JWT_SECRET}
-      LLM_BACKEND: ${LLM_BACKEND}
-      OLLAMA_HOST: ${OLLAMA_HOST}
-      LLM_MODEL: ${LLM_MODEL:-qwen2.5:1.5b}
       REDIS_URL: ${REDIS_URL}
       PUBLIC_BASE_URL: ${PUBLIC_BASE_URL}
       DEV_MODE: ${DEV_MODE:-false}
@@ -75,9 +72,6 @@ services:
     environment:
       DATABASE_URL: ${DATABASE_URL}
       JWT_SECRET: ${JWT_SECRET}
-      LLM_BACKEND: ${LLM_BACKEND}
-      OLLAMA_HOST: ${OLLAMA_HOST}
-      LLM_MODEL: ${LLM_MODEL:-qwen2.5:1.5b}
       REDIS_URL: ${REDIS_URL}
     depends_on:
       db:
@@ -106,18 +100,6 @@ services:
         limits:
           memory: 128m
 
-  ollama:
-    image: ollama/ollama:latest
-    restart: unless-stopped
-    volumes:
-      - ollama:/root/.ollama
-    environment:
-      OLLAMA_MAX_LOADED_MODELS: "1"
-    deploy:
-      resources:
-        limits:
-          memory: 4g
-
   caddy:
     image: caddy:2-alpine
     restart: unless-stopped
@@ -144,7 +126,6 @@ services:
 volumes:
   pgdata:
   redisdata:
-  ollama:
   caddy_data:
   caddy_config:
 

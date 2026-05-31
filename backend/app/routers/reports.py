@@ -330,11 +330,11 @@ _SCHEMA: list[TableInfo] = [
     ),
     TableInfo(
         name="import_batches",
-        description="PDF and GPay import sessions",
+        description="PDF import sessions",
         columns=[
             ColumnInfo(name="id", type="uuid", description="Primary key"),
             ColumnInfo(name="user_id", type="uuid", description="Owner user", foreign_key="users.id"),
-            ColumnInfo(name="source", type="text", description="Import source: pdf, gpay"),
+            ColumnInfo(name="source", type="text", description="Import source: pdf, manual"),
             ColumnInfo(name="filename", type="text", description="Original filename"),
             ColumnInfo(name="account_id", type="uuid", description="Target account", foreign_key="accounts.id"),
             ColumnInfo(name="status", type="text", description="Status: pending, processing, completed, failed"),
@@ -358,19 +358,6 @@ _SCHEMA: list[TableInfo] = [
             ColumnInfo(name="transaction_id", type="uuid", description="Created transaction (after confirm)", foreign_key="transactions.id"),
             ColumnInfo(name="confidence", type="text", description="Parse confidence: high, medium, low"),
             ColumnInfo(name="match_type", type="text", description="Match type: new, duplicate"),
-        ],
-    ),
-    TableInfo(
-        name="gpay_matches",
-        description="GPay Takeout entries matched against bank transactions",
-        columns=[
-            ColumnInfo(name="id", type="uuid", description="Primary key"),
-            ColumnInfo(name="user_id", type="uuid", description="Owner user", foreign_key="users.id"),
-            ColumnInfo(name="gpay_data", type="jsonb", description="Raw GPay transaction data"),
-            ColumnInfo(name="candidate_transaction_ids", type="uuid[]", description="Bank transactions that could match"),
-            ColumnInfo(name="chosen_transaction_id", type="uuid", description="Chosen match", foreign_key="transactions.id"),
-            ColumnInfo(name="status", type="text", description="Status: pending, resolved, orphan, auto_linked"),
-            ColumnInfo(name="created_at", type="timestamptz", description="Creation timestamp"),
         ],
     ),
 ]
