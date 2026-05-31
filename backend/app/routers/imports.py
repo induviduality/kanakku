@@ -245,6 +245,57 @@ async def reject_records(
     return batch
 
 
+# ── POST /imports/{batch_id}/records/{record_id}/replace ─────────────────────
+
+class ReplaceRequest(BaseModel):
+    transaction_ids: list[uuid.UUID]  # IDs of existing transactions to soft-delete
+
+
+@router.post("/{batch_id}/records/{record_id}/replace", response_model=ImportBatchResponse)
+async def replace_existing(
+    batch_id: uuid.UUID,
+    record_id: uuid.UUID,
+    body: ReplaceRequest,
+    current_user: UserDep,
+    session: SessionDep,
+) -> ImportBatch:
+    """Soft-delete matched transactions and import the new record in their place."""
+    from app.models.transaction import Transaction
+
+    batch = await _get_batch_or_404(session, batch_id, current_user.id)
+    if batch.account_id is None:
+        raise HTTPException(status_code=422, detail="Batch has no account_id")
+
+    record = await _get_record_or_404(session, record_id, batch_id)
+    if record.status != RecordStatus.duplicate:
+        raise HTTPException(status_code=422, detail="Record is not a duplicate")
+
+    # Soft-delete specified transactions (must belong to this user)
+    if body.transaction_ids:
+        res = await session.execute(
+            sa.select(Transaction).where(
+                Transaction.id.in_(body.transaction_ids),
+                Transaction.user_id == current_user.id,
+                Transaction.deleted_at.is_(None),
+            )
+        )
+        for txn in res.scalars().all():
+            txn.deleted_at = datetime.now(UTC)
+
+    # Confirm the import record as a new transaction
+    txn = _record_to_transaction(record, batch)
+    if txn is not None:
+        session.add(txn)
+        await session.flush()
+        record.status = RecordStatus.confirmed
+        record.transaction_id = txn.id
+        batch.total_confirmed = (batch.total_confirmed or 0) + 1
+
+    await session.commit()
+    await session.refresh(batch)
+    return batch
+
+
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
 async def _get_batch_or_404(

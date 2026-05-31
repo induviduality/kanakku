@@ -45,6 +45,10 @@ export interface RejectRequest {
   record_ids?: string[]
 }
 
+export interface ReplaceRequest {
+  transaction_ids: string[]
+}
+
 export interface RecordPatch {
   parsed_json?: Record<string, unknown>
   status?: RecordStatus
@@ -134,6 +138,15 @@ export function useRejectRecords(batchId: string) {
   return useMutation({
     mutationFn: (body: RejectRequest) =>
       apiPost<ImportBatch>(`/imports/${batchId}/reject`, body),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['imports', batchId] }),
+  })
+}
+
+export function useReplaceExisting(batchId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ recordId, body }: { recordId: string; body: ReplaceRequest }) =>
+      apiPost<ImportBatch>(`/imports/${batchId}/records/${recordId}/replace`, body),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['imports', batchId] }),
   })
 }

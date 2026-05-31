@@ -72,11 +72,14 @@ async def process_pdf_import(
                 session, batch.user_id, batch.account_id
             )
             for candidate in candidates:
-                dupes = find_duplicates(candidate.to_dict(), existing_txns)
+                parsed = candidate.to_dict()
+                dupes = find_duplicates(parsed, existing_txns)
                 if dupes:
                     match_type = RecordMatchType.duplicate
                     confidence = RecordConfidence.high
                     rec_status = RecordStatus.duplicate
+                    # Store matched IDs so the UI can show what was matched
+                    parsed["_duplicate_transaction_ids"] = [d["id"] for d in dupes]
                 else:
                     match_type = RecordMatchType.new
                     confidence = RecordConfidence.high
@@ -85,7 +88,7 @@ async def process_pdf_import(
                 record = RawImportRecord(
                     batch_id=bid,
                     raw_text=candidate.raw_text,
-                    parsed_json=candidate.to_dict(),
+                    parsed_json=parsed,
                     status=rec_status,
                     confidence=confidence,
                     match_type=match_type,

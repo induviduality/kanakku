@@ -6,9 +6,11 @@ import {
   usePatchRecord,
   useConfirmRecords,
   useRejectRecords,
+  useReplaceExisting,
   type RawImportRecord,
   type RecordStatus,
 } from '../api/imports'
+import { useTransaction } from '../api/transactions'
 
 const TABS: { status: RecordStatus; label: string }[] = [
   { status: 'pending',   label: 'Pending' },
@@ -28,16 +30,170 @@ function parsedField(record: RawImportRecord, field: string): string {
   return val != null ? String(val) : ''
 }
 
+function getDuplicateIds(record: RawImportRecord): string[] {
+  const ids = record.parsed_json?.['_duplicate_transaction_ids']
+  return Array.isArray(ids) ? ids as string[] : []
+}
+
+// ── Duplicate resolution modal ────────────────────────────────────────────────
+
+function MatchedTransaction({ txnId }: { txnId: string }) {
+  const { data: txn, isLoading } = useTransaction(txnId)
+  if (isLoading) return <p className="text-xs text-fg-faint animate-pulse">Loading…</p>
+  if (!txn) return <p className="text-xs text-negative-dim">Transaction not found</p>
+  return (
+    <div className="rounded border border-border/50 bg-surface-2 px-3 py-2 text-xs space-y-0.5">
+      <p className="font-medium text-fg">{txn.description || '—'}</p>
+      <p className="text-fg-muted kk-mono">
+        {txn.transacted_at.slice(0, 10)} · ₹{Number(txn.amount).toLocaleString('en-IN')}
+        <span className={`ml-2 ${txn.type === 'income' ? 'text-positive-dim' : 'text-negative-dim'}`}>
+          {txn.type}
+        </span>
+      </p>
+    </div>
+  )
+}
+
+function DuplicateResolveModal({
+  record,
+  batchId,
+  onClose,
+}: {
+  record: RawImportRecord
+  batchId: string
+  onClose: () => void
+}) {
+  const patchMutation = usePatchRecord(batchId)
+  const confirmMutation = useConfirmRecords(batchId)
+  const replaceMutation = useReplaceExisting(batchId)
+  const duplicateIds = getDuplicateIds(record)
+
+  function handleKeepExisting() {
+    patchMutation.mutate(
+      { recordId: record.id, patch: { status: 'rejected' } },
+      { onSuccess: onClose },
+    )
+  }
+
+  function handleImportSeparate() {
+    confirmMutation.mutate(
+      { record_ids: [record.id], force: true },
+      { onSuccess: onClose },
+    )
+  }
+
+  function handleReplace() {
+    replaceMutation.mutate(
+      { recordId: record.id, body: { transaction_ids: duplicateIds } },
+      { onSuccess: onClose },
+    )
+  }
+
+  const isBusy = patchMutation.isPending || confirmMutation.isPending || replaceMutation.isPending
+
+  return (
+    <div
+      role="dialog"
+      aria-modal="true"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+      onClick={(e) => { if (e.target === e.currentTarget) onClose() }}
+    >
+      <div className="bg-surface rounded-xl shadow-xl w-full max-w-lg border border-border/50">
+        <div className="px-5 py-4 border-b border-border/50">
+          <h2 className="font-semibold text-fg text-base">Resolve duplicate</h2>
+          <p className="text-xs text-fg-faint mt-0.5">
+            This imported transaction may already exist in your records.
+          </p>
+        </div>
+
+        <div className="px-5 py-4 space-y-4">
+          {/* Import record */}
+          <div>
+            <p className="text-[10px] font-semibold uppercase tracking-wider text-fg-faint mb-1.5">
+              Imported transaction
+            </p>
+            <div className="rounded border border-accent/30 bg-accent/5 px-3 py-2 text-xs space-y-0.5">
+              <p className="font-medium text-fg">{parsedField(record, 'description') || '—'}</p>
+              <p className="text-fg-muted kk-mono">
+                {parsedField(record, 'date')} · ₹{Number(parsedField(record, 'amount')).toLocaleString('en-IN')}
+                <span className={`ml-2 ${parsedField(record, 'type') === 'income' ? 'text-positive-dim' : 'text-negative-dim'}`}>
+                  {parsedField(record, 'type') || 'expense'}
+                </span>
+              </p>
+            </div>
+          </div>
+
+          {/* Matched existing transactions */}
+          {duplicateIds.length > 0 && (
+            <div>
+              <p className="text-[10px] font-semibold uppercase tracking-wider text-fg-faint mb-1.5">
+                Matching existing {duplicateIds.length === 1 ? 'transaction' : 'transactions'}
+              </p>
+              <div className="space-y-1.5">
+                {duplicateIds.map(id => <MatchedTransaction key={id} txnId={id} />)}
+              </div>
+            </div>
+          )}
+
+          {/* Actions */}
+          <div className="space-y-2 pt-1">
+            <button
+              onClick={handleKeepExisting}
+              disabled={isBusy}
+              className="w-full text-left rounded-lg border border-border/50 px-4 py-3 text-sm hover:bg-surface-2 transition-colors disabled:opacity-50"
+            >
+              <p className="font-medium text-fg">Keep existing</p>
+              <p className="text-xs text-fg-faint mt-0.5">Discard the import — keep the transaction already in your records.</p>
+            </button>
+
+            <button
+              onClick={handleImportSeparate}
+              disabled={isBusy}
+              className="w-full text-left rounded-lg border border-warning/40 bg-warning/5 px-4 py-3 text-sm hover:bg-warning/10 transition-colors disabled:opacity-50"
+            >
+              <p className="font-medium text-fg">Import as separate transaction</p>
+              <p className="text-xs text-warning-dim mt-0.5">
+                Creates an additional transaction. This may cause account balance discrepancies.
+              </p>
+            </button>
+
+            {duplicateIds.length > 0 && (
+              <button
+                onClick={handleReplace}
+                disabled={isBusy}
+                className="w-full text-left rounded-lg border border-negative/30 bg-negative/5 px-4 py-3 text-sm hover:bg-negative/10 transition-colors disabled:opacity-50"
+              >
+                <p className="font-medium text-fg">Replace existing</p>
+                <p className="text-xs text-negative-dim mt-0.5">
+                  Soft-deletes the matched {duplicateIds.length === 1 ? 'transaction' : 'transactions'} and imports this one in its place.
+                </p>
+              </button>
+            )}
+          </div>
+        </div>
+
+        <div className="px-5 py-3 border-t border-border/50 flex justify-end">
+          <button onClick={onClose} className="kk-btn-ghost text-sm">Cancel</button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ── Record row ────────────────────────────────────────────────────────────────
+
 function RecordRow({
   record,
   batchId,
   selected,
   onToggle,
+  onResolve,
 }: {
   record: RawImportRecord
   batchId: string
   selected: boolean
   onToggle: () => void
+  onResolve?: () => void
 }) {
   const patchMutation = usePatchRecord(batchId)
   const [editing, setEditing] = useState(false)
@@ -136,9 +292,20 @@ function RecordRow({
               </button>
             </div>
           ) : (
-            <button onClick={() => setEditing(true)} className="text-xs text-accent hover:underline">
-              Edit
-            </button>
+            <div className="flex gap-1.5 items-center">
+              {record.status === 'duplicate' && onResolve ? (
+                <button
+                  onClick={onResolve}
+                  className="text-xs font-medium text-warning-dim hover:underline whitespace-nowrap"
+                >
+                  Resolve
+                </button>
+              ) : (
+                <button onClick={() => setEditing(true)} className="text-xs text-accent hover:underline">
+                  Edit
+                </button>
+              )}
+            </div>
           )
         )}
       </td>
@@ -146,10 +313,13 @@ function RecordRow({
   )
 }
 
+// ── Page ──────────────────────────────────────────────────────────────────────
+
 export default function ImportReview() {
   const { batchId } = useParams({ strict: false }) as { batchId: string }
   const [activeTab, setActiveTab] = useState<RecordStatus>('pending')
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+  const [resolveRecord, setResolveRecord] = useState<RawImportRecord | null>(null)
 
   const { data: batch, isLoading: batchLoading } = useGetImportBatch(batchId)
   const { data: records = [] } = useGetImportRecords(batchId, activeTab)
@@ -257,7 +427,7 @@ export default function ImportReview() {
               disabled={confirmMutation.isPending}
               className="kk-btn-ghost disabled:opacity-50"
             >
-              Force confirm
+              Force confirm all
             </button>
           )}
           <button
@@ -267,6 +437,14 @@ export default function ImportReview() {
           >
             ✕ Reject
           </button>
+        </div>
+      )}
+
+      {/* Duplicate info banner */}
+      {hasDuplicates && records.length > 0 && (
+        <div className="mb-4 rounded-lg border border-warning/30 bg-warning/5 px-4 py-3 text-xs text-warning-dim">
+          These transactions may already exist in your records. Use <strong>Resolve</strong> on each row
+          to choose how to handle it, or use bulk actions above to force-confirm or reject all at once.
         </div>
       )}
 
@@ -307,11 +485,21 @@ export default function ImportReview() {
                   batchId={batchId}
                   selected={selectedIds.has(record.id)}
                   onToggle={() => toggleSelect(record.id)}
+                  onResolve={record.status === 'duplicate' ? () => setResolveRecord(record) : undefined}
                 />
               ))}
             </tbody>
           </table>
         </div>
+      )}
+
+      {/* Duplicate resolution modal */}
+      {resolveRecord && (
+        <DuplicateResolveModal
+          record={resolveRecord}
+          batchId={batchId}
+          onClose={() => setResolveRecord(null)}
+        />
       )}
     </div>
   )
