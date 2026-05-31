@@ -3,6 +3,7 @@
 import pytest
 from httpx import AsyncClient
 
+from tests._helpers import register_second_user
 
 # ── Fixtures ──────────────────────────────────────────────────────────────────
 
@@ -221,7 +222,7 @@ async def test_split_requires_auth(client: AsyncClient, db_tables: None) -> None
 
 async def test_get_split_cross_user_404(client: AsyncClient, db_tables: None) -> None:
     headers_a = await _setup(client, "a@example.com")
-    headers_b = await _setup(client, "b@example.com")
+    headers_b = await register_second_user(client, headers_a, "b@example.com")
 
     acc_id = await _create_account(client, headers_a)
     txn_id = await _create_transaction(client, headers_a, acc_id, amount="100.00")

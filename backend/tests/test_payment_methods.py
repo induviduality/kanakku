@@ -30,13 +30,13 @@ async def test_create_debit_card(setup_client: AsyncClient) -> None:
     headers, acc_id = await _setup(setup_client)
     resp = await setup_client.post(
         f"/api/v1/accounts/{acc_id}/payment-methods",
-        json={"type": "debit_card", "label": "HDFC Visa Debit"},
+        json={"type": "debit_card", "name": "HDFC Visa Debit"},
         headers=headers,
     )
     assert resp.status_code == 201
     data = resp.json()
     assert data["type"] == "debit_card"
-    assert data["label"] == "HDFC Visa Debit"
+    assert data["name"] == "HDFC Visa Debit"
     assert data["upi_app"] is None
     assert data["account_id"] == acc_id
 
@@ -45,7 +45,7 @@ async def test_create_upi_requires_upi_app(setup_client: AsyncClient) -> None:
     headers, acc_id = await _setup(setup_client)
     resp = await setup_client.post(
         f"/api/v1/accounts/{acc_id}/payment-methods",
-        json={"type": "upi", "label": "GPay"},
+        json={"type": "upi", "name": "GPay"},
         headers=headers,
     )
     assert resp.status_code == 422
@@ -55,7 +55,7 @@ async def test_create_upi_with_upi_app(setup_client: AsyncClient) -> None:
     headers, acc_id = await _setup(setup_client)
     resp = await setup_client.post(
         f"/api/v1/accounts/{acc_id}/payment-methods",
-        json={"type": "upi", "label": "GPay", "upi_app": "gpay"},
+        json={"type": "upi", "name": "GPay", "upi_app": "gpay"},
         headers=headers,
     )
     assert resp.status_code == 201
@@ -66,7 +66,7 @@ async def test_create_non_upi_with_upi_app_rejected(setup_client: AsyncClient) -
     headers, acc_id = await _setup(setup_client)
     resp = await setup_client.post(
         f"/api/v1/accounts/{acc_id}/payment-methods",
-        json={"type": "debit_card", "label": "Card", "upi_app": "gpay"},
+        json={"type": "debit_card", "name": "Card", "upi_app": "gpay"},
         headers=headers,
     )
     assert resp.status_code == 422
@@ -77,7 +77,7 @@ async def test_create_pm_on_nonexistent_account(setup_client: AsyncClient) -> No
     import uuid
     resp = await setup_client.post(
         f"/api/v1/accounts/{uuid.uuid4()}/payment-methods",
-        json={"type": "debit_card", "label": "X"},
+        json={"type": "debit_card", "name": "X"},
         headers=headers,
     )
     assert resp.status_code == 404
@@ -89,7 +89,7 @@ async def test_list_payment_methods(setup_client: AsyncClient) -> None:
     headers, acc_id = await _setup(setup_client)
     await setup_client.post(
         f"/api/v1/accounts/{acc_id}/payment-methods",
-        json={"type": "netbanking", "label": "HDFC Net"},
+        json={"type": "netbanking", "name": "HDFC Net"},
         headers=headers,
     )
     resp = await setup_client.get(
@@ -103,7 +103,7 @@ async def test_list_excludes_deleted_by_default(setup_client: AsyncClient) -> No
     headers, acc_id = await _setup(setup_client)
     pm_resp = await setup_client.post(
         f"/api/v1/accounts/{acc_id}/payment-methods",
-        json={"type": "debit_card", "label": "Card"},
+        json={"type": "debit_card", "name": "Card"},
         headers=headers,
     )
     pm_id = pm_resp.json()["id"]
@@ -122,17 +122,17 @@ async def test_patch_payment_method(setup_client: AsyncClient) -> None:
     headers, acc_id = await _setup(setup_client)
     pm_resp = await setup_client.post(
         f"/api/v1/accounts/{acc_id}/payment-methods",
-        json={"type": "debit_card", "label": "Old"},
+        json={"type": "debit_card", "name": "Old"},
         headers=headers,
     )
     pm_id = pm_resp.json()["id"]
     resp = await setup_client.patch(
         f"/api/v1/accounts/{acc_id}/payment-methods/{pm_id}",
-        json={"label": "New", "is_active": False},
+        json={"name": "New", "is_active": False},
         headers=headers,
     )
     assert resp.status_code == 200
-    assert resp.json()["label"] == "New"
+    assert resp.json()["name"] == "New"
     assert resp.json()["is_active"] is False
 
 
@@ -142,7 +142,7 @@ async def test_soft_delete_and_restore_payment_method(setup_client: AsyncClient)
     headers, acc_id = await _setup(setup_client)
     pm_resp = await setup_client.post(
         f"/api/v1/accounts/{acc_id}/payment-methods",
-        json={"type": "debit_card", "label": "Card"},
+        json={"type": "debit_card", "name": "Card"},
         headers=headers,
     )
     pm_id = pm_resp.json()["id"]
@@ -164,7 +164,7 @@ async def test_restore_non_deleted_pm_returns_400(setup_client: AsyncClient) -> 
     headers, acc_id = await _setup(setup_client)
     pm_resp = await setup_client.post(
         f"/api/v1/accounts/{acc_id}/payment-methods",
-        json={"type": "debit_card", "label": "Card"},
+        json={"type": "debit_card", "name": "Card"},
         headers=headers,
     )
     pm_id = pm_resp.json()["id"]

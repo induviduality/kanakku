@@ -7,6 +7,8 @@ from unittest.mock import AsyncMock, patch
 import pytest
 from httpx import AsyncClient
 
+from tests._helpers import register_second_user
+
 
 async def _setup(client: AsyncClient, email: str = "admin@example.com") -> dict:
     resp = await client.post(
@@ -113,7 +115,7 @@ async def test_list_batches_empty(authed) -> None:
 
 async def test_list_batches_cross_user_isolation(client: AsyncClient, db_tables: None) -> None:
     headers_a = await _setup(client, "a@x.com")
-    headers_b = await _setup(client, "b@x.com")
+    headers_b = await register_second_user(client, headers_a, "b@x.com")
     account_id = await _create_account(client, headers_a)
     pdf_bytes = _minimal_pdf_bytes()
 

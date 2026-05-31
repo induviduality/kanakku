@@ -9,6 +9,15 @@ from app.db.base import Base
 
 class Tag(Base):
     __tablename__ = "tags"
+    __table_args__ = (
+        sa.Index(
+            "ix_tags_user_name_active",
+            "user_id",
+            "name",
+            unique=True,
+            postgresql_where=sa.text("deleted_at IS NULL"),
+        ),
+    )
 
     id: Mapped[uuid.UUID] = mapped_column(
         sa.UUID(as_uuid=True), primary_key=True, default=uuid.uuid4

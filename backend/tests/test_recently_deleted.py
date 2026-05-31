@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
-from unittest.mock import patch
 
 import pytest
 from httpx import AsyncClient
@@ -11,9 +10,8 @@ from sqlalchemy import update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.account import Account
-from app.models.category import Category
-from app.models.tag import Tag
-from app.models.transaction import Transaction
+
+from tests._helpers import register_second_user
 
 
 async def _auth(client: AsyncClient, email: str = "admin@example.com") -> dict[str, str]:
@@ -79,7 +77,7 @@ async def test_recently_deleted_requires_auth(client: AsyncClient, db_tables: No
 
 async def test_recently_deleted_cross_user_isolation(client: AsyncClient, db_tables: None) -> None:
     headers_a = await _auth(client, "a@example.com")
-    headers_b = await _auth(client, "b@example.com")
+    headers_b = await register_second_user(client, headers_a, "b@example.com")
 
     r = await client.post("/api/v1/accounts", json={"name": "A Bank", "type": "bank", "currency": "INR"}, headers=headers_a)
     acc_id = r.json()["id"]

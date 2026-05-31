@@ -3,6 +3,8 @@
 import pytest
 from httpx import AsyncClient
 
+from tests._helpers import register_second_user
+
 
 async def _setup(client: AsyncClient, email: str = "admin@example.com") -> dict:
     resp = await client.post(
@@ -66,7 +68,7 @@ async def test_create_piggy_bank(authed) -> None:
     data = await _create_piggy(client, headers)
     assert data["name"] == "Europe Trip"
     assert data["target_amount"] == "200000.00"
-    assert data["current_amount"] == "0"
+    assert data["current_amount"] == "0.00"
     assert data["is_completed"] is False
     assert data["progress_pct"] == 0.0
 
@@ -109,7 +111,7 @@ async def test_list_piggy_banks(authed) -> None:
 
 async def test_list_piggy_banks_cross_user(client: AsyncClient, db_tables: None) -> None:
     headers_a = await _setup(client, "a@example.com")
-    headers_b = await _setup(client, "b@example.com")
+    headers_b = await register_second_user(client, headers_a, "b@example.com")
     await _create_piggy(client, headers_a)
     resp = await client.get("/api/v1/piggy-banks", headers=headers_b)
     assert resp.json() == []
@@ -277,7 +279,7 @@ async def test_remove_contribution_updates_total(authed) -> None:
 
     pig_resp = await client.get(f"/api/v1/piggy-banks/{pig['id']}", headers=headers)
     data = pig_resp.json()
-    assert data["current_amount"] == "0"
+    assert data["current_amount"] == "0.00"
     assert data["is_completed"] is False
 
 
@@ -322,7 +324,7 @@ async def test_add_contribution_invalid_transaction(authed) -> None:
 
 async def test_contribution_cross_user_transaction(client: AsyncClient, db_tables: None) -> None:
     headers_a = await _setup(client, "a@example.com")
-    headers_b = await _setup(client, "b@example.com")
+    headers_b = await register_second_user(client, headers_a, "b@example.com")
 
     acc_b = (
         await client.post(

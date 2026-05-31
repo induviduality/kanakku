@@ -8,30 +8,23 @@ POST /imports/gpay-matches/{id}/resolve — choose a transaction for ambiguous m
 """
 
 import uuid
-from collections.abc import AsyncGenerator
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.db.session import async_session_factory
+from app.db.session import get_session
 from app.dependencies import get_current_user
 from app.models.gpay_match import GPayMatch, GPayMatchStatus
 from app.models.transaction import Transaction
+from app.models.user import User
 from app.schemas.gpay import GPayMatchResponse, GPayResolveRequest, GPayUploadResponse
 from app.services.gpay_matcher import match_records, parse_takeout, persist_results
-from app.models.user import User
 
 router = APIRouter(prefix="/imports", tags=["gpay"])
 
-
-async def _get_session() -> AsyncGenerator[AsyncSession, None]:
-    async with async_session_factory() as session:
-        yield session
-
-
-SessionDep = Annotated[AsyncSession, Depends(_get_session)]
+SessionDep = Annotated[AsyncSession, Depends(get_session)]
 UserDep = Annotated[User, Depends(get_current_user)]
 
 

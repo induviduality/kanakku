@@ -1,7 +1,11 @@
 """Integration tests for /api/v1/budgets."""
 
+from datetime import date
+
 import pytest
 from httpx import AsyncClient
+
+from tests._helpers import register_second_user
 
 
 async def _setup(client: AsyncClient, email: str = "admin@example.com") -> dict:
@@ -122,7 +126,7 @@ async def test_list_budgets_scoped_to_user(authed) -> None:
     client, headers = authed
     await _create_budget(client, headers, name="User1 Budget")
 
-    headers2 = await _setup(client, "other@example.com")
+    headers2 = await register_second_user(client, headers, "other@example.com")
     resp = await client.get("/api/v1/budgets", headers=headers2)
     assert resp.status_code == 200
     assert resp.json() == []
@@ -150,7 +154,7 @@ async def test_get_budget_cross_user_404(authed) -> None:
     client, headers = authed
     created = await _create_budget(client, headers)
 
-    headers2 = await _setup(client, "other2@example.com")
+    headers2 = await register_second_user(client, headers, "other2@example.com")
     resp = await client.get(f"/api/v1/budgets/{created['id']}", headers=headers2)
     assert resp.status_code == 404
 
@@ -274,13 +278,15 @@ async def test_delete_recurring_future_only(authed) -> None:
 
 async def test_delete_recurring_instance_only(authed) -> None:
     client, headers = authed
+    # Use today as start_date so an instance exists for scope=instance deletion
+    today_str = date.today().isoformat()
     created = await _create_budget(
         client,
         headers,
         name="Rent",
         type="recurring",
         recurrence_rule="FREQ=MONTHLY",
-        start_date="2026-01-01",
+        start_date=today_str,
         amount="15000.00",
     )
     resp = await client.delete(

@@ -10,17 +10,17 @@ POST  /imports/{batch_id}/reject  — reject selected records
 """
 
 import uuid
-from collections.abc import AsyncGenerator
 from datetime import UTC, datetime
 from decimal import Decimal
 from typing import Annotated
 
+import arq
 import sqlalchemy as sa
 from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, status
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.db.session import async_session_factory
+from app.db.session import get_session
 from app.dependencies import get_current_user
 from app.models.import_batch import (
     ImportBatch,
@@ -34,12 +34,6 @@ from app.models.user import User
 from app.schemas.imports import ImportBatchResponse, RawImportRecordPatch, RawImportRecordResponse
 
 router = APIRouter(prefix="/imports", tags=["imports"])
-
-
-async def get_session() -> AsyncGenerator[AsyncSession, None]:
-    async with async_session_factory() as session:
-        yield session
-
 
 SessionDep = Annotated[AsyncSession, Depends(get_session)]
 UserDep = Annotated[User, Depends(get_current_user)]
@@ -75,8 +69,6 @@ async def upload_pdf(
 
     # Enqueue the ARQ job; fall back to inline processing if Redis is unavailable
     try:
-        import arq
-
         from app.config import settings
         redis_settings = arq.connections.RedisSettings.from_dsn(settings.redis_url)
         redis_pool = await arq.create_pool(redis_settings)

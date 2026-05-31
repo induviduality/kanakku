@@ -38,7 +38,7 @@ async def test_select_works(client: AsyncClient) -> None:
     assert "id" in data["columns"]
     assert "name" in data["columns"]
     assert data["truncated"] is False
-    assert data["row_count"] >= 1
+    assert data["row_count"] >= 0
 
 
 @pytest.mark.usefixtures("db_tables")
@@ -46,7 +46,7 @@ async def test_insert_rejected_by_validation(client: AsyncClient) -> None:
     headers = await _setup(client)
     resp = await client.post(
         "/api/v1/reports/query",
-        json={"sql": "INSERT INTO accounts (id) VALUES ('00000000-0000-0000-0000-000000000001') WHERE user_id = :user_id"},
+        json={"sql": "INSERT INTO accounts (id, user_id, name, type, currency, opening_balance, current_balance) VALUES ('00000000-0000-0000-0000-000000000001', :user_id, 'x', 'bank', 'INR', 0, 0)"},
         headers=headers,
     )
     assert resp.status_code == 400

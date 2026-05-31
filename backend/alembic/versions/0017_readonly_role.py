@@ -63,15 +63,35 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    tables = ", ".join(_CURATED_TABLES)
-    op.execute(f"REVOKE SELECT ON {tables} FROM app_readonly")
-    op.execute("REVOKE USAGE ON SCHEMA public FROM app_readonly")
+    # Revoke all privileges in this database.  The role itself is cluster-level and
+    # may have grants in other databases, so we only revoke locally and attempt the
+    # DROP; if it fails (other DBs still reference it), swallow the error gracefully.
+    op.execute("""
+        DO $$
+        BEGIN
+            IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'app_readonly') THEN
+                REVOKE ALL PRIVILEGES ON ALL TABLES IN SCHEMA public FROM app_readonly;
+                REVOKE ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public FROM app_readonly;
+                REVOKE USAGE ON SCHEMA public FROM app_readonly;
+            END IF;
+        END
+        $$;
+    """)
     op.execute("""
         DO $$
         DECLARE db TEXT := current_database();
         BEGIN
-            EXECUTE format('REVOKE CONNECT ON DATABASE %I FROM app_readonly', db);
+            IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'app_readonly') THEN
+                EXECUTE format('REVOKE CONNECT ON DATABASE %I FROM app_readonly', db);
+            END IF;
         END
         $$;
     """)
-    op.execute("DROP ROLE IF EXISTS app_readonly")
+    op.execute("""
+        DO $$
+        BEGIN
+            DROP ROLE IF EXISTS app_readonly;
+        EXCEPTION WHEN dependent_objects_still_exist THEN NULL;
+        END
+        $$;
+    """)

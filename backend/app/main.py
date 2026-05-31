@@ -7,17 +7,17 @@ from app.config import settings
 from app.dev_seed import seed_dev_data
 from app.routers.accounts import router as accounts_router
 from app.routers.auth import router as auth_router
-from app.routers.imports import router as imports_router
-from app.routers.gpay import router as gpay_router
-from app.routers.export import router as export_router
-from app.routers.recently_deleted import router as recently_deleted_router
-from app.routers.reports import router as reports_router
 from app.routers.budgets import router as budgets_router
 from app.routers.categories import router as categories_router
 from app.routers.dashboard import router as dashboard_router
+from app.routers.export import router as export_router
+from app.routers.gpay import router as gpay_router
+from app.routers.imports import router as imports_router
 from app.routers.payees import router as payees_router
 from app.routers.payment_methods import router as payment_methods_router
 from app.routers.piggy_banks import router as piggy_banks_router
+from app.routers.recently_deleted import router as recently_deleted_router
+from app.routers.reports import router as reports_router
 from app.routers.settings import router as settings_router
 from app.routers.splits import router as splits_router
 from app.routers.subscriptions import router as subscriptions_router
@@ -46,9 +46,9 @@ app.include_router(splits_router, prefix="/api/v1")
 app.include_router(budgets_router, prefix="/api/v1")
 app.include_router(subscriptions_router, prefix="/api/v1")
 app.include_router(piggy_banks_router, prefix="/api/v1")
+app.include_router(gpay_router, prefix="/api/v1")
 app.include_router(imports_router, prefix="/api/v1")
 app.include_router(export_router, prefix="/api/v1")
-app.include_router(gpay_router, prefix="/api/v1")
 app.include_router(reports_router, prefix="/api/v1")
 app.include_router(recently_deleted_router, prefix="/api/v1")
 

@@ -84,11 +84,8 @@ async def test_delete_dashboard(client: AsyncClient) -> None:
 
 @pytest.mark.usefixtures("db_tables")
 async def test_dashboard_access_control(client: AsyncClient) -> None:
-    headers1 = await _setup(client, "user1@example.com")
-    headers2_resp = await client.post(
-        "/api/v1/auth/invites", json={}, headers=headers1
-    )
-    # Simpler: just verify 404 for a nonexistent dashboard
+    headers1 = await _setup(client)
+    # Verify 404 for a nonexistent dashboard
     resp = await client.get(
         "/api/v1/reports/dashboards/00000000-0000-0000-0000-000000000099",
         headers=headers1,

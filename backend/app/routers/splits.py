@@ -471,6 +471,7 @@ async def settle_share(
     new_paid = paid + credit_amount
     share.status = _derive_status(share.amount, new_paid, share.forgiven_amount)
     await session.commit()
+    await session.refresh(share)
 
     settlements = (
         await session.execute(
@@ -513,6 +514,7 @@ async def unlink_settlement(
     paid = await _paid_total(session, share.id)
     share.status = _derive_status(share.amount, paid, share.forgiven_amount)
     await session.commit()
+    await session.refresh(share)
 
     settlements = (
         await session.execute(
@@ -548,6 +550,7 @@ async def forgive_share(
     share.forgiven_amount = body.amount
     share.status = _derive_status(share.amount, paid, body.amount)
     await session.commit()
+    await session.refresh(share)
 
     settlements = (
         await session.execute(
@@ -589,5 +592,6 @@ async def unsettle_share(
     share.forgiven_amount = Decimal("0.00")
     share.status = SplitShareStatus.pending
     await session.commit()
+    await session.refresh(share)
 
     return _share_response(share, [])

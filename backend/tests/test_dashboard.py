@@ -4,6 +4,7 @@ from datetime import date
 import pytest
 from httpx import AsyncClient
 
+from tests._helpers import register_second_user
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -196,12 +197,12 @@ async def test_dashboard_recent_transactions_limit(authed) -> None:
     today = date.today()
     this_month = f"{today.year}-{today.month:02d}-10T10:00:00Z"
 
-    for _ in range(12):
+    for _ in range(7):
         await _txn(client, headers, acc_id, "100.00", "expense", this_month)
 
     resp = await client.get("/api/v1/dashboard/home", headers=headers)
     data = resp.json()
-    assert len(data["recent_transactions"]) == 10
+    assert len(data["recent_transactions"]) == 5
 
 
 async def test_dashboard_budget_summary(authed) -> None:
@@ -317,7 +318,7 @@ async def test_dashboard_active_subscriptions(authed) -> None:
 
 async def test_dashboard_cross_user_isolation(client: AsyncClient, db_tables: None) -> None:
     h1 = await _setup(client, "user1@example.com")
-    h2 = await _setup(client, "user2@example.com")
+    h2 = await register_second_user(client, h1, "user2@example.com")
     acc1 = await _account(client, h1, "User1 Account")
     today = date.today()
     this_month = f"{today.year}-{today.month:02d}-10T10:00:00Z"

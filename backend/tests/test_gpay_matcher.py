@@ -9,14 +9,10 @@ import pytest
 from httpx import AsyncClient
 
 from app.services.gpay_matcher import (
-    GPayRecord,
-    MatchResult,
-    _find_candidates,
     _parse_record,
     parse_takeout,
 )
-from app.models.gpay_match import GPayMatchStatus
-
+from tests._helpers import register_second_user
 
 # ── parse_takeout ─────────────────────────────────────────────────────────────
 
@@ -251,7 +247,22 @@ async def test_resolve_pending_match(setup_client: AsyncClient) -> None:
 async def test_resolve_cross_user_404(setup_client: AsyncClient) -> None:
     """User B cannot resolve User A's match."""
     token_a, _ = await _make_user_with_transaction(setup_client, "200.00")
-    token_b, txn_b = await _make_user_with_transaction(setup_client, "200.00")
+    headers_a = {"Authorization": f"Bearer {token_a}"}
+    headers_b = await register_second_user(setup_client, headers_a, "userb@example.com")
+    acc_b_resp = await setup_client.post(
+        "/api/v1/accounts",
+        json={"name": "B", "type": "bank", "opening_balance": "0"},
+        headers=headers_b,
+    )
+    txn_b_resp = await setup_client.post(
+        "/api/v1/transactions",
+        json={"type": "expense", "transacted_at": "2024-01-15T10:00:00+05:30",
+              "amount": "200.00", "currency": "INR",
+              "account_id": acc_b_resp.json()["id"]},
+        headers=headers_b,
+    )
+    txn_b = txn_b_resp.json()["id"]
+    token_b = headers_b["Authorization"].split(" ")[1]
 
     acc_resp = await setup_client.get(
         "/api/v1/accounts", headers={"Authorization": f"Bearer {token_a}"}
