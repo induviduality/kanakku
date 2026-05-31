@@ -8,6 +8,7 @@ This folder contains one file per severity tier, each documenting the exact issu
 | [backend-medium.md](backend-medium.md) | MED-1 through MED-6 — wrong behavior in narrower scenarios |
 | [frontend.md](frontend.md) | Frontend HIGH/MED/LOW — UX regressions, type safety |
 | [test-fixes.md](test-fixes.md) | Pre-existing test failures uncovered during the review |
+| [docker-crud-fixes.md](docker-crud-fixes.md) | Docker & production run compile/run-time audit trail |
 
 Severity legend:
 - **HIGH** — silently corrupts data, breaks a documented flow, or has a real chance of triggering in normal use.

@@ -3,6 +3,8 @@
 import pytest
 from httpx import AsyncClient
 
+from tests._helpers import register_second_user
+
 
 async def _setup(client: AsyncClient, email: str = "admin@example.com") -> dict:
     resp = await client.post(
@@ -140,7 +142,7 @@ async def test_list_subscriptions_include_inactive(authed) -> None:
 
 async def test_list_subscriptions_cross_user_isolation(client: AsyncClient, db_tables: None) -> None:
     headers_a = await _setup(client, "a@example.com")
-    headers_b = await _setup(client, "b@example.com")
+    headers_b = await register_second_user(client, headers_a, "b@example.com")
 
     acc_a_resp = await client.post(
         "/api/v1/accounts",
@@ -174,7 +176,7 @@ async def test_get_subscription_404(authed) -> None:
 
 async def test_get_subscription_cross_user_404(client: AsyncClient, db_tables: None) -> None:
     headers_a = await _setup(client, "a@example.com")
-    headers_b = await _setup(client, "b@example.com")
+    headers_b = await register_second_user(client, headers_a, "b@example.com")
     acc_resp = await client.post(
         "/api/v1/accounts",
         json={"name": "A", "type": "bank", "currency": "INR", "opening_balance": "0"},
@@ -262,7 +264,7 @@ async def test_link_transaction(authed) -> None:
 
 async def test_link_transaction_cross_user_404(client: AsyncClient, db_tables: None) -> None:
     headers_a = await _setup(client, "a@example.com")
-    headers_b = await _setup(client, "b@example.com")
+    headers_b = await register_second_user(client, headers_a, "b@example.com")
 
     acc_a = (
         await client.post(

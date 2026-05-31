@@ -3,7 +3,6 @@
 import pytest
 from httpx import AsyncClient
 
-
 # ── Fixtures ──────────────────────────────────────────────────────────────────
 
 async def _setup_user(client: AsyncClient, email: str = "admin@example.com") -> dict:

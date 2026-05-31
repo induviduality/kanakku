@@ -6,9 +6,9 @@ import pytest
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.llm.base import GPayRecord
 from app.llm.logging import LoggingLLMClient
 from app.llm.null_client import NullClient
-from app.llm.base import GPayRecord
 
 
 async def _setup_user(client: AsyncClient) -> str:

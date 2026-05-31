@@ -27,7 +27,7 @@ def _auth(tokens: dict[str, str]) -> dict[str, str]:
 
 async def test_create_invite_requires_auth(invite_client: AsyncClient) -> None:
     resp = await invite_client.post("/api/v1/auth/invites", json={})
-    assert resp.status_code == 403
+    assert resp.status_code == 401
 
 
 async def test_create_invite_returns_token(

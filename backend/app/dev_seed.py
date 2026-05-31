@@ -20,8 +20,8 @@ from app.models.category import Category, CategoryApplicability, payee_default_c
 from app.models.payee import Payee, PayeeType
 from app.models.payment_method import PaymentMethod, PaymentMethodType
 from app.models.piggy_bank import ContributionType, PiggyBank, PiggyBankContribution
-from app.models.subscription import BillingCycle, Subscription
 from app.models.split import Split, SplitShare, SplitShareSettlement, SplitShareStatus
+from app.models.subscription import BillingCycle, Subscription
 from app.models.tag import Tag
 from app.models.transaction import (
     Transaction,
@@ -266,9 +266,9 @@ async def seed_dev_data() -> None:
         session.add(Payee(id=PAYEE_PHARMACY, user_id=USER_ID, name="Apollo Pharmacy", type=PayeeType.merchant))
         session.add(Payee(id=PAYEE_AMAZON, user_id=USER_ID, name="Amazon", type=PayeeType.merchant))
         session.add(Payee(id=PAYEE_SPOTIFY, user_id=USER_ID, name="Spotify", type=PayeeType.merchant))
-        session.add(Payee(id=PAYEE_RAHUL, user_id=USER_ID, name="Rahul", type=PayeeType.individual))
-        session.add(Payee(id=PAYEE_PRIYA, user_id=USER_ID, name="Priya", type=PayeeType.individual))
-        session.add(Payee(id=PAYEE_NEEL, user_id=USER_ID, name="Neel", type=PayeeType.individual))
+        session.add(Payee(id=PAYEE_RAHUL, user_id=USER_ID, name="Rahul", type=PayeeType.person))
+        session.add(Payee(id=PAYEE_PRIYA, user_id=USER_ID, name="Priya", type=PayeeType.person))
+        session.add(Payee(id=PAYEE_NEEL, user_id=USER_ID, name="Neel", type=PayeeType.person))
         await session.flush()
 
         # Payee default categories

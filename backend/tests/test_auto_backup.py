@@ -7,13 +7,16 @@ are deterministic regardless of when they run.
 """
 
 import os
+import subprocess
+import sys
 import time
 from pathlib import Path
-import subprocess
 
 import pytest
 
 SCRIPT = Path(__file__).parent.parent.parent / "infra" / "scripts" / "auto-backup.sh"
+
+pytestmark = pytest.mark.skipif(sys.platform == "win32", reason="shell script tests require Linux")
 
 
 def _run(backup_dir: Path, *, dow: str = "3", dom: str = "15") -> subprocess.CompletedProcess:

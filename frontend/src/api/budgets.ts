@@ -40,6 +40,7 @@ export interface BudgetCreate {
   recurrence_rule?: string
   is_active?: boolean
   notes?: string
+  category_ids?: string[]
 }
 
 export interface BudgetPatch {

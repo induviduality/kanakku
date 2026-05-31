@@ -3,8 +3,7 @@ from __future__ import annotations
 import uuid
 from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
-from enum import Enum
-from typing import Optional
+from enum import StrEnum
 
 import sqlalchemy as sa
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -44,7 +43,7 @@ from app.services.subscription_dates import compute_next_billing_date, subscript
 router = APIRouter(prefix="/dashboard", tags=["dashboard"])
 
 
-class DashboardPeriod(str, Enum):
+class DashboardPeriod(StrEnum):
     month = "month"
     quarter = "quarter"
     year = "year"
@@ -63,8 +62,8 @@ def _month_window(today: date) -> tuple[datetime, datetime]:
 def _period_window(
     period: DashboardPeriod,
     today: date,
-    start_date: Optional[date],
-    end_date: Optional[date],
+    start_date: date | None,
+    end_date: date | None,
 ) -> tuple[datetime, datetime]:
     """Return (period_start, period_end) as UTC datetimes (end is exclusive)."""
     if period == DashboardPeriod.month:
@@ -731,8 +730,8 @@ def _savings_rate(inflow: Decimal, outflow: Decimal) -> float | None:
 @router.get("/home", response_model=DashboardResponse)
 async def home_dashboard(
     period: DashboardPeriod = Query(DashboardPeriod.month),
-    start_date: Optional[date] = Query(None),
-    end_date: Optional[date] = Query(None),
+    start_date: date | None = Query(None),
+    end_date: date | None = Query(None),
     user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ) -> DashboardResponse:

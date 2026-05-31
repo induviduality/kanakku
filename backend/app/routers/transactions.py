@@ -1,7 +1,6 @@
 import base64
 import uuid
 from datetime import UTC, datetime, timedelta
-from decimal import Decimal
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import delete, select
@@ -20,7 +19,6 @@ from app.models.transaction import (
     transaction_tags,
 )
 from app.models.user import User
-from app.models.user_settings import UserSettings
 from app.schemas.transaction import (
     TransactionCreate,
     TransactionListResponse,

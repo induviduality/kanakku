@@ -1,7 +1,7 @@
 """Unit tests for subscription_dates service (no DB)."""
 
 from dataclasses import dataclass
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 
 from app.models.subscription import BillingCycle
 from app.services.subscription_dates import compute_next_billing_date, subscription_status
@@ -43,7 +43,7 @@ def test_monthly_no_last_billed_after_day() -> None:
 
 
 def test_monthly_with_last_billed() -> None:
-    last = datetime(2026, 4, 15, tzinfo=timezone.utc)
+    last = datetime(2026, 4, 15, tzinfo=UTC)
     sub = _make_sub(BillingCycle.monthly, billing_day=15, last_billed_at=last)
     result = compute_next_billing_date(sub, as_of=date(2026, 5, 10))
     assert result == date(2026, 5, 15)
@@ -64,7 +64,7 @@ def test_weekly_same_day() -> None:
 
 
 def test_weekly_with_last_billed() -> None:
-    last = datetime(2026, 5, 13, tzinfo=timezone.utc)  # Wednesday
+    last = datetime(2026, 5, 13, tzinfo=UTC)  # Wednesday
     sub = _make_sub(BillingCycle.weekly, billing_day=2, last_billed_at=last)
     result = compute_next_billing_date(sub)
     assert result == date(2026, 5, 20)
@@ -78,7 +78,7 @@ def test_daily_no_last_billed() -> None:
 
 
 def test_daily_with_last_billed() -> None:
-    last = datetime(2026, 5, 9, tzinfo=timezone.utc)
+    last = datetime(2026, 5, 9, tzinfo=UTC)
     sub = _make_sub(BillingCycle.daily, billing_day=1, last_billed_at=last)
     result = compute_next_billing_date(sub)
     assert result == date(2026, 5, 10)
@@ -93,7 +93,7 @@ def test_quarterly_no_last_billed() -> None:
 
 
 def test_quarterly_with_last_billed() -> None:
-    last = datetime(2026, 4, 1, tzinfo=timezone.utc)
+    last = datetime(2026, 4, 1, tzinfo=UTC)
     sub = _make_sub(BillingCycle.quarterly, billing_day=1, last_billed_at=last)
     result = compute_next_billing_date(sub)
     assert result == date(2026, 7, 1)
@@ -106,7 +106,7 @@ def test_yearly_no_last_billed() -> None:
 
 
 def test_yearly_with_last_billed() -> None:
-    last = datetime(2026, 1, 1, tzinfo=timezone.utc)
+    last = datetime(2026, 1, 1, tzinfo=UTC)
     sub = _make_sub(BillingCycle.yearly, billing_day=1, last_billed_at=last)
     result = compute_next_billing_date(sub)
     assert result == date(2027, 1, 1)
@@ -115,28 +115,28 @@ def test_yearly_with_last_billed() -> None:
 # ── subscription_status ───────────────────────────────────────────────────────
 
 def test_status_upcoming() -> None:
-    last = datetime(2026, 5, 1, tzinfo=timezone.utc)
+    last = datetime(2026, 5, 1, tzinfo=UTC)
     sub = _make_sub(BillingCycle.monthly, billing_day=1, last_billed_at=last)
     # next = June 1; as_of = May 20 → upcoming
     assert subscription_status(sub, as_of=date(2026, 5, 20)) == "upcoming"
 
 
 def test_status_due_soon() -> None:
-    last = datetime(2026, 5, 1, tzinfo=timezone.utc)
+    last = datetime(2026, 5, 1, tzinfo=UTC)
     sub = _make_sub(BillingCycle.monthly, billing_day=1, last_billed_at=last)
     # next = June 1; as_of = May 30 (2 days away) → due_soon
     assert subscription_status(sub, as_of=date(2026, 5, 30)) == "due_soon"
 
 
 def test_status_overdue() -> None:
-    last = datetime(2026, 4, 1, tzinfo=timezone.utc)
+    last = datetime(2026, 4, 1, tzinfo=UTC)
     sub = _make_sub(BillingCycle.monthly, billing_day=1, last_billed_at=last)
     # next = May 1; as_of = May 20 → overdue
     assert subscription_status(sub, as_of=date(2026, 5, 20)) == "overdue"
 
 
 def test_status_due_today() -> None:
-    last = datetime(2026, 4, 20, tzinfo=timezone.utc)
+    last = datetime(2026, 4, 20, tzinfo=UTC)
     sub = _make_sub(BillingCycle.monthly, billing_day=20, last_billed_at=last)
     # next = May 20; as_of = May 20 → due_soon (0 days away)
     assert subscription_status(sub, as_of=date(2026, 5, 20)) == "due_soon"

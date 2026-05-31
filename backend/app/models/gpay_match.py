@@ -28,8 +28,8 @@ class GPayMatch(Base):
         nullable=False,
         index=True,
     )
-    gpay_data: Mapped[dict] = mapped_column(JSONB, nullable=False)
-    candidate_transaction_ids: Mapped[list] = mapped_column(
+    gpay_data: Mapped[dict[str, object]] = mapped_column(JSONB, nullable=False)
+    candidate_transaction_ids: Mapped[list[object]] = mapped_column(
         ARRAY(sa.UUID(as_uuid=True)), nullable=False, server_default="{}"
     )
     chosen_transaction_id: Mapped[uuid.UUID | None] = mapped_column(

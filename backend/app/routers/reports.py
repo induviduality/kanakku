@@ -15,7 +15,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.config import settings
 from app.db.session import get_readonly_engine, get_session
 from app.dependencies import get_current_user
-from app.models.report_dashboard import ReportDashboard, ReportWidget
+from app.models.report_dashboard import ReportDashboard, ReportWidget, VizType
 from app.models.user import User
 from app.schemas.reports import (
     ColumnInfo,
@@ -571,7 +571,7 @@ async def update_widget(
     if body.query is not None:
         widget.query = body.query
     if body.viz_type is not None:
-        widget.viz_type = body.viz_type
+        widget.viz_type = VizType(body.viz_type)
     if body.viz_config is not None:
         widget.viz_config = body.viz_config
     if body.position is not None:

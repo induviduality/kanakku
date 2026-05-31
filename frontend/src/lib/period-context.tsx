@@ -35,6 +35,7 @@ export function PeriodProvider({ children }: { children: React.ReactNode }) {
   )
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 export function usePeriod(): PeriodCtx {
   const ctx = useContext(PeriodContext)
   if (!ctx) throw new Error('usePeriod must be used inside PeriodProvider')

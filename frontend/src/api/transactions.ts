@@ -109,6 +109,14 @@ export function useTransactions(filters: TransactionFilters = {}, limit = 50) {
   })
 }
 
+export function useTransaction(id: string | undefined) {
+  return useQuery({
+    queryKey: ['transaction', id],
+    queryFn: () => apiGet<Transaction>(`/transactions/${id}`),
+    enabled: !!id,
+  })
+}
+
 export function useInfiniteTransactions(filters: TransactionFilters = {}, limit = 50) {
   return useInfiniteQuery({
     queryKey: ['transactions-infinite', filters, limit],

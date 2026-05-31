@@ -1,6 +1,7 @@
 import uuid
 from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
+from typing import Any
 
 import sqlalchemy as sa
 from dateutil.rrule import rrulestr
@@ -11,7 +12,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.session import get_session
 from app.dependencies import get_current_user
-from app.models.budget import Budget, BudgetType, budget_categories as budget_cats
+from app.models.budget import Budget, BudgetType
+from app.models.budget import budget_categories as budget_cats
 from app.models.category import Category
 from app.models.transaction import (
     Transaction,
@@ -178,8 +180,8 @@ async def _compute_current_spent(
     else:
         win_start, win_end = _current_period_window(b)
 
-    def _date_conds() -> list:
-        conds: list = [
+    def _date_conds() -> list[Any]:
+        conds: list[Any] = [
             Transaction.type == TransactionType.expense,
             Transaction.deleted_at.is_(None),
         ]

@@ -150,6 +150,7 @@ export default function Accounts() {
   const [name, setName] = useState('')
   const [type, setType] = useState<Account['type']>('bank')
   const [currency, setCurrency] = useState('INR')
+  const [openingBalance, setOpeningBalance] = useState('0')
 
   // Edit form state
   const [editName, setEditName] = useState('')
@@ -163,10 +164,11 @@ export default function Accounts() {
 
   async function handleCreate(e: React.FormEvent) {
     e.preventDefault()
-    await createAccount.mutateAsync({ name, type, currency })
+    await createAccount.mutateAsync({ name, type, currency, opening_balance: parseFloat(openingBalance) || 0 })
     setName('')
     setType('bank')
     setCurrency('INR')
+    setOpeningBalance('0')
     setCreateOpen(false)
   }
 
@@ -280,6 +282,17 @@ export default function Accounts() {
               id="acc-currency"
               value={currency}
               onChange={(e) => setCurrency(e.target.value)}
+              className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            />
+          </div>
+          <div>
+            <label htmlFor="acc-opening-balance" className="block text-sm font-medium text-gray-700">Opening balance</label>
+            <input
+              id="acc-opening-balance"
+              type="number"
+              step="any"
+              value={openingBalance}
+              onChange={(e) => setOpeningBalance(e.target.value)}
               className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
             />
           </div>

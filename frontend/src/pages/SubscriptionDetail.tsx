@@ -57,6 +57,7 @@ export default function SubscriptionDetail() {
         {sub.notes && <p className="mt-2 text-sm text-gray-500">{sub.notes}</p>}
 
         <div className="mt-4 flex gap-2">
+          {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
           <Link
             to={`/subscriptions/${sub.id}/edit` as any}
             className="p-1.5 rounded text-fg-muted hover:text-fg hover:bg-surface-2 transition-colors"

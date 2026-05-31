@@ -21,6 +21,7 @@ function DashboardCard({ dashboard, onDelete }: { dashboard: Dashboard; onDelete
           ✕
         </button>
       </div>
+      {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
       <Link
         to={`/reports/${dashboard.id}` as any}
         className="inline-flex items-center gap-1 text-sm text-indigo-600 hover:underline font-medium"

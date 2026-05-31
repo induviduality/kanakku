@@ -187,6 +187,7 @@ export default function PiggyBankDetail() {
         </div>
         {pig.notes && <p className="mt-3 text-sm text-gray-500">{pig.notes}</p>}
         <div className="mt-4 flex gap-2">
+          {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
           <Link
             to={`/piggy-banks/${pig.id}/edit` as any}
             className="p-1.5 rounded text-fg-muted hover:text-fg hover:bg-surface-2 transition-colors"

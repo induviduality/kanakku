@@ -3,6 +3,8 @@
 import pytest
 from httpx import AsyncClient
 
+from tests._helpers import register_second_user
+
 
 async def _setup(client: AsyncClient, email: str = "admin@example.com") -> dict:
     resp = await client.post(
@@ -210,7 +212,7 @@ async def test_get_budget_transactions_cross_user_404(authed) -> None:
     client, headers, acc_id = authed
     budget_id = await _create_budget(client, headers)
 
-    headers2 = await _setup(client, "other@example.com")
+    headers2 = await register_second_user(client, headers, "other@example.com")
     resp = await client.get(
         f"/api/v1/budgets/{budget_id}/transactions", headers=headers2
     )

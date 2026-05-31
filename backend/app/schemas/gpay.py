@@ -9,7 +9,7 @@ from app.models.gpay_match import GPayMatchStatus
 class GPayMatchResponse(BaseModel):
     id: uuid.UUID
     user_id: uuid.UUID
-    gpay_data: dict
+    gpay_data: dict[str, object]
     candidate_transaction_ids: list[uuid.UUID]
     chosen_transaction_id: uuid.UUID | None
     llm_suggestion_id: uuid.UUID | None

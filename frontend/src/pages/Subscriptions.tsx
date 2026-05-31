@@ -216,6 +216,7 @@ export default function Subscriptions() {
               <div className="flex items-start justify-between gap-4">
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2 flex-wrap">
+                    {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
                     <Link to={`/subscriptions/${sub.id}` as any} className="font-medium text-indigo-700 hover:underline">
                       {sub.name}
                     </Link>
@@ -227,6 +228,7 @@ export default function Subscriptions() {
                   </p>
                 </div>
                 <div className="flex gap-1 shrink-0">
+                  {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
                   <Link
                     to={`/subscriptions/${sub.id}/edit` as any}
                     className="p-1.5 rounded text-fg-muted hover:text-fg hover:bg-surface-2 transition-colors"

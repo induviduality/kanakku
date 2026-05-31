@@ -12,7 +12,6 @@ import io
 import re
 import sys
 
-
 DATE_PATTERN = re.compile(r"^\d{2}[/\-]\d{2}[/\-]\d{2,4}$")
 
 
@@ -23,8 +22,8 @@ def main() -> None:
     args = parser.parse_args()
 
     try:
-        import pikepdf
         import pdfplumber
+        import pikepdf
     except ImportError as e:
         print(f"ERROR: missing dependency — {e}", file=sys.stderr)
         sys.exit(1)

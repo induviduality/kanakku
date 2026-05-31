@@ -5,7 +5,6 @@ from typing import Any
 
 from pydantic import BaseModel
 
-
 # ── Query endpoint ─────────────────────────────────────────────────────────────
 
 class QueryRequest(BaseModel):

@@ -3,6 +3,8 @@ import { useParams } from '@tanstack/react-router'
 import GridLayout from 'react-grid-layout'
 import 'react-grid-layout/css/styles.css'
 import 'react-resizable/css/styles.css'
+
+const GridLayoutAsAny = GridLayout as any
 import {
   useGetDashboard,
   useGetWidgets,
@@ -162,14 +164,14 @@ export default function ReportDashboard() {
 
       {widgets && widgets.length > 0 && (
         <div className="overflow-x-auto">
-          <GridLayout
+          <GridLayoutAsAny
             className="layout"
             layout={layout}
-            {...({ cols: 12 } as any)}
+            cols={12}
             rowHeight={60}
             width={1200}
-            onLayoutChange={(newLayout) => {
-              newLayout.forEach((item) => {
+            onLayoutChange={(newLayout: any) => {
+              newLayout.forEach((item: any) => {
                 apiPatch(
                   `/reports/dashboards/${dashboardId}/widgets/${item.i}`,
                   { position: { x: item.x, y: item.y, w: item.w, h: item.h } },
@@ -194,7 +196,7 @@ export default function ReportDashboard() {
                 </div>
               )
             })}
-          </GridLayout>
+          </GridLayoutAsAny>
         </div>
       )}
 

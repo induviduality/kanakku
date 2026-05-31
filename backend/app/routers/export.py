@@ -15,7 +15,6 @@ import pathlib
 import tarfile
 import uuid
 from collections.abc import AsyncGenerator
-from datetime import UTC, datetime
 from typing import Annotated
 
 import sqlalchemy as sa
@@ -28,7 +27,7 @@ from app.dependencies import get_current_user
 from app.models.export_job import ExportJob, ExportJobStatus
 from app.models.user import User
 from app.schemas.export import ExportJobResponse
-from app.workers.export_worker import SCHEMA_VERSION, _EXPORT_TABLES
+from app.workers.export_worker import _EXPORT_TABLES, SCHEMA_VERSION
 
 logger = logging.getLogger(__name__)
 

@@ -10,7 +10,12 @@ Covers the three table layouts validated against real statements so far:
 import io
 from decimal import Decimal
 
-from app.parsers.banks.generic import GenericTableParser, _parse_amount, _parse_amount_typed, _parse_date_to_iso
+from app.parsers.banks.generic import (
+    GenericTableParser,
+    _parse_amount,
+    _parse_amount_typed,
+    _parse_date_to_iso,
+)
 from app.parsers.base import ParsedRecord
 from app.parsers.registry import detect_parser
 

@@ -15,7 +15,11 @@ def create_access_token(
 ) -> str:
     delta = expires_delta if expires_delta is not None else ACCESS_TOKEN_EXPIRES
     now = datetime.now(UTC)
-    payload = {"sub": str(user_id), "type": "access", "iat": now, "exp": now + delta}
+    payload = {
+        "sub": str(user_id), "type": "access",
+        "iat": now, "exp": now + delta,
+        "jti": str(uuid.uuid4()),
+    }
     return jwt.encode(payload, settings.jwt_secret, algorithm=ALGORITHM)
 
 
@@ -24,7 +28,11 @@ def create_refresh_token(
 ) -> str:
     delta = expires_delta if expires_delta is not None else REFRESH_TOKEN_EXPIRES
     now = datetime.now(UTC)
-    payload = {"sub": str(user_id), "type": "refresh", "iat": now, "exp": now + delta}
+    payload = {
+        "sub": str(user_id), "type": "refresh",
+        "iat": now, "exp": now + delta,
+        "jti": str(uuid.uuid4()),
+    }
     return jwt.encode(payload, settings.jwt_secret, algorithm=ALGORITHM)
 
 

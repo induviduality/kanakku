@@ -16,6 +16,7 @@ export default function BudgetProgressCard({ budget }: { budget: BudgetSummaryIt
   return (
     <div className="flex flex-col gap-1">
       <div className="flex items-center justify-between text-sm">
+        {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
         <Link to={`/budgets/${budget.id}` as any} className="font-medium text-fg hover:text-accent truncate">
           {budget.name}
         </Link>

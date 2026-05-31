@@ -10,7 +10,7 @@ class GPayRecord:
     date: str
     amount: float
     merchant: str
-    raw: dict = field(default_factory=dict)
+    raw: dict[str, object] = field(default_factory=dict)
 
 
 @dataclass

@@ -92,7 +92,7 @@ async def test_me_rejects_missing_token(
     auth_client: AsyncClient, registered_user: dict[str, str]
 ) -> None:
     resp = await auth_client.get("/api/v1/auth/me")
-    assert resp.status_code == 403
+    assert resp.status_code == 401
 
 
 async def test_me_rejects_invalid_token(
@@ -201,4 +201,4 @@ async def test_logout_requires_auth(auth_client: AsyncClient) -> None:
         "/api/v1/auth/logout",
         json={"refresh_token": "anything"},
     )
-    assert resp.status_code == 403
+    assert resp.status_code == 401

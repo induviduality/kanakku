@@ -109,7 +109,7 @@ class LoggingLLMClient:
         try:
             result = await self._inner.match_gpay_to_bank(gpay_records, bank_candidates)
             succeeded = True
-            return result
+            return result  # type: ignore[no-any-return]
         finally:
             ms = int((time.monotonic() - t0) * 1000)
             total_candidates = sum(len(c) for c in bank_candidates)

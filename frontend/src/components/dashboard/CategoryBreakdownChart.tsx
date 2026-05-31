@@ -55,7 +55,7 @@ export default function CategoryBreakdownChart({ items }: { items: CategoryBreak
           </Pie>
           <Tooltip
             contentStyle={tooltipStyle}
-            formatter={((value: number) => `₹${value.toLocaleString('en-IN')}`) as any}
+            formatter={((value: number) => `₹${value.toLocaleString('en-IN')}`) as unknown as never}
             labelStyle={{ color: 'var(--kk-fg-muted)', fontSize: 11 }}
           />
           <Legend

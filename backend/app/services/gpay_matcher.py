@@ -22,7 +22,7 @@ class GPayRecord:
     amount: Decimal
     merchant: str
     currency: str = "INR"
-    raw: dict = field(default_factory=dict)
+    raw: dict[str, object] = field(default_factory=dict)
 
 
 @dataclass
@@ -36,7 +36,7 @@ class MatchResult:
 
 # ── Parsing ───────────────────────────────────────────────────────────────────
 
-def parse_takeout(data: str | bytes | dict | list) -> list[GPayRecord]:
+def parse_takeout(data: str | bytes | dict[str, object] | list[object]) -> list[GPayRecord]:
     """Parse Google Takeout GPay export.
 
     Accepts JSON string/bytes, a pre-parsed dict, or a list of records.
@@ -49,10 +49,11 @@ def parse_takeout(data: str | bytes | dict | list) -> list[GPayRecord]:
 
     records: list[GPayRecord] = []
     # Handle both {"transactions": [...]} wrapper and bare list
+    items: list[dict[str, object]]
     if isinstance(raw, dict):
-        items = raw.get("transactions", raw.get("Transaction", [raw]))
+        items = raw.get("transactions") or raw.get("Transaction") or [raw]
     else:
-        items = raw
+        items = list(raw)
 
     for item in items:
         rec = _parse_record(item)
@@ -61,7 +62,7 @@ def parse_takeout(data: str | bytes | dict | list) -> list[GPayRecord]:
     return records
 
 
-def _parse_record(item: dict) -> GPayRecord | None:
+def _parse_record(item: dict[str, object]) -> GPayRecord | None:
     try:
         # Various Takeout field names seen in the wild
         date_str = (
@@ -81,7 +82,7 @@ def _parse_record(item: dict) -> GPayRecord | None:
         # Remove leading currency symbols (but not sign characters)
         amount_str = amount_str.lstrip("₹$€£ ")
 
-        txn_date = _parse_date(date_str)
+        txn_date = _parse_date(str(date_str))
         if txn_date is None:
             return None
         amount = Decimal(amount_str)

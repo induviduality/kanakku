@@ -1,6 +1,5 @@
 """Ollama LLM client implementation using the ollama Python package."""
 
-import json
 import re
 
 from ollama import AsyncClient

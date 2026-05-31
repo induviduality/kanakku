@@ -11,7 +11,7 @@ import Autocomplete from '../Autocomplete'
 import SplitSharesEditor from '../SplitSharesEditor'
 
 interface TransactionFormProps {
-  initial?: Partial<TransactionCreate>
+  initial?: any
   onSubmit: (data: TransactionCreate | TransactionPatch) => Promise<{ id: string } | void>
   submitLabel?: string
   isSubmitting?: boolean
@@ -63,6 +63,29 @@ export default function TransactionForm({
   const createSplit = useCreateSplit()
   const { data: paymentMethods = [] } = usePaymentMethods(accountId)
 
+  // Sync state with initial data when it becomes available or changes
+  useEffect(() => {
+    if (initial) {
+      setType(initial.type ?? 'expense')
+      if (initial.transacted_at) {
+        setTransactedAt(initial.transacted_at.slice(0, 16))
+      }
+      setAmount(initial.amount ?? '')
+      setCurrency(initial.currency ?? '')
+      setAccountId(initial.account_id ?? '')
+      setToAccountId(initial.to_account_id ?? '')
+      setPaymentMethodId(initial.payment_method_id ?? null)
+      setPayeeId(initial.payee_id ?? null)
+      setDescription(initial.description ?? '')
+      setNotes(initial.notes ?? '')
+      setExternalRef(initial.external_ref ?? '')
+      setSelectedCategories(initial.category_ids ?? [])
+      setSelectedTags(initial.tag_ids ?? [])
+      setSelectedBudgetId(initial.budget_ids?.[0] ?? null)
+      setIsSplit(initial.is_split ?? false)
+    }
+  }, [initial])
+
   // When payee changes, auto-populate categories from payee defaults
   useEffect(() => {
     if (!payeeId) return
@@ -74,8 +97,12 @@ export default function TransactionForm({
 
   // When account changes, clear payment method (may not belong to new account)
   useEffect(() => {
-    setPaymentMethodId(null)
-  }, [accountId])
+    if (initial && accountId === initial.account_id) {
+      setPaymentMethodId(initial.payment_method_id ?? null)
+    } else {
+      setPaymentMethodId(null)
+    }
+  }, [accountId, initial])
 
   function toggleCategory(id: string) {
     setSelectedCategories((prev) =>

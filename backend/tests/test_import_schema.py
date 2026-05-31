@@ -33,8 +33,8 @@ async def _make_account(session, user_id: uuid.UUID) -> uuid.UUID:
     await session.execute(
         sa.text(
             "INSERT INTO accounts (id, user_id, name, type, currency, "
-            "opening_balance, current_balance, created_at, updated_at) "
-            "VALUES (:id, :uid, 'Bank', 'bank', 'INR', 0, 0, now(), now())"
+            "opening_balance, current_balance, is_active, created_at, updated_at) "
+            "VALUES (:id, :uid, 'Bank', 'bank', 'INR', 0, 0, true, now(), now())"
         ),
         {"id": aid, "uid": user_id},
     )

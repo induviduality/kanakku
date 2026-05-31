@@ -15,7 +15,7 @@ router = APIRouter(prefix="/categories", tags=["categories"])
 
 _SOFT_DELETE_WINDOW = timedelta(days=30)
 
-_DEFAULT_CATEGORIES: list[dict] = [
+_DEFAULT_CATEGORIES: list[dict[str, object]] = [
     {"name": "Food & Dining", "icon": "🍽️", "color": "#FF6B6B", "applicability": CategoryApplicability.expense},
     {"name": "Transport", "icon": "🚗", "color": "#4ECDC4", "applicability": CategoryApplicability.expense},
     {"name": "Shopping", "icon": "🛍️", "color": "#45B7D1", "applicability": CategoryApplicability.expense},

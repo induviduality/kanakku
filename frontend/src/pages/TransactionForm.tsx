@@ -4,6 +4,7 @@ import TransactionFormComponent from '../components/forms/TransactionForm'
 import {
   useCreateTransaction,
   usePatchTransaction,
+  useTransaction,
   type TransactionCreate,
   type TransactionPatch,
 } from '../api/transactions'
@@ -16,6 +17,7 @@ export default function TransactionFormPage() {
 
   const createTxn = useCreateTransaction()
   const patchTxn = usePatchTransaction()
+  const { data: txn, isLoading } = useTransaction(editId)
   const [done, setDone] = useState(false)
 
   const isEditing = !!editId
@@ -34,6 +36,7 @@ export default function TransactionFormPage() {
   }
 
   if (done) return null
+  if (isEditing && isLoading) return <div className="p-8 text-gray-500">Loading transaction…</div>
 
   return (
     <main className="p-6 max-w-lg mx-auto">
@@ -50,6 +53,7 @@ export default function TransactionFormPage() {
       </div>
 
       <TransactionFormComponent
+        initial={txn}
         onSubmit={handleSubmit}
         submitLabel={isEditing ? 'Update' : 'Add transaction'}
         isSubmitting={createTxn.isPending || patchTxn.isPending}

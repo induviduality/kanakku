@@ -41,6 +41,7 @@ function BatchCard({ batch }: { batch: ImportBatch }) {
           </div>
           <p className="text-xs text-fg-faint">{imported}</p>
         </div>
+        {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
         <Link
           to={`/imports/${batch.id}` as any}
           className="kk-btn-ghost shrink-0"

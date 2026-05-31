@@ -48,7 +48,7 @@ export default function TopNav() {
                   </span>
                 ) : (
                   <Link
-                    to={crumb.href as any}
+                    to={crumb.href as any /* eslint-disable-line @typescript-eslint/no-explicit-any */}
                     className="truncate text-fg-muted hover:text-fg transition-colors"
                   >
                     {crumb.label}

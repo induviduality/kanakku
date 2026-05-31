@@ -182,7 +182,7 @@ class GenericTableParser(BaseParser):
                     first, last = with_balance[0], with_balance[-1]
                     if header.closing_balance is None:
                         header.closing_balance = last.balance
-                    if header.opening_balance is None:
+                    if header.opening_balance is None and first.balance is not None:
                         # Reverse the first transaction to recover the pre-period balance
                         if first.type == "expense":
                             header.opening_balance = first.balance + first.amount
@@ -253,36 +253,36 @@ class GenericTableParser(BaseParser):
         # Single-column mode: one amount column with Dr/Cr suffix (credit card)
         dual_col = col_debit is not None or col_credit is not None
 
+        def _cell(row: list[str | None], idx: int | None) -> str:
+            if idx is None or idx >= len(row):
+                return ""
+            return str(row[idx] or "").strip()
+
         records: list[ParsedRecord] = []
         for row in table[header_idx + 1:]:
             if not row:
                 continue
 
-            def cell(idx: int | None) -> str:
-                if idx is None or idx >= len(row):
-                    return ""
-                return str(row[idx] or "").strip()
-
-            date_str = cell(col_date)
+            date_str = _cell(row, col_date)
             if not _DATE_PATTERN.match(date_str):
                 continue
 
-            desc = cell(col_desc)
+            desc = _cell(row, col_desc)
             if not desc:
                 continue
 
-            balance = _parse_amount(cell(col_balance))
-            reference = cell(col_ref) or None
+            balance = _parse_amount(_cell(row, col_balance))
+            reference = _cell(row, col_ref) or None
 
             if dual_col:
-                debit = _parse_amount(cell(col_debit))
-                credit = _parse_amount(cell(col_credit))
+                debit = _parse_amount(_cell(row, col_debit))
+                credit = _parse_amount(_cell(row, col_credit))
                 if debit is None and credit is None:
                     continue
                 amount: Decimal = debit if debit else credit  # type: ignore[assignment]
                 txn_type = "expense" if debit else "income"
             else:
-                parsed = _parse_amount_typed(cell(col_amount))
+                parsed = _parse_amount_typed(_cell(row, col_amount))
                 if parsed is None:
                     continue
                 amount, txn_type = parsed

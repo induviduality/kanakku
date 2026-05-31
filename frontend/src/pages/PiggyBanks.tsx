@@ -217,6 +217,7 @@ export default function PiggyBanks() {
                 </div>
               </div>
               <div className="mt-3 flex justify-end gap-1" onClick={e => e.stopPropagation()}>
+                {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
                 <Link
                   to={`/piggy-banks/${pig.id}/edit` as any}
                   className="p-1.5 rounded text-fg-muted hover:text-fg hover:bg-surface-2 transition-colors"

@@ -84,7 +84,7 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
-    command: python -m arq app.worker.WorkerSettings
+    command: python -m arq app.workers.purge_worker.WorkerSettings
     deploy:
       resources:
         limits:

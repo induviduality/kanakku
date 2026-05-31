@@ -7,6 +7,7 @@ from datetime import UTC, datetime, timedelta
 
 import sqlalchemy as sa
 from arq import cron
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.session import async_session_factory
 from app.models.account import Account
@@ -34,7 +35,7 @@ _PURGEABLE_MODELS = [
 ]
 
 
-async def purge_soft_deleted(ctx: dict) -> dict[str, int]:
+async def purge_soft_deleted(ctx: dict[str, object]) -> dict[str, int]:
     """Delete rows that have been soft-deleted for more than 30 days.
 
     Transactions are purged first so the Account / Category cascades have no
@@ -56,17 +57,17 @@ async def purge_soft_deleted(ctx: dict) -> dict[str, int]:
                         model.deleted_at < cutoff,  # type: ignore[attr-defined]
                     )
                 )
-                count = result.rowcount
-            totals[model.__tablename__] = count  # type: ignore[attr-defined]
+                count = result.rowcount  # type: ignore[attr-defined]
+            totals[model.__tablename__] = count
             if count:
-                logger.info("Purged %d row(s) from %s", count, model.__tablename__)  # type: ignore[attr-defined]
+                logger.info("Purged %d row(s) from %s", count, model.__tablename__)
 
         await session.commit()
 
     return totals
 
 
-async def _purge_accounts_safely(session, cutoff: datetime) -> int:
+async def _purge_accounts_safely(session: AsyncSession, cutoff: datetime) -> int:
     """Delete soft-deleted accounts only if they have no remaining transactions.
 
     Transactions referencing the account with ondelete=RESTRICT would otherwise
@@ -112,6 +113,10 @@ async def _purge_accounts_safely(session, cutoff: datetime) -> int:
     return deleted
 
 
+from app.config import settings
+from arq.connections import RedisSettings
+
+
 class WorkerSettings:
     """ARQ worker settings — includes daily purge cron job."""
 
@@ -119,3 +124,4 @@ class WorkerSettings:
     cron_jobs = [
         cron(purge_soft_deleted, hour=3, minute=0),  # runs at 03:00 UTC daily
     ]
+    redis_settings = RedisSettings.from_dsn(settings.redis_url)

@@ -40,7 +40,7 @@ class RecentlyDeletedResponse(BaseModel):
 
 async def _query_deleted(session: AsyncSession, model: type, user_id: uuid.UUID, label_fn: object) -> list[DeletedItem]:
     cutoff = datetime.now(UTC) - _WINDOW
-    stmt = select(model).where(
+    stmt = select(model).where(  # type: ignore[var-annotated]
         model.user_id == user_id,  # type: ignore[attr-defined]
         model.deleted_at.isnot(None),  # type: ignore[attr-defined]
         model.deleted_at > cutoff,  # type: ignore[attr-defined]

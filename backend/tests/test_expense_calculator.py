@@ -5,7 +5,6 @@ from datetime import UTC, datetime
 from decimal import Decimal
 
 import pytest
-from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.account import Account
@@ -15,7 +14,6 @@ from app.models.transaction import Transaction, TransactionType
 from app.models.user import User
 from app.models.user_settings import UserSettings
 from app.services.expense_calculator import net_expense
-
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 

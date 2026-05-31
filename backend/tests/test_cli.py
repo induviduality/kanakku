@@ -3,25 +3,25 @@
 import io
 import json
 import tarfile
-from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
 from app.cli import _create_user, _export_archive, _import_archive
-from app.workers.export_worker import SCHEMA_VERSION, _EXPORT_TABLES, _add_json
+from app.workers.export_worker import SCHEMA_VERSION, _add_json
 
 
 @pytest.mark.usefixtures("db_tables")
 async def test_create_user_succeeds(db_session) -> None:
     """create-user writes a user row and prints confirmation."""
-    from app.models.user import User
     import sqlalchemy as sa
+
+    from app.models.user import User
 
     await _create_user("cli@example.com", "secure123")
 
-    from sqlalchemy.ext.asyncio import async_sessionmaker
+    from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
+
     from app.config import settings
-    from sqlalchemy.ext.asyncio import create_async_engine
 
     engine = create_async_engine(settings.database_url)
     factory = async_sessionmaker(engine, expire_on_commit=False)

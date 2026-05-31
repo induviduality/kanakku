@@ -21,7 +21,7 @@ class LLMActivityLog(Base):
         index=True,
     )
     operation: Mapped[str] = mapped_column(sa.String(64), nullable=False)
-    payload_summary: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
+    payload_summary: Mapped[dict[str, object]] = mapped_column(JSONB, nullable=False, default=dict)
     backend: Mapped[str] = mapped_column(sa.String(32), nullable=False)
     model: Mapped[str] = mapped_column(sa.String(64), nullable=False)
     duration_ms: Mapped[int] = mapped_column(sa.Integer, nullable=False)

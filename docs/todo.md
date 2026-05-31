@@ -506,7 +506,7 @@
 - [x] docs/tdd.md (already there)
 - [x] docs/api.md
 - [x] Tailscale or VPN approach documented
-- [ ] Markdown lint clean
+- [x] Markdown lint clean
 
 ### Task 14.4: End-to-End Tests
 - [x] Playwright e2e suite (9 critical paths)
@@ -564,6 +564,15 @@
 - [ ] Verify docs/SETUP.md prereq steps on a real cloud VPS (Ubuntu 22.04)
 - [ ] Add `docs/SETUP.md` smoke-test checklist: after prerequisites, confirm docker/git/openssl versions
 - [ ] `docs/running.md` — add note on minimum storage requirements (Pi SD card size, VPS disk)
+
+---
+
+## Post-Verification UI/UX Improvements
+
+### Task: Transaction Form UI Enhancements
+- [ ] Fix Categories field to be a dropdown (combobox/select) that allows inline addition of new categories.
+- [ ] Fix Tags field to be a dropdown (combobox/select) that allows inline addition of new tags.
+- [ ] Fix Budgets field to be a dropdown select menu instead of selecting via chips.
 
 ---
 

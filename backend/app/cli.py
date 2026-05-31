@@ -17,20 +17,19 @@ import json
 import pathlib
 import sys
 import tarfile
-import uuid
-
+from typing import Any
 
 # ── helpers ───────────────────────────────────────────────────────────────────
 
 
-def _get_engine():
+def _get_engine() -> "Any":
     from sqlalchemy.ext.asyncio import create_async_engine
 
     from app.config import settings
     return create_async_engine(settings.database_url, echo=False)
 
 
-async def _find_user(session, email: str):
+async def _find_user(session: "Any", email: str) -> "Any":
     import sqlalchemy as sa
 
     from app.models.user import User
@@ -76,16 +75,17 @@ async def _create_user(email: str, password: str) -> None:
 
 
 async def _export_archive(email: str, output: str) -> None:
+    from datetime import UTC, datetime
+
+    import sqlalchemy as sa
     from sqlalchemy.ext.asyncio import async_sessionmaker
 
     from app.workers.export_worker import (
-        SCHEMA_VERSION,
         _EXPORT_TABLES,
+        SCHEMA_VERSION,
         _add_json,
         _row_to_dict,
     )
-    import sqlalchemy as sa
-    from datetime import UTC, datetime
 
     engine = _get_engine()
     factory = async_sessionmaker(engine, expire_on_commit=False)
@@ -93,11 +93,11 @@ async def _export_archive(email: str, output: str) -> None:
         user = await _find_user(session, email)
         uid = user.id
 
-        table_data: dict[str, list] = {}
+        table_data: dict[str, list[dict[str, object]]] = {}
         async with session.begin():
             for table_name, query in _EXPORT_TABLES:
-                rows = await session.execute(sa.text(query), {"user_id": uid})
-                table_data[table_name] = [_row_to_dict(r) for r in rows]
+                result = await session.execute(sa.text(query), {"user_id": uid})
+                table_data[table_name] = [_row_to_dict(r) for r in result]
 
     manifest = {
         "schema_version": SCHEMA_VERSION,
@@ -125,9 +125,10 @@ async def _export_archive(email: str, output: str) -> None:
 
 
 async def _import_archive(email: str, input_path: str) -> None:
-    from sqlalchemy.ext.asyncio import async_sessionmaker
-    from app.workers.export_worker import SCHEMA_VERSION, _EXPORT_TABLES
     import sqlalchemy as sa
+    from sqlalchemy.ext.asyncio import async_sessionmaker
+
+    from app.workers.export_worker import _EXPORT_TABLES, SCHEMA_VERSION
 
     engine = _get_engine()
     factory = async_sessionmaker(engine, expire_on_commit=False)
@@ -135,14 +136,14 @@ async def _import_archive(email: str, input_path: str) -> None:
     archive_bytes = pathlib.Path(input_path).read_bytes()
     buf = io.BytesIO(archive_bytes)
     with tarfile.open(fileobj=buf, mode="r:gz") as tar:
-        manifest: dict = json.loads(tar.extractfile("manifest.json").read())  # type: ignore[union-attr]
+        manifest: dict[str, object] = json.loads(tar.extractfile("manifest.json").read())  # type: ignore[union-attr]
         if manifest.get("schema_version") != SCHEMA_VERSION:
             print(f"ERROR: Unsupported schema_version {manifest.get('schema_version')}", file=sys.stderr)
             sys.exit(1)
 
         archived_uid = str(manifest.get("user_id", ""))
         import_order = [t for t, _ in _EXPORT_TABLES]
-        table_data: dict[str, list[dict]] = {}
+        table_data: dict[str, list[dict[str, object]]] = {}
         for table_name in import_order:
             try:
                 member = tar.getmember(f"{table_name}.json")
@@ -155,14 +156,14 @@ async def _import_archive(email: str, input_path: str) -> None:
         target_uid = str(user.id)
 
         # Remap user_id
-        _USER_ID_TABLES = {
+        user_id_tables = {
             "user_settings", "accounts", "categories", "payees", "tags",
             "subscriptions", "budgets", "piggy_banks", "transactions", "splits",
             "import_batches", "gpay_matches", "report_dashboards", "llm_activity_logs",
         }
         if archived_uid != target_uid:
             for tname, rows in table_data.items():
-                if tname in _USER_ID_TABLES:
+                if tname in user_id_tables:
                     for row in rows:
                         if str(row.get("user_id")) == archived_uid:
                             row["user_id"] = target_uid

@@ -137,7 +137,7 @@ function ShareRow({
 
         {/* Action buttons */}
         <div className="flex flex-wrap gap-2">
-          {!isResolved && (
+          {share.payee_id !== null && !isResolved && (
             <>
               <button onClick={() => { setSettleAmount(remaining.toFixed(2)); setSettleOpen(true) }}
                 className="text-xs text-green-700 hover:underline">
@@ -149,7 +149,7 @@ function ShareRow({
               </button>
             </>
           )}
-          {hasActivity && (
+          {share.payee_id !== null && hasActivity && (
             <button onClick={() => setUnsettleOpen(true)} className="text-xs text-amber-600 hover:underline">
               Reset
             </button>

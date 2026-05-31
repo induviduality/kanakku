@@ -8,6 +8,7 @@ from jose import JWTError
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.config import settings
 from app.db.session import get_session
 from app.dependencies import get_current_user
 from app.models.invite_token import InviteToken
@@ -26,7 +27,6 @@ from app.schemas.auth import (
     SetupRequest,
     TokenResponse,
 )
-from app.config import settings
 from app.security.passwords import hash_password, verify_password
 from app.security.tokens import (
     REFRESH_TOKEN_EXPIRES,
@@ -76,10 +76,10 @@ async def dev_login(session: AsyncSession = Depends(get_session)) -> TokenRespon
     if not settings.dev_mode:
         raise HTTPException(status_code=404, detail="Not found")
 
-    DEV_USER_ID = uuid.UUID("11111111-1111-1111-1111-111111111111")
+    dev_user_id = uuid.UUID("11111111-1111-1111-1111-111111111111")
 
     result = await session.execute(
-        select(User).where(User.id == DEV_USER_ID, User.deleted_at.is_(None))
+        select(User).where(User.id == dev_user_id, User.deleted_at.is_(None))
     )
     user = result.scalar_one_or_none()
     if user is None:

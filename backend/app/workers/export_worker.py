@@ -132,12 +132,12 @@ async def export_archive(ctx: dict[str, object], job_id: str, user_id: str) -> N
             # Use begin() so we read with a consistent snapshot
             async with session.begin():
                 for table_name, query in _EXPORT_TABLES:
-                    rows = await session.execute(
+                    result = await session.execute(
                         sa.text(query), {"user_id": uid}
                     )
-                    table_data[table_name] = [_row_to_dict(r) for r in rows]
+                    table_data[table_name] = [_row_to_dict(r) for r in result]
 
-            record_counts = {t: len(rows) for t, rows in table_data.items()}
+            record_counts = {t: len(trows) for t, trows in table_data.items()}
             manifest = {
                 "schema_version": SCHEMA_VERSION,
                 "exported_at": datetime.now(UTC).isoformat(),
@@ -154,8 +154,8 @@ async def export_archive(ctx: dict[str, object], job_id: str, user_id: str) -> N
             buf = io.BytesIO()
             with tarfile.open(fileobj=buf, mode="w:gz") as tar:
                 _add_json(tar, "manifest.json", manifest)
-                for table_name, rows in table_data.items():
-                    _add_json(tar, f"{table_name}.json", rows)
+                for table_name, trows in table_data.items():
+                    _add_json(tar, f"{table_name}.json", trows)
 
             archive_path.write_bytes(buf.getvalue())
 

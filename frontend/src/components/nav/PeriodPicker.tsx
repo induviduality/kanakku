@@ -232,7 +232,7 @@ function CustomRangePicker({ current, onSelect }: { current: PeriodSelection; on
       <DayPicker
         mode="range"
         selected={range.from && range.to ? { from: range.from, to: range.to } : undefined}
-        onSelect={handleSelect as any}
+        onSelect={handleSelect as unknown as never}
         numberOfMonths={1}
         classNames={{
           root: 'rdp-root',
