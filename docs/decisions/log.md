@@ -1,5 +1,13 @@
 # Decision Log
 
+## 2026-05-31 — Use shared get_session in imports/gpay routers; register gpay before imports
+
+**Context:** `test_imports.py` and `test_gpay_matcher.py` all failed with FK violations or InterfaceErrors. Root cause: `imports.py` and `gpay.py` each did `from app.db.session import async_session_factory` at module level and defined their own `get_session`. The test fixture patches `_db_session.async_session_factory`, but the module-level binding in these routers was already fixed to the production factory — the patch never took effect.
+
+**Decision:** (1) Both routers now use `from app.db.session import get_session` directly. `get_session` in `app.db.session` accesses `async_session_factory` from the module's globals at call time, so patching the module attribute works. (2) `gpay_router` registered before `imports_router` in `main.py` so static paths (`/gpay-matches`) aren't shadowed by `/{batch_id: uuid.UUID}`.
+
+**Affects:** `app/routers/imports.py`, `app/routers/gpay.py`, `app/main.py`
+
 ## 2026-05-27 — Split settlement redesigned to multi-payment join table + partial forgiveness
 
 **Context:** The original settlement model used a single `settlement_transaction_id` FK on `split_shares`, meaning only one income transaction could settle a payee's share. The user wanted: (1) multiple income transactions adding up to settle one share, (2) partial forgiveness (absorb only part of the unpaid remainder), (3) payee tracking kept on shares for traceability.

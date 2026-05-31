@@ -1,5 +1,17 @@
 # Completed Milestones
 
+## Ad-hoc Fixes (2026-05-31)
+
+### Backend pytest: all 461 tests passing
+- `conftest.py`: `DROP SCHEMA public CASCADE` instead of `drop_all` (avoids view dep on `split_shares`); patched `_readonly_engine` to test DB
+- `test_migration.py`: patch `settings.database_url` before alembic runs so `env.py` override points to test DB; `_reset_schema()` drops/recreates cleanly
+- `0017_readonly_role.py`: catch `dependent_objects_still_exist` in `DROP ROLE` — cluster-level role has 22 grants in production DB
+- `app/models/tag.py`: partial unique index `(user_id, name) WHERE deleted_at IS NULL` enforces dedup at DB level
+- `app/routers/splits.py`: `session.refresh(share)` after each commit to avoid `MissingGreenlet` on `updated_at`
+- `app/routers/imports.py` + `gpay.py`: replaced module-level `from app.db.session import async_session_factory` binding with shared `get_session`; test fixture patching now takes effect
+- `app/main.py`: register `gpay_router` before `imports_router` so `/gpay-matches` static routes don't get shadowed by `/{batch_id}` UUID parameter
+- Test fixes: invite flow for second users, `label`→`name` in payment_methods tests, dashboard limit (5 not 10), budget instance deletion uses today as `start_date`
+
 ## Ad-hoc Fixes (2026-05-27) — continued
 
 ### Split settlement UI: multi-payment + partial forgiveness frontend
