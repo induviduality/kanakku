@@ -2,6 +2,7 @@ import { useRef, useState } from 'react'
 import { Link, useNavigate } from '@tanstack/react-router'
 import { useUploadPdf } from '../api/imports'
 import { useAccounts } from '../api/accounts'
+import { PasswordInput } from '../components/PasswordInput'
 
 export default function ImportUpload() {
   const navigate = useNavigate()
@@ -103,9 +104,8 @@ export default function ImportUpload() {
         {/* Password */}
         <div>
           <label className="kk-label" htmlFor="pdf-password">PDF Password</label>
-          <input
+          <PasswordInput
             id="pdf-password"
-            type="password"
             value={password}
             onChange={e => setPassword(e.target.value)}
             placeholder="Leave blank if not protected"

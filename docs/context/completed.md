@@ -1,5 +1,12 @@
 # Completed Milestones
 
+## Ad-hoc Fixes (2026-05-31) — UI Polish
+
+### Password eye toggle + Transaction selection CTAs
+- `frontend/src/components/PasswordInput.tsx`: new shared component wrapping `<input type=password>` with a `lucide-react` Eye/EyeOff toggle button; `tabIndex=-1` so it doesn't interrupt tab flow
+- Login, Setup, AcceptInvite, ImportUpload: all password fields replaced with `<PasswordInput>`
+- `frontend/src/pages/Transactions.tsx`: bulk action bar replaced with a sticky bottom bar (`fixed bottom-0`) that appears on any selection; shows count, a prominent "Bundle as Split" button (indigo) when exactly one expense is selected, and a helpful hint otherwise; page gets `pb-20` padding when bar is active to avoid overlap
+
 ## Ad-hoc Fixes (2026-05-31)
 
 ### Backend pytest: all 461 tests passing

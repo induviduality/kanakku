@@ -150,7 +150,7 @@ export default function Transactions() {
   const hasActiveFilters = Object.keys(activeFilters).length > 0
 
   return (
-    <main className="p-4 md:p-6 max-w-5xl mx-auto">
+    <main className={`p-4 md:p-6 max-w-5xl mx-auto ${selectedIds.size > 0 ? 'pb-20' : ''}`}>
       {/* Header */}
       <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
         <h1 className="text-2xl font-bold text-gray-900">Transactions</h1>
@@ -290,7 +290,7 @@ export default function Transactions() {
         </div>
       )}
 
-      {/* Bulk action bar */}
+      {/* Sticky bulk action bar */}
       {selectedIds.size > 0 && (() => {
         const selectedItems = allItems.filter((t) => selectedIds.has(t.id))
         const singleExpense =
@@ -298,22 +298,30 @@ export default function Transactions() {
             ? selectedItems[0]
             : null
         return (
-          <div className="mb-3 flex items-center gap-3 rounded-md bg-indigo-50 border border-indigo-200 px-4 py-2">
-            <span className="text-sm text-indigo-700 font-medium">{selectedIds.size} selected</span>
-            {singleExpense && (
-              <button
-                onClick={() => setBundleTarget(singleExpense)}
-                className="text-sm text-indigo-600 hover:underline font-medium"
-                aria-label="Bundle as split"
-              >
-                Bundle as Split
-              </button>
-            )}
+          <div className="fixed bottom-0 left-0 right-0 z-30 flex items-center gap-3 bg-white border-t border-indigo-200 shadow-lg px-4 py-3 md:left-64">
+            <span className="text-sm font-semibold text-indigo-700 shrink-0">
+              {selectedIds.size} selected
+            </span>
+            <div className="flex items-center gap-2 flex-wrap">
+              {singleExpense ? (
+                <button
+                  onClick={() => setBundleTarget(singleExpense)}
+                  className="rounded-md bg-indigo-600 px-3 py-1.5 text-sm font-semibold text-white hover:bg-indigo-700"
+                  aria-label="Bundle as split"
+                >
+                  Bundle as Split
+                </button>
+              ) : (
+                <span className="text-xs text-gray-400 italic">
+                  Select a single expense to bundle as split
+                </span>
+              )}
+            </div>
             <button
               onClick={() => setSelectedIds(new Set())}
-              className="ml-auto text-xs text-gray-500 hover:text-gray-700"
+              className="ml-auto rounded-md border border-gray-300 px-3 py-1.5 text-xs text-gray-600 hover:bg-gray-50 shrink-0"
             >
-              Clear selection
+              Clear
             </button>
           </div>
         )

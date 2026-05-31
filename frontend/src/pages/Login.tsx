@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useNavigate } from '@tanstack/react-router'
 import { useLogin } from '../api/auth'
 import { DEV_MODE, DEV_EMAIL, DEV_PASSWORD } from '../lib/dev-mode'
+import { PasswordInput } from '../components/PasswordInput'
 
 export default function Login() {
   const [email, setEmail] = useState(DEV_MODE === 'seeded' ? DEV_EMAIL : '')
@@ -50,14 +51,14 @@ export default function Login() {
             <label htmlFor="password" className="block text-sm font-medium text-gray-700">
               Password
             </label>
-            <input
+            <PasswordInput
               id="password"
-              type="password"
               placeholder="••••••••"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
-              className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              wrapperClassName="mt-1"
             />
           </div>
 
