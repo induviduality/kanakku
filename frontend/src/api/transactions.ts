@@ -81,6 +81,7 @@ export interface TransactionFilters {
   payee_id?: string
   category_id?: string
   tag_id?: string
+  budget_id?: string
   from?: string
   to?: string
 }
@@ -92,6 +93,7 @@ function buildParams(filters: TransactionFilters, limit = 50, cursor?: string): 
   if (filters.payee_id) p.set('payee_id', filters.payee_id)
   if (filters.category_id) p.set('category_id', filters.category_id)
   if (filters.tag_id) p.set('tag_id', filters.tag_id)
+  if (filters.budget_id) p.set('budget_id', filters.budget_id)
   if (filters.from) p.set('from', filters.from)
   if (filters.to) p.set('to', filters.to)
   p.set('limit', String(limit))

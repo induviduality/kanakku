@@ -392,19 +392,24 @@ async def patch_transaction(
     # Reverse old balance effect before applying changes
     await _apply_balance(txn, session, current_user.id, sign=-1)
 
-    # Apply scalar field patches
+    # Apply scalar field patches. exclude_unset=True keeps fields the client
+    # did NOT send out of the patch entirely, while still allowing them to
+    # send explicit nulls to clear nullable fields (payee_id, to_account_id, …).
     scalar_fields = {
         "type", "transacted_at", "amount", "currency", "description", "notes",
+        "external_ref",
         "account_id", "payment_method_id", "payee_id", "to_account_id", "to_amount",
         "to_currency", "subscription_id",
     }
     patch_data = body.model_dump(
-        exclude_none=True, exclude={"category_ids", "tag_ids", "budget_ids"}
+        exclude_unset=True, exclude={"category_ids", "tag_ids", "budget_ids"}
     )
 
     # Validate transfer constraint after patching
     new_type = patch_data.get("type", txn.type)
-    new_to_account = patch_data.get("to_account_id", txn.to_account_id)
+    new_to_account = (
+        patch_data["to_account_id"] if "to_account_id" in patch_data else txn.to_account_id
+    )
     if new_type == TransactionType.transfer and new_to_account is None:
         raise HTTPException(status_code=422, detail="transfer requires to_account_id")
     if new_type != TransactionType.transfer and new_to_account is not None:
@@ -427,15 +432,16 @@ async def patch_transaction(
     # Re-apply new balance effect
     await _apply_balance(txn, session, current_user.id, sign=+1)
 
-    # Update joins if provided
+    # Update joins if provided. For each list, None = leave alone, [] = clear.
     if body.category_ids is not None or body.tag_ids is not None or body.budget_ids is not None:
         existing_cats = await _fetch_category_ids(txn.id, session)
         existing_tags = await _fetch_tag_ids(txn.id, session)
+        existing_budgets = await _fetch_budget_ids(txn.id, session)
         await _set_joins(
             txn.id,
             body.category_ids if body.category_ids is not None else existing_cats,
             body.tag_ids if body.tag_ids is not None else existing_tags,
-            body.budget_ids if body.budget_ids is not None else [],
+            body.budget_ids if body.budget_ids is not None else existing_budgets,
             session,
         )
 

@@ -1,4 +1,3 @@
-import { useState } from 'react'
 import type { SplitShareCreate } from '../api/splits'
 import { usePayees } from '../api/payees'
 
@@ -8,31 +7,34 @@ interface SplitSharesEditorProps {
   onChange: (shares: SplitShareCreate[]) => void
 }
 
+// Round to 2dp before comparing so JS float noise (0.1+0.2 = 0.30000000000000004)
+// doesn't trip the "Remaining" / "Balanced" thresholds.
+const BALANCE_TOLERANCE = 0.005
+function round2(n: number): number {
+  return Math.round(n * 100) / 100
+}
+
 export default function SplitSharesEditor({
   totalAmount,
   shares,
   onChange,
 }: SplitSharesEditorProps) {
   const { data: payees = [] } = usePayees()
-  const [error, setError] = useState('')
 
-  const sumShares = shares.reduce((acc, s) => acc + (Number(s.amount) || 0), 0)
-  const remaining = totalAmount - sumShares
+  const sumShares = round2(shares.reduce((acc, s) => acc + (Number(s.amount) || 0), 0))
+  const remaining = round2(totalAmount - sumShares)
 
   function addShare() {
     onChange([...shares, { payee_id: undefined, amount: '' }])
-    setError('')
   }
 
   function removeShare(index: number) {
     onChange(shares.filter((_, i) => i !== index))
-    setError('')
   }
 
   function updateShare(index: number, patch: Partial<SplitShareCreate>) {
     const next = shares.map((s, i) => (i === index ? { ...s, ...patch } : s))
     onChange(next)
-    setError('')
   }
 
   function fillRemaining(index: number) {
@@ -44,16 +46,16 @@ export default function SplitSharesEditor({
     updateShare(index, { amount: fill.toFixed(2) })
   }
 
-  const isBalanced = Math.abs(remaining) < 0.005 && shares.length > 0
+  const isBalanced = Math.abs(remaining) < BALANCE_TOLERANCE && shares.length > 0
 
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
         <span className="text-sm font-medium text-gray-700">Shares</span>
         <span
-          className={`text-xs font-medium ${Math.abs(remaining) < 0.005 ? 'text-green-600' : 'text-amber-600'}`}
+          className={`text-xs font-medium ${Math.abs(remaining) < BALANCE_TOLERANCE ? 'text-green-600' : 'text-amber-600'}`}
         >
-          {Math.abs(remaining) < 0.005
+          {Math.abs(remaining) < BALANCE_TOLERANCE
             ? '✓ Balanced'
             : `Remaining: ${remaining.toFixed(2)}`}
         </span>
@@ -109,7 +111,6 @@ export default function SplitSharesEditor({
         + Add share
       </button>
 
-      {error && <p className="text-xs text-red-600">{error}</p>}
       {!isBalanced && shares.length > 0 && (
         <p className="text-xs text-amber-600" role="alert">
           Shares must sum to {totalAmount.toFixed(2)} before saving.

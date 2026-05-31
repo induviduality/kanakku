@@ -87,13 +87,21 @@ export function useGetSplit(splitId: string | null) {
   })
 }
 
+// Every split mutation can change the is_split flag and Linked Split section
+// on the underlying transaction. Invalidate transaction queries too so the
+// UI doesn't show stale badges after a split is created/settled/forgiven.
+function invalidateSplitsAndTransactions(qc: ReturnType<typeof useQueryClient>, splitId?: string) {
+  qc.invalidateQueries({ queryKey: ['splits'] })
+  if (splitId) qc.invalidateQueries({ queryKey: ['splits', splitId] })
+  qc.invalidateQueries({ queryKey: ['transactions'] })
+  qc.invalidateQueries({ queryKey: ['transactions-infinite'] })
+}
+
 export function useCreateSplit() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: (body: SplitCreate) => apiPost<Split>('/splits', body),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['splits'] })
-    },
+    onSuccess: () => invalidateSplitsAndTransactions(qc),
   })
 }
 
@@ -101,11 +109,7 @@ export function useBundleSplit() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: (body: BundleCreate) => apiPost<Split>('/splits/bundle', body),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['splits'] })
-      qc.invalidateQueries({ queryKey: ['transactions'] })
-      qc.invalidateQueries({ queryKey: ['transactions-infinite'] })
-    },
+    onSuccess: () => invalidateSplitsAndTransactions(qc),
   })
 }
 
@@ -114,9 +118,7 @@ export function useSettleShare(splitId: string) {
   return useMutation({
     mutationFn: ({ shareId, body }: { shareId: string; body: SettleRequest }) =>
       apiPost<SplitShare>(`/splits/${splitId}/shares/${shareId}/settle`, body),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['splits', splitId] })
-    },
+    onSuccess: () => invalidateSplitsAndTransactions(qc, splitId),
   })
 }
 
@@ -125,9 +127,7 @@ export function useUnlinkSettlement(splitId: string) {
   return useMutation({
     mutationFn: ({ shareId, settlementId }: { shareId: string; settlementId: string }) =>
       apiDelete<SplitShare>(`/splits/${splitId}/shares/${shareId}/settlements/${settlementId}`),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['splits', splitId] })
-    },
+    onSuccess: () => invalidateSplitsAndTransactions(qc, splitId),
   })
 }
 
@@ -136,9 +136,7 @@ export function useForgiveShare(splitId: string) {
   return useMutation({
     mutationFn: ({ shareId, amount }: { shareId: string; amount: string }) =>
       apiPost<SplitShare>(`/splits/${splitId}/shares/${shareId}/forgive`, { amount }),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['splits', splitId] })
-    },
+    onSuccess: () => invalidateSplitsAndTransactions(qc, splitId),
   })
 }
 
@@ -147,8 +145,6 @@ export function useUnsettleShare(splitId: string) {
   return useMutation({
     mutationFn: (shareId: string) =>
       apiPost<SplitShare>(`/splits/${splitId}/shares/${shareId}/unsettle`, {}),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['splits', splitId] })
-    },
+    onSuccess: () => invalidateSplitsAndTransactions(qc, splitId),
   })
 }

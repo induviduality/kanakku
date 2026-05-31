@@ -2,15 +2,19 @@
 
 Net expense for a split = user_own_share + forgiven_shares.
 - user_own_share: shares where payee_id IS NULL (the user's own portion)
-- forgiven_shares: shares where status = 'forgiven' (absorbed into user's cost)
-- Pending shares owed by others do NOT reduce net expense.
-- Settled shares (received money) are excluded.
+- forgiven_shares: amounts absorbed into the user's cost. This includes:
+  - the full `amount` of any share whose status is 'forgiven', AND
+  - the `forgiven_amount` of any share that is partially forgiven (status
+    could be 'settled' or 'pending' if some portion is paid/remaining but
+    the rest was written off).
+- Pending shares owed by others (not forgiven) do NOT reduce net expense.
+- Settled portions (received money) are excluded.
 """
 
 import uuid
 from decimal import Decimal
 
-from sqlalchemy import func, or_, select
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.split import Split, SplitShare, SplitShareStatus
@@ -21,7 +25,7 @@ async def net_expense(session: AsyncSession, transaction_id: uuid.UUID) -> Decim
     """Return the net expense amount for a transaction.
 
     For non-split transactions: returns transaction.amount.
-    For split transactions: returns user_own_share + sum(forgiven_shares).
+    For split transactions: returns user_own_share + sum(forgiven amounts).
     """
     txn = (
         await session.execute(select(Transaction).where(Transaction.id == transaction_id))
@@ -41,16 +45,23 @@ async def net_expense(session: AsyncSession, transaction_id: uuid.UUID) -> Decim
     if split is None:
         return txn.amount
 
-    result = (
+    shares = (
         await session.execute(
-            select(func.sum(SplitShare.amount)).where(
-                SplitShare.split_id == split.id,
-                or_(
-                    SplitShare.payee_id.is_(None),
-                    SplitShare.status == SplitShareStatus.forgiven,
-                ),
-            )
+            select(SplitShare).where(SplitShare.split_id == split.id)
         )
-    ).scalar_one_or_none()
+    ).scalars().all()
 
-    return result or Decimal("0")
+    total = Decimal("0")
+    for s in shares:
+        if s.payee_id is None:
+            # User's own share — counted in full.
+            total += s.amount
+        elif s.status == SplitShareStatus.forgiven:
+            # Fully-forgiven share — counted in full.
+            total += s.amount
+        else:
+            # Settled or pending share with a payee. Only the partially-forgiven
+            # portion (if any) is absorbed by the user.
+            total += s.forgiven_amount or Decimal("0")
+
+    return total

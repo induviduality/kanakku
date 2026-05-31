@@ -84,8 +84,10 @@ def compute_next_billing_date(sub: "Subscription", as_of: date | None = None) ->
     """Return the next due date for the subscription.
 
     If last_billed_at is set, the next due date is one cycle after that (and may
-    be in the past if the subscription is overdue). If never billed, returns the
-    first occurrence on or after today derived from billing_day.
+    be in the past if the subscription is overdue — the "first unpaid cycle"
+    semantic is intentional so the UI can show which specific cycle was missed).
+    If never billed, returns the first occurrence on or after today derived
+    from billing_day.
     """
     if sub.last_billed_at is not None:
         anchor = (

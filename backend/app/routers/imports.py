@@ -177,15 +177,28 @@ async def confirm_records(
     """Convert pending (or duplicate if force=True) records into transactions."""
     batch = await _get_batch_or_404(session, batch_id, current_user.id)
 
-    query = sa.select(RawImportRecord).where(RawImportRecord.batch_id == batch_id)
+    # A batch without an account_id cannot be confirmed — the resulting Transaction
+    # row has no place to live. Surface this clearly instead of silently dropping
+    # every record in _record_to_transaction.
+    if batch.account_id is None:
+        raise HTTPException(
+            status_code=422,
+            detail="Batch has no account_id; set one on the batch before confirming.",
+        )
+
+    # Status filter applies regardless of whether record_ids was provided —
+    # otherwise already-confirmed/rejected records get re-imported as duplicates.
+    allowed_statuses = (
+        [RecordStatus.pending, RecordStatus.duplicate]
+        if body.force
+        else [RecordStatus.pending]
+    )
+    query = sa.select(RawImportRecord).where(
+        RawImportRecord.batch_id == batch_id,
+        RawImportRecord.status.in_(allowed_statuses),
+    )
     if body.record_ids is not None:
         query = query.where(RawImportRecord.id.in_(body.record_ids))
-    elif body.force:
-        query = query.where(
-            RawImportRecord.status.in_([RecordStatus.pending, RecordStatus.duplicate])
-        )
-    else:
-        query = query.where(RawImportRecord.status == RecordStatus.pending)
 
     result = await session.execute(query)
     records = list(result.scalars().all())

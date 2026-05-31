@@ -239,7 +239,12 @@ export default function Dashboard() {
           ) : (
             <div className="space-y-4">
               {data.piggy_banks_summary.map((p) => (
-                <Link key={p.id} to={`/piggy-banks/${p.id}` as any} className="block hover:opacity-80 transition-opacity">
+                <Link
+                  key={p.id}
+                  to="/piggy-banks/$piggyId"
+                  params={{ piggyId: p.id }}
+                  className="block hover:opacity-80 transition-opacity"
+                >
                   <PiggyBankProgressRing piggyBank={p} />
                 </Link>
               ))}

@@ -74,6 +74,12 @@ _EXPORT_TABLES: list[tuple[str, str]] = [
         "SELECT ss.* FROM split_shares ss "
         "JOIN splits s ON s.id = ss.split_id WHERE s.user_id = :user_id",
     ),
+    (
+        "split_share_settlements",
+        "SELECT sss.* FROM split_share_settlements sss "
+        "JOIN split_shares ss ON ss.id = sss.share_id "
+        "JOIN splits s ON s.id = ss.split_id WHERE s.user_id = :user_id",
+    ),
     ("import_batches", "SELECT * FROM import_batches WHERE user_id = :user_id"),
     (
         "raw_import_records",

@@ -34,7 +34,7 @@ def _derive_status(share_amount: Decimal, paid: Decimal, forgiven: Decimal) -> S
 
 
 def _share_response(share: SplitShare, settlements: list[SplitShareSettlement]) -> SplitShareResponse:
-    paid = sum((s.amount for s in settlements), Decimal("0"))
+    paid = sum((s.amount for s in settlements), Decimal("0.00"))
     return SplitShareResponse(
         id=share.id,
         split_id=share.split_id,

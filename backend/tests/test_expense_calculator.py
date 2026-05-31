@@ -9,6 +9,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.account import Account
+from app.models.payee import Payee, PayeeType
 from app.models.split import Split, SplitShare, SplitShareStatus
 from app.models.transaction import Transaction, TransactionType
 from app.models.user import User
@@ -25,6 +26,13 @@ async def _make_user(session: AsyncSession, email: str = "u@example.com") -> Use
     session.add(UserSettings(user_id=user.id))
     await session.flush()
     return user
+
+
+async def _make_payee(session: AsyncSession, user_id: uuid.UUID) -> Payee:
+    payee = Payee(id=uuid.uuid4(), user_id=user_id, name="Friend", type=PayeeType.person)
+    session.add(payee)
+    await session.flush()
+    return payee
 
 
 async def _make_account(session: AsyncSession, user_id: uuid.UUID) -> Account:
@@ -59,7 +67,6 @@ async def _make_split_with_shares(
     split = Split(id=uuid.uuid4(), user_id=user_id, expense_transaction_id=txn.id)
     session.add(split)
     await session.flush()
-    now = datetime.now(UTC)
     for amount, status, payee_id in shares:
         share = SplitShare(
             id=uuid.uuid4(),
@@ -67,8 +74,6 @@ async def _make_split_with_shares(
             payee_id=payee_id,
             amount=Decimal(amount),
             status=status,
-            settled_at=now if status == SplitShareStatus.settled else None,
-            forgiven_at=now if status == SplitShareStatus.forgiven else None,
         )
         session.add(share)
     await session.commit()
@@ -92,12 +97,12 @@ async def test_split_user_own_share_only(db_session: AsyncSession) -> None:
     user = await _make_user(db_session, "own@example.com")
     acc = await _make_account(db_session, user.id)
     txn = await _make_expense(db_session, user.id, acc.id, "300.00")
-    friend_id = uuid.uuid4()
+    friend = await _make_payee(db_session, user.id)
 
     # user own = 100 (payee_id=None), friend pending = 200 (payee_id=friend)
     await _make_split_with_shares(db_session, user.id, txn, [
         ("100.00", SplitShareStatus.pending, None),
-        ("200.00", SplitShareStatus.pending, friend_id),
+        ("200.00", SplitShareStatus.pending, friend.id),
     ])
 
     result = await net_expense(db_session, txn.id)
@@ -109,13 +114,13 @@ async def test_split_with_forgiven_shares(db_session: AsyncSession) -> None:
     user = await _make_user(db_session, "forgiven@example.com")
     acc = await _make_account(db_session, user.id)
     txn = await _make_expense(db_session, user.id, acc.id, "300.00")
-    friend_id = uuid.uuid4()
+    friend = await _make_payee(db_session, user.id)
 
     # user own = 100, forgiven = 150, friend settled = 50
     await _make_split_with_shares(db_session, user.id, txn, [
         ("100.00", SplitShareStatus.pending, None),
-        ("150.00", SplitShareStatus.forgiven, friend_id),
-        ("50.00", SplitShareStatus.settled, friend_id),
+        ("150.00", SplitShareStatus.forgiven, friend.id),
+        ("50.00", SplitShareStatus.settled, friend.id),
     ])
 
     result = await net_expense(db_session, txn.id)
@@ -127,12 +132,12 @@ async def test_split_settled_shares_excluded(db_session: AsyncSession) -> None:
     user = await _make_user(db_session, "settled@example.com")
     acc = await _make_account(db_session, user.id)
     txn = await _make_expense(db_session, user.id, acc.id, "300.00")
-    friend_id = uuid.uuid4()
+    friend = await _make_payee(db_session, user.id)
 
     # user own = 100, friend settled = 200
     await _make_split_with_shares(db_session, user.id, txn, [
         ("100.00", SplitShareStatus.pending, None),
-        ("200.00", SplitShareStatus.settled, friend_id),
+        ("200.00", SplitShareStatus.settled, friend.id),
     ])
 
     result = await net_expense(db_session, txn.id)
@@ -144,12 +149,12 @@ async def test_split_all_forgiven_no_own_share(db_session: AsyncSession) -> None
     user = await _make_user(db_session, "allforgiven@example.com")
     acc = await _make_account(db_session, user.id)
     txn = await _make_expense(db_session, user.id, acc.id, "300.00")
-    friend_id = uuid.uuid4()
+    friend = await _make_payee(db_session, user.id)
 
     # The entire expense was split with a friend who couldn't pay, user forgave all
     # user own = 0, forgiven = 300
     await _make_split_with_shares(db_session, user.id, txn, [
-        ("300.00", SplitShareStatus.forgiven, friend_id),
+        ("300.00", SplitShareStatus.forgiven, friend.id),
     ])
 
     result = await net_expense(db_session, txn.id)
@@ -161,11 +166,11 @@ async def test_split_fully_settled_net_is_own_only(db_session: AsyncSession) -> 
     user = await _make_user(db_session, "fullsettle@example.com")
     acc = await _make_account(db_session, user.id)
     txn = await _make_expense(db_session, user.id, acc.id, "300.00")
-    friend_id = uuid.uuid4()
+    friend = await _make_payee(db_session, user.id)
 
     await _make_split_with_shares(db_session, user.id, txn, [
         ("100.00", SplitShareStatus.pending, None),
-        ("200.00", SplitShareStatus.settled, friend_id),
+        ("200.00", SplitShareStatus.settled, friend.id),
     ])
 
     result = await net_expense(db_session, txn.id)

@@ -2,12 +2,13 @@ import uuid
 from datetime import UTC, datetime, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy import select
+from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.session import get_session
 from app.dependencies import get_current_user
 from app.models.account import Account
+from app.models.transaction import Transaction
 from app.models.user import User
 from app.models.user_settings import UserSettings
 from app.schemas.account import AccountCreate, AccountPatch, AccountResponse
@@ -95,7 +96,7 @@ async def patch_account(
     session: AsyncSession = Depends(get_session),
 ) -> AccountResponse:
     account = await _get_account_or_404(account_id, current_user, session)
-    for field, value in body.model_dump(exclude_none=True).items():
+    for field, value in body.model_dump(exclude_unset=True).items():
         setattr(account, field, value)
     await session.commit()
     await session.refresh(account)
@@ -109,6 +110,32 @@ async def delete_account(
     session: AsyncSession = Depends(get_session),
 ) -> None:
     account = await _get_account_or_404(account_id, current_user, session)
+
+    # Block delete while live (non-deleted) transactions still reference the
+    # account in either direction. Soft-deleting would leave orphaned ledger
+    # data and break the purge job 30 days later (FK is ondelete=RESTRICT).
+    live_ref_count = (
+        await session.execute(
+            select(Transaction.id)
+            .where(
+                or_(
+                    Transaction.account_id == account.id,
+                    Transaction.to_account_id == account.id,
+                ),
+                Transaction.deleted_at.is_(None),
+            )
+            .limit(1)
+        )
+    ).scalar_one_or_none()
+    if live_ref_count is not None:
+        raise HTTPException(
+            status_code=409,
+            detail=(
+                "Account still has transactions. Delete or move those transactions "
+                "before deleting the account."
+            ),
+        )
+
     account.deleted_at = datetime.now(UTC)
     await session.commit()
 

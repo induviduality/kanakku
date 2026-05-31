@@ -38,8 +38,8 @@ async def test_create_account_basic(authed) -> None:
     assert data["name"] == "HDFC Savings"
     assert data["type"] == "bank"
     assert data["currency"] == "INR"
-    assert data["opening_balance"] == "0"
-    assert data["current_balance"] == "0"
+    assert data["opening_balance"] == "0.00"
+    assert data["current_balance"] == "0.00"
     assert data["is_active"] is True
     assert data["deleted_at"] is None
 

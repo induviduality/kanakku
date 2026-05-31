@@ -130,11 +130,16 @@ async def login(
 @router.post("/logout", status_code=204)
 async def logout(
     body: LogoutRequest,
-    _current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ) -> None:
+    # Scope the lookup to the authenticated user so a leaked refresh token
+    # can't be used to revoke another user's session via this endpoint.
     result = await session.execute(
-        select(SessionModel).where(SessionModel.token_hash == _hash_token(body.refresh_token))
+        select(SessionModel).where(
+            SessionModel.token_hash == _hash_token(body.refresh_token),
+            SessionModel.user_id == current_user.id,
+        )
     )
     db_session = result.scalar_one_or_none()
     if db_session is not None:
