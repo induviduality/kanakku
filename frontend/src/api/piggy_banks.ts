@@ -10,6 +10,7 @@ export interface PiggyBank {
   target_amount: string
   currency: string
   current_amount: string
+  date_started: string | null
   target_date: string | null
   notes: string | null
   is_completed: boolean
@@ -23,6 +24,7 @@ export interface PiggyBankCreate {
   name: string
   target_amount: string
   currency: string
+  date_started?: string
   target_date?: string
   notes?: string
 }
@@ -31,6 +33,7 @@ export interface PiggyBankPatch {
   name?: string
   target_amount?: string
   currency?: string
+  date_started?: string
   target_date?: string
   notes?: string
 }

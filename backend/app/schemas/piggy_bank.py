@@ -11,6 +11,7 @@ class PiggyBankCreate(BaseModel):
     name: str
     target_amount: Decimal
     currency: str
+    date_started: date | None = None
     target_date: date | None = None
     notes: str | None = None
 
@@ -26,6 +27,7 @@ class PiggyBankPatch(BaseModel):
     name: str | None = None
     target_amount: Decimal | None = None
     currency: str | None = None
+    date_started: date | None = None
     target_date: date | None = None
     notes: str | None = None
 
@@ -44,6 +46,7 @@ class PiggyBankResponse(BaseModel):
     target_amount: Decimal
     currency: str
     current_amount: Decimal
+    date_started: date | None
     target_date: date | None
     notes: str | None
     is_completed: bool

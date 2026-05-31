@@ -31,6 +31,7 @@ class PiggyBank(Base):
     current_amount: Mapped[Decimal] = mapped_column(
         sa.Numeric(15, 2), nullable=False, default=Decimal("0"), server_default="0"
     )
+    date_started: Mapped[date | None] = mapped_column(sa.Date, nullable=True)
     target_date: Mapped[date | None] = mapped_column(sa.Date, nullable=True)
     notes: Mapped[str | None] = mapped_column(sa.Text, nullable=True)
     is_completed: Mapped[bool] = mapped_column(

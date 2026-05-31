@@ -19,6 +19,7 @@ export default function PiggyBankFormPage() {
   const [name, setName] = useState('')
   const [targetAmount, setTargetAmount] = useState('')
   const [currency, setCurrency] = useState('INR')
+  const [dateStarted, setDateStarted] = useState('')
   const [targetDate, setTargetDate] = useState('')
   const [notes, setNotes] = useState('')
 
@@ -27,6 +28,7 @@ export default function PiggyBankFormPage() {
       setName(existing.name)
       setTargetAmount(existing.target_amount)
       setCurrency(existing.currency)
+      setDateStarted(existing.date_started ?? '')
       setTargetDate(existing.target_date ?? '')
       setNotes(existing.notes ?? '')
     }
@@ -40,6 +42,7 @@ export default function PiggyBankFormPage() {
       name,
       target_amount: targetAmount,
       currency,
+      date_started: dateStarted || undefined,
       target_date: targetDate || undefined,
       notes: notes || undefined,
     }
@@ -59,11 +62,11 @@ export default function PiggyBankFormPage() {
     <div className="p-6 max-w-lg mx-auto">
       <div className="mb-4">
         <Link to="/piggy-banks" className="text-sm text-indigo-600 hover:underline">
-          ← Back to piggy banks
+          ← Back to savings goals
         </Link>
       </div>
       <h1 className="text-2xl font-bold text-gray-900 mb-6">
-        {isEdit ? 'Edit piggy bank' : 'New piggy bank'}
+        {isEdit ? 'Edit savings goal' : 'New savings goal'}
       </h1>
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
@@ -106,17 +109,31 @@ export default function PiggyBankFormPage() {
             />
           </div>
         </div>
-        <div>
-          <label htmlFor="target-date" className="block text-sm font-medium text-gray-700">
-            Target date (optional)
-          </label>
-          <input
-            id="target-date"
-            type="date"
-            value={targetDate}
-            onChange={(e) => setTargetDate(e.target.value)}
-            className="mt-1 block w-full rounded border border-gray-300 px-3 py-2 text-sm"
-          />
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label htmlFor="date-started" className="block text-sm font-medium text-gray-700">
+              Date started (optional)
+            </label>
+            <input
+              id="date-started"
+              type="date"
+              value={dateStarted}
+              onChange={(e) => setDateStarted(e.target.value)}
+              className="mt-1 block w-full rounded border border-gray-300 px-3 py-2 text-sm"
+            />
+          </div>
+          <div>
+            <label htmlFor="target-date" className="block text-sm font-medium text-gray-700">
+              Target date (optional)
+            </label>
+            <input
+              id="target-date"
+              type="date"
+              value={targetDate}
+              onChange={(e) => setTargetDate(e.target.value)}
+              className="mt-1 block w-full rounded border border-gray-300 px-3 py-2 text-sm"
+            />
+          </div>
         </div>
         <div>
           <label htmlFor="notes" className="block text-sm font-medium text-gray-700">

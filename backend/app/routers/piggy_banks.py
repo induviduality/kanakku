@@ -68,6 +68,7 @@ async def create_piggy_bank(
         target_amount=body.target_amount,
         currency=body.currency,
         current_amount=Decimal("0"),
+        date_started=body.date_started,
         target_date=body.target_date,
         notes=body.notes,
         is_completed=False,

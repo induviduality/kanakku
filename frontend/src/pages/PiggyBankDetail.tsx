@@ -180,6 +180,9 @@ export default function PiggyBankDetail() {
             <p className="mt-1 text-gray-600">
               {pig.currency} {pig.current_amount} / {pig.target_amount}
             </p>
+            {pig.date_started && (
+              <p className="text-sm text-gray-400">Started: {pig.date_started}</p>
+            )}
             {pig.target_date && (
               <p className="text-sm text-gray-400">Target date: {pig.target_date}</p>
             )}

@@ -66,6 +66,7 @@ function PiggyBankForm({
   const [name, setName] = useState('')
   const [targetAmount, setTargetAmount] = useState('')
   const [currency, setCurrency] = useState('INR')
+  const [dateStarted, setDateStarted] = useState('')
   const [targetDate, setTargetDate] = useState('')
 
   function handleSubmit(e: React.FormEvent) {
@@ -74,6 +75,7 @@ function PiggyBankForm({
       name,
       target_amount: targetAmount,
       currency,
+      date_started: dateStarted || undefined,
       target_date: targetDate || undefined,
     })
   }
@@ -120,17 +122,31 @@ function PiggyBankForm({
           />
         </div>
       </div>
-      <div>
-        <label htmlFor="pig-date" className="block text-sm font-medium text-gray-700">
-          Target date (optional)
-        </label>
-        <input
-          id="pig-date"
-          type="date"
-          value={targetDate}
-          onChange={(e) => setTargetDate(e.target.value)}
-          className="mt-1 block w-full rounded border border-gray-300 px-3 py-2 text-sm"
-        />
+      <div className="grid grid-cols-2 gap-3">
+        <div>
+          <label htmlFor="pig-started" className="block text-sm font-medium text-gray-700">
+            Date started (optional)
+          </label>
+          <input
+            id="pig-started"
+            type="date"
+            value={dateStarted}
+            onChange={(e) => setDateStarted(e.target.value)}
+            className="mt-1 block w-full rounded border border-gray-300 px-3 py-2 text-sm"
+          />
+        </div>
+        <div>
+          <label htmlFor="pig-date" className="block text-sm font-medium text-gray-700">
+            Target date (optional)
+          </label>
+          <input
+            id="pig-date"
+            type="date"
+            value={targetDate}
+            onChange={(e) => setTargetDate(e.target.value)}
+            className="mt-1 block w-full rounded border border-gray-300 px-3 py-2 text-sm"
+          />
+        </div>
       </div>
       <div className="flex justify-end gap-2 pt-2">
         <button
@@ -211,6 +227,9 @@ export default function PiggyBanks() {
                   <p className="mt-1 text-sm text-gray-600">
                     {pig.currency} {pig.current_amount} / {pig.target_amount}
                   </p>
+                  {pig.date_started && (
+                    <p className="text-xs text-gray-400">Started: {pig.date_started}</p>
+                  )}
                   {pig.target_date && (
                     <p className="text-xs text-gray-400">Target: {pig.target_date}</p>
                   )}
