@@ -1,0 +1,71 @@
+# Local-only code-quality stack: SonarQube Community Edition + its own Postgres.
+# Everything runs on localhost — no account, no cloud, nothing leaves your machine.
+#
+#   Start:  docker compose -f infra/sonarqube/docker-compose.yml up -d
+#   Open:   http://localhost:9000      (first login: admin / admin → set a new password)
+#   Stop:   docker compose -f infra/sonarqube/docker-compose.yml down
+#   Wipe:   docker compose -f infra/sonarqube/docker-compose.yml down -v
+#
+# This is a SEPARATE stack from the app's infra/docker-compose.yml. It is only
+# needed when you want the rich SonarQube dashboard; the static HTML coverage
+# reports (backend/htmlcov, frontend/coverage) work without it.
+#
+# See docs/code-coverage/ for the full walkthrough.
+
+name: kanakku-quality
+
+services:
+  # SonarQube's embedded Elasticsearch needs a higher vm.max_map_count than the
+  # default. This one-shot privileged container sets it on the Docker VM/host
+  # kernel so the setup "just works" on Windows (WSL2), macOS, and Linux.
+  init-sysctl:
+    image: busybox:1.36
+    privileged: true
+    command: ["sh", "-c", "sysctl -w vm.max_map_count=262144 && sysctl -w fs.file-max=131072"]
+    restart: "no"
+
+  sonarqube:
+    image: sonarqube:community
+    container_name: kanakku-sonarqube
+    depends_on:
+      init-sysctl:
+        condition: service_completed_successfully
+      sonar-db:
+        condition: service_healthy
+    environment:
+      SONAR_JDBC_URL: jdbc:postgresql://sonar-db:5432/sonar
+      SONAR_JDBC_USERNAME: sonar
+      SONAR_JDBC_PASSWORD: sonar
+    ports:
+      - "9000:9000"
+    volumes:
+      - sonarqube_data:/opt/sonarqube/data
+      - sonarqube_extensions:/opt/sonarqube/extensions
+      - sonarqube_logs:/opt/sonarqube/logs
+    ulimits:
+      nofile:
+        soft: 65536
+        hard: 65536
+    restart: unless-stopped
+
+  sonar-db:
+    image: postgres:16
+    container_name: kanakku-sonar-db
+    environment:
+      POSTGRES_USER: sonar
+      POSTGRES_PASSWORD: sonar
+      POSTGRES_DB: sonar
+    volumes:
+      - sonar_db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U sonar"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+volumes:
+  sonarqube_data:
+  sonarqube_extensions:
+  sonarqube_logs:
+  sonar_db_data:
