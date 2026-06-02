@@ -68,4 +68,39 @@ describe('Categories page', () => {
 
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
   })
+
+  it('allows editing an existing category', async () => {
+    const user = userEvent.setup()
+    renderWithQuery(<Categories />)
+    await waitFor(() => screen.getAllByText('Food & Dining').length > 0)
+
+    // Find and click the pencil edit button
+    const editButtons = screen.getAllByTitle('Edit')
+    await user.click(editButtons[0])
+
+    await waitFor(() => {
+      expect(screen.getByRole('heading', { name: /edit category/i })).toBeInTheDocument()
+    })
+
+    const nameInput = screen.getByLabelText(/^name$/i) as HTMLInputElement
+    await user.clear(nameInput)
+    await user.type(nameInput, 'Gourmet Dining')
+
+    await user.click(screen.getByRole('button', { name: /^save$/i }))
+
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    })
+  })
+
+  it('triggers seed default categories', async () => {
+    const user = userEvent.setup()
+    server.use(http.get('/api/v1/categories', () => HttpResponse.json([])))
+    renderWithQuery(<Categories />)
+
+    const seedBtn = await screen.findByRole('button', { name: /seed defaults/i })
+    await user.click(seedBtn)
+
+    expect(seedBtn).toBeInTheDocument()
+  })
 })

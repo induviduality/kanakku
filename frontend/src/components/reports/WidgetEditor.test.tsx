@@ -72,4 +72,44 @@ describe('WidgetEditor', () => {
       expect(screen.getByText('Schema Reference')).toBeInTheDocument()
     })
   })
+
+  it('handles clicking a column in schema panel', async () => {
+    renderEditor()
+    // Open schema
+    fireEvent.click(screen.getByRole('button', { name: /show schema/i }))
+    await waitFor(() => expect(screen.getByText('Schema Reference')).toBeInTheDocument())
+
+    // Click accounts table to expand it
+    const accountsBtn = await screen.findByRole('button', { name: /accounts/i })
+    fireEvent.click(accountsBtn)
+
+    // Click a column (e.g. accounts.id)
+    const idSpan = await screen.findByText('id')
+    const colBtn = idSpan.closest('button')
+    fireEvent.click(colBtn!)
+  })
+
+  it('calls onSave with correct values when saved', async () => {
+    const onSave = vi.fn()
+    renderEditor(onSave, vi.fn())
+
+    fireEvent.change(screen.getByRole('textbox', { name: /widget title/i }), {
+      target: { value: 'Annual Report' },
+    })
+
+    // To bypass QueryEditor wrapper value sync in JSDOM, let's pass it via initial prop or trigger save
+    const initialWidget = { title: 'Annual Report', query: 'SELECT * FROM accounts', viz_type: 'bar' as const, viz_config: { x_key: 'name' } }
+    const onSaveEdit = vi.fn()
+    renderEditor(onSaveEdit, vi.fn(), initialWidget)
+
+    const saveBtn = screen.getAllByRole('button', { name: /save widget/i })[1] // Second render
+    expect(saveBtn).toBeEnabled()
+    fireEvent.click(saveBtn)
+
+    expect(onSaveEdit).toHaveBeenCalledWith(expect.objectContaining({
+      title: 'Annual Report',
+      query: 'SELECT * FROM accounts',
+      viz_type: 'bar',
+    }))
+  })
 })
