@@ -20,7 +20,7 @@ from app.models.category import Category, CategoryApplicability, payee_default_c
 from app.models.payee import Payee, PayeeType
 from app.models.payment_method import PaymentMethod, PaymentMethodType
 from app.models.piggy_bank import ContributionType, PiggyBank, PiggyBankContribution
-from app.models.split import Split, SplitShare, SplitShareSettlement, SplitShareStatus
+from app.models.split import Split, SplitExpense, SplitShare, SplitShareSettlement, SplitShareStatus
 from app.models.subscription import BillingCycle, Subscription
 from app.models.tag import Tag
 from app.models.transaction import (
@@ -156,12 +156,20 @@ SPLIT_DINNER     = uuid.UUID("91000001-0000-0000-0000-000000000001")
 SPLIT_FUEL       = uuid.UUID("91000001-0000-0000-0000-000000000002")
 SPLIT_MOVIE      = uuid.UUID("91000001-0000-0000-0000-000000000003")
 
+# Split expense rows (split_expenses join table)
+SPLIT_EXP_DINNER = uuid.UUID("91000001-0000-0000-0000-000000000011")
+SPLIT_EXP_FUEL   = uuid.UUID("91000001-0000-0000-0000-000000000012")
+SPLIT_EXP_MOVIE  = uuid.UUID("91000001-0000-0000-0000-000000000013")
+
 # Split shares
+SHARE_DINNER_OWN    = uuid.UUID("92000001-0000-0000-0000-000000000010")  # user's own ₹900
 SHARE_DINNER_RAHUL  = uuid.UUID("92000001-0000-0000-0000-000000000001")
 SHARE_DINNER_PRIYA  = uuid.UUID("92000001-0000-0000-0000-000000000002")
 SHARE_DINNER_NEEL   = uuid.UUID("92000001-0000-0000-0000-000000000003")
+SHARE_FUEL_OWN      = uuid.UUID("92000001-0000-0000-0000-000000000040")  # user's own ₹800
 SHARE_FUEL_RAHUL    = uuid.UUID("92000001-0000-0000-0000-000000000004")
 SHARE_FUEL_PRIYA    = uuid.UUID("92000001-0000-0000-0000-000000000005")
+SHARE_MOVIE_OWN     = uuid.UUID("92000001-0000-0000-0000-000000000050")  # user's own ₹900
 SHARE_MOVIE_NEEL    = uuid.UUID("92000001-0000-0000-0000-000000000006")
 
 # Split share settlements (join table rows)
@@ -639,22 +647,37 @@ async def seed_dev_data() -> None:
             )
 
         # ── Splits ────────────────────────────────────────────────────────────
-        # Scenario: Dinner at Taj — 4-way, all payees pending (ring shows 25%)
-        session.add(Split(id=SPLIT_DINNER, user_id=USER_ID,
-                          expense_transaction_id=TXN_SPLIT_DINNER))
+        # Scenario: Dinner at Taj — 4-way, my share pending + 3 payees pending (ring 25%)
+        # Total ₹3600: own ₹900, Rahul ₹900 pending, Priya ₹900 pending, Neel ₹900 pending
+        session.add(Split(id=SPLIT_DINNER, user_id=USER_ID))
+        session.add(SplitExpense(id=SPLIT_EXP_DINNER, split_id=SPLIT_DINNER,
+                                 transaction_id=TXN_SPLIT_DINNER))
+        session.add(SplitShare(id=SHARE_DINNER_OWN, split_id=SPLIT_DINNER,
+                               payee_id=None, amount=Decimal("900"),
+                               status=SplitShareStatus.pending,
+                               forgiven_amount=Decimal("0")))
         session.add(SplitShare(id=SHARE_DINNER_RAHUL, split_id=SPLIT_DINNER,
                                payee_id=PAYEE_RAHUL, amount=Decimal("900"),
-                               status=SplitShareStatus.pending))
+                               status=SplitShareStatus.pending,
+                               forgiven_amount=Decimal("0")))
         session.add(SplitShare(id=SHARE_DINNER_PRIYA, split_id=SPLIT_DINNER,
                                payee_id=PAYEE_PRIYA, amount=Decimal("900"),
-                               status=SplitShareStatus.pending))
+                               status=SplitShareStatus.pending,
+                               forgiven_amount=Decimal("0")))
         session.add(SplitShare(id=SHARE_DINNER_NEEL, split_id=SPLIT_DINNER,
                                payee_id=PAYEE_NEEL, amount=Decimal("900"),
-                               status=SplitShareStatus.pending))
+                               status=SplitShareStatus.pending,
+                               forgiven_amount=Decimal("0")))
 
-        # Scenario: Weekend trip fuel — 3-way, both payees settled (ring shows 100%)
-        session.add(Split(id=SPLIT_FUEL, user_id=USER_ID,
-                          expense_transaction_id=TXN_SPLIT_FUEL))
+        # Scenario: Weekend trip fuel — 3-way, both payees settled + own pending (ring 67%)
+        # Total ₹2400: own ₹800, Rahul ₹800 settled, Priya ₹800 settled
+        session.add(Split(id=SPLIT_FUEL, user_id=USER_ID))
+        session.add(SplitExpense(id=SPLIT_EXP_FUEL, split_id=SPLIT_FUEL,
+                                 transaction_id=TXN_SPLIT_FUEL))
+        session.add(SplitShare(id=SHARE_FUEL_OWN, split_id=SPLIT_FUEL,
+                               payee_id=None, amount=Decimal("800"),
+                               status=SplitShareStatus.pending,
+                               forgiven_amount=Decimal("0")))
         session.add(SplitShare(id=SHARE_FUEL_RAHUL, split_id=SPLIT_FUEL,
                                payee_id=PAYEE_RAHUL, amount=Decimal("800"),
                                status=SplitShareStatus.settled,
@@ -664,9 +687,15 @@ async def seed_dev_data() -> None:
                                status=SplitShareStatus.settled,
                                forgiven_amount=Decimal("0")))
 
-        # Scenario: Movie + dinner — 2-way, Neel settled (ring shows 50%)
-        session.add(Split(id=SPLIT_MOVIE, user_id=USER_ID,
-                          expense_transaction_id=TXN_SPLIT_MOVIE))
+        # Scenario: Movie + dinner — 2-way, Neel settled + own pending (ring 50%)
+        # Total ₹1800: own ₹900, Neel ₹900 settled
+        session.add(Split(id=SPLIT_MOVIE, user_id=USER_ID))
+        session.add(SplitExpense(id=SPLIT_EXP_MOVIE, split_id=SPLIT_MOVIE,
+                                 transaction_id=TXN_SPLIT_MOVIE))
+        session.add(SplitShare(id=SHARE_MOVIE_OWN, split_id=SPLIT_MOVIE,
+                               payee_id=None, amount=Decimal("900"),
+                               status=SplitShareStatus.pending,
+                               forgiven_amount=Decimal("0")))
         session.add(SplitShare(id=SHARE_MOVIE_NEEL, split_id=SPLIT_MOVIE,
                                payee_id=PAYEE_NEEL, amount=Decimal("900"),
                                status=SplitShareStatus.settled,

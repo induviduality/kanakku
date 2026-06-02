@@ -1,4 +1,4 @@
-"""Schema and invariant tests for Split and SplitShare."""
+"""Schema and invariant tests for Split, SplitExpense, and SplitShare."""
 
 import uuid
 from datetime import UTC, datetime
@@ -6,18 +6,18 @@ from decimal import Decimal
 
 import pytest
 from sqlalchemy import select, text
-from sqlalchemy.exc import DBAPIError
+from sqlalchemy.exc import DBAPIError, IntegrityError
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 
 from app.models.account import Account
-from app.models.split import Split, SplitShare, SplitShareStatus
+from app.models.split import Split, SplitExpense, SplitShare, SplitShareStatus
 from app.models.transaction import Transaction, TransactionType
 from app.models.user import User
 from app.models.user_settings import UserSettings
 from app.services.split_service import SplitInvariantError, validate_invariant
 
 # ---------------------------------------------------------------------------
-# Helpers
+# Trigger SQL (updated to use split_expenses)
 # ---------------------------------------------------------------------------
 
 _TRIGGER_FUNCTION_SQL = """
@@ -26,7 +26,7 @@ RETURNS TRIGGER LANGUAGE plpgsql AS $$
 DECLARE
     v_split_id UUID;
     v_expected_amount NUMERIC(15,2);
-    v_actual_amount NUMERIC(15,2);
+    v_actual_amount   NUMERIC(15,2);
 BEGIN
     IF TG_OP = 'DELETE' THEN
         v_split_id := OLD.split_id;
@@ -34,12 +34,12 @@ BEGIN
         v_split_id := NEW.split_id;
     END IF;
 
-    SELECT t.amount INTO v_expected_amount
-    FROM splits s
-    JOIN transactions t ON t.id = s.expense_transaction_id
-    WHERE s.id = v_split_id;
+    SELECT COALESCE(SUM(t.amount), 0) INTO v_expected_amount
+    FROM split_expenses se
+    JOIN transactions t ON t.id = se.transaction_id
+    WHERE se.split_id = v_split_id;
 
-    IF v_expected_amount IS NULL THEN
+    IF v_expected_amount = 0 THEN
         RETURN COALESCE(NEW, OLD);
     END IF;
 
@@ -48,7 +48,7 @@ BEGIN
     WHERE split_id = v_split_id;
 
     IF v_actual_amount != v_expected_amount THEN
-        RAISE EXCEPTION 'Split invariant violated: shares sum % != transaction amount %',
+        RAISE EXCEPTION 'Split invariant violated: shares sum % != expenses sum %',
             v_actual_amount, v_expected_amount;
     END IF;
 
@@ -78,10 +78,13 @@ async def db_session_with_trigger(
     async with factory() as session:
         yield session
 
-    # Trigger is dropped with the table; clean up the standalone function
     async with db_engine.begin() as conn:
         await conn.execute(text("DROP FUNCTION IF EXISTS check_split_invariant() CASCADE"))
 
+
+# ---------------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------------
 
 async def _make_user(session: AsyncSession, email: str = "u@example.com") -> User:
     user = User(id=uuid.uuid4(), email=email, password_hash="x")
@@ -116,9 +119,15 @@ async def _make_expense(
     return txn
 
 
-async def _make_split(session: AsyncSession, user_id: uuid.UUID, txn_id: uuid.UUID) -> Split:
-    split = Split(id=uuid.uuid4(), user_id=user_id, expense_transaction_id=txn_id)
+async def _make_split(
+    session: AsyncSession, user_id: uuid.UUID, *txn_ids: uuid.UUID
+) -> Split:
+    """Create a Split and link one or more expense transactions via split_expenses."""
+    split = Split(id=uuid.uuid4(), user_id=user_id)
     session.add(split)
+    await session.flush()
+    for txn_id in txn_ids:
+        session.add(SplitExpense(id=uuid.uuid4(), split_id=split.id, transaction_id=txn_id))
     await session.flush()
     return split
 
@@ -133,7 +142,7 @@ def _share(split_id: uuid.UUID, amount: str, status: SplitShareStatus = SplitSha
 
 
 # ---------------------------------------------------------------------------
-# Model-level tests (no trigger required)
+# Model-level tests
 # ---------------------------------------------------------------------------
 
 
@@ -145,21 +154,50 @@ async def test_split_created(db_session: AsyncSession) -> None:
     await db_session.commit()
 
     row = (await db_session.execute(select(Split).where(Split.id == split.id))).scalar_one()
-    assert row.expense_transaction_id == txn.id
     assert row.deleted_at is None
+
+    # Verify the split_expenses row was created
+    exp_row = (
+        await db_session.execute(
+            select(SplitExpense).where(SplitExpense.split_id == split.id)
+        )
+    ).scalar_one()
+    assert exp_row.transaction_id == txn.id
+
+
+async def test_split_multi_expense(db_session: AsyncSession) -> None:
+    """A split can reference multiple expense transactions."""
+    user = await _make_user(db_session, "multi@example.com")
+    acc = await _make_account(db_session, user.id)
+    txn1 = await _make_expense(db_session, user.id, acc.id, "100.00")
+    txn2 = await _make_expense(db_session, user.id, acc.id, "200.00")
+    split = await _make_split(db_session, user.id, txn1.id, txn2.id)
+    await db_session.commit()
+
+    rows = (
+        await db_session.execute(
+            select(SplitExpense).where(SplitExpense.split_id == split.id)
+        )
+    ).scalars().all()
+    assert {r.transaction_id for r in rows} == {txn1.id, txn2.id}
 
 
 async def test_split_expense_transaction_unique(db_session: AsyncSession) -> None:
-    from sqlalchemy.exc import IntegrityError
-
+    """One transaction can only be linked to one split."""
     user = await _make_user(db_session, "uniq@example.com")
     acc = await _make_account(db_session, user.id)
     txn = await _make_expense(db_session, user.id, acc.id)
-    await _make_split(db_session, user.id, txn.id)
+
+    split1 = Split(id=uuid.uuid4(), user_id=user.id)
+    db_session.add(split1)
+    await db_session.flush()
+    db_session.add(SplitExpense(id=uuid.uuid4(), split_id=split1.id, transaction_id=txn.id))
     await db_session.flush()
 
-    split2 = Split(id=uuid.uuid4(), user_id=user.id, expense_transaction_id=txn.id)
+    split2 = Split(id=uuid.uuid4(), user_id=user.id)
     db_session.add(split2)
+    await db_session.flush()
+    db_session.add(SplitExpense(id=uuid.uuid4(), split_id=split2.id, transaction_id=txn.id))
     with pytest.raises(IntegrityError):
         await db_session.flush()
     await db_session.rollback()
@@ -182,8 +220,6 @@ async def test_split_share_statuses(db_session: AsyncSession) -> None:
         await db_session.flush()
         db_session.expunge(share)
 
-    # No invariant trigger in this fixture — just verify ORM accepts all statuses
-
 
 # ---------------------------------------------------------------------------
 # Application-level validator tests
@@ -200,7 +236,21 @@ async def test_validate_invariant_ok(db_session: AsyncSession) -> None:
     db_session.add(_share(split.id, "100.00"))
     await db_session.commit()
 
-    # Should not raise
+    await validate_invariant(db_session, split.id)
+
+
+async def test_validate_invariant_multi_expense(db_session: AsyncSession) -> None:
+    """validate_invariant sums across multiple expense transactions."""
+    user = await _make_user(db_session, "v_multi@example.com")
+    acc = await _make_account(db_session, user.id)
+    txn1 = await _make_expense(db_session, user.id, acc.id, "200.00")
+    txn2 = await _make_expense(db_session, user.id, acc.id, "100.00")
+    split = await _make_split(db_session, user.id, txn1.id, txn2.id)
+
+    db_session.add(_share(split.id, "150.00"))
+    db_session.add(_share(split.id, "150.00"))
+    await db_session.commit()
+
     await validate_invariant(db_session, split.id)
 
 
@@ -217,8 +267,34 @@ async def test_validate_invariant_mismatch(db_session: AsyncSession) -> None:
         await validate_invariant(db_session, split.id)
 
 
+async def test_validate_invariant_duplicate_payee(db_session: AsyncSession) -> None:
+    """validate_invariant catches duplicate named payees."""
+    import uuid as uuid_mod
+    from app.models.payee import Payee, PayeeType
+
+    user = await _make_user(db_session, "v_dup@example.com")
+    acc = await _make_account(db_session, user.id)
+    txn = await _make_expense(db_session, user.id, acc.id, "300.00")
+    split = await _make_split(db_session, user.id, txn.id)
+
+    payee = Payee(id=uuid.uuid4(), user_id=user.id, name="Alice", type=PayeeType.person)
+    db_session.add(payee)
+    await db_session.flush()
+
+    db_session.add(SplitShare(id=uuid.uuid4(), split_id=split.id,
+                              payee_id=payee.id, amount=Decimal("150.00"),
+                              status=SplitShareStatus.pending))
+    db_session.add(SplitShare(id=uuid.uuid4(), split_id=split.id,
+                              payee_id=payee.id, amount=Decimal("150.00"),
+                              status=SplitShareStatus.pending))
+    await db_session.flush()
+
+    with pytest.raises(SplitInvariantError, match="[Dd]uplicate"):
+        await validate_invariant(db_session, split.id)
+
+
 # ---------------------------------------------------------------------------
-# DB trigger tests — use db_session_with_trigger fixture
+# DB trigger tests
 # ---------------------------------------------------------------------------
 
 
@@ -231,7 +307,6 @@ async def test_trigger_sum_matches_ok(db_session_with_trigger: AsyncSession) -> 
 
     session.add(_share(split.id, "200.00"))
     session.add(_share(split.id, "100.00"))
-    # Should commit without raising
     await session.commit()
 
 
@@ -243,7 +318,6 @@ async def test_trigger_sum_mismatch_raises(db_session_with_trigger: AsyncSession
     split = await _make_split(session, user.id, txn.id)
 
     session.add(_share(split.id, "200.00"))
-    # Only 200 of 300 — invariant violated
     with pytest.raises(DBAPIError, match="Split invariant violated"):
         await session.commit()
     await session.rollback()
@@ -262,7 +336,6 @@ async def test_trigger_update_breaking_sum_raises(db_session_with_trigger: Async
     session.add(share2)
     await session.commit()
 
-    # Change share1 to 250 → sum becomes 350, breaking invariant
     row = (await session.execute(select(SplitShare).where(SplitShare.id == share1.id))).scalar_one()
     row.amount = Decimal("250.00")
     with pytest.raises(DBAPIError, match="Split invariant violated"):
@@ -283,7 +356,6 @@ async def test_trigger_delete_breaking_sum_raises(db_session_with_trigger: Async
     session.add(share2)
     await session.commit()
 
-    # Delete share2 → sum drops to 200, breaking invariant
     row = (await session.execute(select(SplitShare).where(SplitShare.id == share2.id))).scalar_one()
     await session.delete(row)
     with pytest.raises(DBAPIError, match="Split invariant violated"):

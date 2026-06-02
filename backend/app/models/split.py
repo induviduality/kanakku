@@ -26,12 +26,6 @@ class Split(Base):
         sa.ForeignKey("users.id", ondelete="CASCADE"),
         nullable=False,
     )
-    expense_transaction_id: Mapped[uuid.UUID] = mapped_column(
-        sa.UUID(as_uuid=True),
-        sa.ForeignKey("transactions.id", ondelete="RESTRICT"),
-        nullable=False,
-        unique=True,
-    )
     notes: Mapped[str | None] = mapped_column(sa.Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         sa.TIMESTAMP(timezone=True), server_default=sa.func.now(), nullable=False
@@ -101,6 +95,29 @@ class SplitShareSettlement(Base):
         nullable=False,
     )
     amount: Mapped[Decimal] = mapped_column(sa.Numeric(15, 2), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        sa.TIMESTAMP(timezone=True), server_default=sa.func.now(), nullable=False
+    )
+
+
+class SplitExpense(Base):
+    """Links one or more expense transactions to a split as its parent expenses."""
+    __tablename__ = "split_expenses"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        sa.UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    split_id: Mapped[uuid.UUID] = mapped_column(
+        sa.UUID(as_uuid=True),
+        sa.ForeignKey("splits.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    transaction_id: Mapped[uuid.UUID] = mapped_column(
+        sa.UUID(as_uuid=True),
+        sa.ForeignKey("transactions.id", ondelete="RESTRICT"),
+        nullable=False,
+        unique=True,
+    )
     created_at: Mapped[datetime] = mapped_column(
         sa.TIMESTAMP(timezone=True), server_default=sa.func.now(), nullable=False
     )

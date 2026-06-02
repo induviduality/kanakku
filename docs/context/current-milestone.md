@@ -89,3 +89,8 @@ All tasks finished:
 - BudgetDrawer redesign: circular SVG progress ring, hero spend panel, Period/Created 2-col grid; MSW handler now filters transactions by date; backend UTC datetime fix for TIMESTAMPTZ comparisons
 - Transaction details drawer: full details — payment method name, budgets, split shares, external_ref (UTR/ref), currency, import record, time-of-day; new `external_ref` field on model + migration 0023
 - Splits UI revamp: removed SplitInlinePanel; uniform rows with Split/Split Share badges; Linked Split section in TransactionDrawer shows expense title; MSW fixtures updated with settlement transactions + split_id wiring
+- Password eye toggle on all auth/import fields + sticky transaction CTAs (Bundle as Split)
+- Duplicate resolution modal on PDF import review
+- PiggyBank date_started field + Savings Goals in SideNav
+- Remove GPay features + decouple Ollama from docker-compose
+- Split multi-expense + payee uniqueness: `split_expenses` join table, DB trigger update, all-expense multi-select bundle, full frontend migration to `expense_transaction_ids[]` — DONE (2026-06-02)

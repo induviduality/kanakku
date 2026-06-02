@@ -2,7 +2,7 @@ import uuid
 from datetime import datetime
 from decimal import Decimal
 
-from pydantic import BaseModel, field_validator
+from pydantic import BaseModel, field_validator, model_validator
 
 from app.models.split import SplitShareStatus
 
@@ -22,8 +22,13 @@ class SplitShareCreate(BaseModel):
 
 class ForgivenShareCreate(BaseModel):
     payee_id: uuid.UUID | None = None
-    amount: Decimal
+    amount: Decimal | str
     notes: str | None = None
+
+    @field_validator("amount", mode="before")
+    @classmethod
+    def coerce_amount(cls, v: object) -> Decimal:
+        return Decimal(str(v))
 
     @field_validator("amount")
     @classmethod
@@ -34,16 +39,30 @@ class ForgivenShareCreate(BaseModel):
 
 
 class BundleCreate(BaseModel):
-    expense_transaction_id: uuid.UUID
+    expense_transaction_ids: list[uuid.UUID]
     income_transaction_ids: list[uuid.UUID] = []
     forgiven_shares: list[ForgivenShareCreate] = []
     notes: str | None = None
 
+    @field_validator("expense_transaction_ids")
+    @classmethod
+    def at_least_one_expense(cls, v: list[uuid.UUID]) -> list[uuid.UUID]:
+        if not v:
+            raise ValueError("expense_transaction_ids must not be empty")
+        return v
+
 
 class SplitCreate(BaseModel):
-    expense_transaction_id: uuid.UUID
+    expense_transaction_ids: list[uuid.UUID]
     notes: str | None = None
     shares: list[SplitShareCreate]
+
+    @field_validator("expense_transaction_ids")
+    @classmethod
+    def at_least_one_expense(cls, v: list[uuid.UUID]) -> list[uuid.UUID]:
+        if not v:
+            raise ValueError("expense_transaction_ids must not be empty")
+        return v
 
     @field_validator("shares")
     @classmethod
@@ -51,6 +70,16 @@ class SplitCreate(BaseModel):
         if not v:
             raise ValueError("shares must not be empty")
         return v
+
+    @model_validator(mode="after")
+    def no_duplicate_payees(self) -> "SplitCreate":
+        non_null = [s.payee_id for s in self.shares if s.payee_id is not None]
+        if len(non_null) != len(set(non_null)):
+            raise ValueError("each payee may appear in at most one share per split")
+        null_count = sum(1 for s in self.shares if s.payee_id is None)
+        if null_count > 1:
+            raise ValueError("only one share without a payee (user's own share) is allowed per split")
+        return self
 
 
 class SettleRequest(BaseModel):
@@ -107,7 +136,7 @@ class SplitShareResponse(BaseModel):
 class SplitResponse(BaseModel):
     id: uuid.UUID
     user_id: uuid.UUID
-    expense_transaction_id: uuid.UUID
+    expense_transaction_ids: list[uuid.UUID]
     notes: str | None
     shares: list[SplitShareResponse]
     created_at: datetime

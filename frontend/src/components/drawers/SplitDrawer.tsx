@@ -373,7 +373,9 @@ export function SplitDrawer({ splitId, onClose }: Props) {
           {/* Meta */}
           <DrawerSection label="Details">
             <div className="kk-panel text-xs text-fg-muted space-y-1">
-              <p>Expense transaction: <span className="kk-mono">{split.expense_transaction_id.slice(0, 16)}…</span></p>
+              {split.expense_transaction_ids.map((id) => (
+                <p key={id}>Expense: <span className="kk-mono">{id.slice(0, 16)}…</span></p>
+              ))}
               <p>Created {new Date(split.created_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}</p>
             </div>
           </DrawerSection>

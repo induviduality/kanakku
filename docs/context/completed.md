@@ -1,5 +1,21 @@
 # Completed Milestones
 
+## Ad-hoc Fixes (2026-06-02) — Split multi-expense + payee uniqueness
+
+- `alembic/versions/0026_split_multi_expense_payee_uniqueness.py`: creates `split_expenses` join table (UNIQUE on `transaction_id`), migrates existing data, drops `splits.expense_transaction_id`, updates DB trigger to sum via join, adds partial unique index on `split_shares(split_id, payee_id)` for non-null payees
+- `models/split.py`: removed `expense_transaction_id`; added `SplitExpense` model
+- `schemas/split.py`: `SplitCreate`/`BundleCreate`/`SplitResponse` all use `expense_transaction_ids: list[UUID]`; `SplitCreate` has `no_duplicate_payees` validator (null + non-null)
+- `services/split_service.py`: `validate_invariant` queries via `split_expenses`; checks duplicate non-null payees
+- `routers/splits.py`: `create_split` validates list of expense IDs + per-share ≤ total + null-payee uniqueness; `bundle_split` groups income txns by payee into one share per payee; `_load_expense_ids()` helper; `_build_response()` loads list
+- `routers/transactions.py`: `_fetch_split_id` uses `split_expenses` join
+- `dev_seed.py`: migrated to `SplitExpense` rows; added user's own share to all 3 seed splits (was missing — caused UI invariant bug)
+- `tests/test_splits.py`, `test_splits_bundle.py`, `test_splits_settle.py`, `test_splits_schema.py`: all updated/rewritten for list syntax + new scenarios
+- `frontend/src/api/splits.ts`: `Split`, `SplitCreate`, `BundleCreate` use `expense_transaction_ids: string[]`
+- `frontend/src/components/BundleAsSplitModal.tsx`: accepts `expenseTransactionIds: string[]`
+- `frontend/src/pages/Transactions.tsx`: bundle action enabled for any all-expense selection (not just single); passes array of IDs + total amount
+- `frontend/src/components/drawers/SplitDrawer.tsx`, `pages/SplitDetail.tsx`, `components/forms/TransactionForm.tsx`: updated to use `expense_transaction_ids` array
+- `frontend/src/test/handlers.ts`: all SPLIT_* fixtures updated to `expense_transaction_ids: [...]`
+
 ## Ad-hoc Fixes (2026-05-31) — UI Polish
 
 ### Password eye toggle + Transaction selection CTAs

@@ -4,7 +4,7 @@ import { useBundleSplit, type ForgivenShareCreate } from '../api/splits'
 import { useTransactions } from '../api/transactions'
 
 interface BundleAsSplitModalProps {
-  expenseTransactionId: string
+  expenseTransactionIds: string[]
   expenseAmount: string
   open: boolean
   onClose: () => void
@@ -12,7 +12,7 @@ interface BundleAsSplitModalProps {
 }
 
 export default function BundleAsSplitModal({
-  expenseTransactionId,
+  expenseTransactionIds,
   expenseAmount,
   open,
   onClose,
@@ -63,7 +63,7 @@ export default function BundleAsSplitModal({
 
     try {
       await bundle.mutateAsync({
-        expense_transaction_id: expenseTransactionId,
+        expense_transaction_ids: expenseTransactionIds,
         income_transaction_ids: selectedIncomeIds,
         forgiven_shares: forgivenShares.filter((f) => Number(f.amount) > 0),
         ...(notes && { notes }),

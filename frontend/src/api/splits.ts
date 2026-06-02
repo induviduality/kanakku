@@ -28,7 +28,7 @@ export interface SplitShare {
 export interface Split {
   id: string
   user_id: string
-  expense_transaction_id: string
+  expense_transaction_ids: string[]
   notes: string | null
   shares: SplitShare[]
   created_at: string
@@ -43,7 +43,7 @@ export interface SplitShareCreate {
 }
 
 export interface SplitCreate {
-  expense_transaction_id: string
+  expense_transaction_ids: string[]
   notes?: string
   shares: SplitShareCreate[]
 }
@@ -55,7 +55,7 @@ export interface ForgivenShareCreate {
 }
 
 export interface BundleCreate {
-  expense_transaction_id: string
+  expense_transaction_ids: string[]
   income_transaction_ids?: string[]
   forgiven_shares?: ForgivenShareCreate[]
   notes?: string

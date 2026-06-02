@@ -69,7 +69,7 @@ export default function Transactions() {
   const [drawerSplitTitle, setDrawerSplitTitle] = useState<string | null>(null)
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [showFilters, setShowFilters] = useState(false)
-  const [bundleTarget, setBundleTarget] = useState<Transaction | null>(null)
+  const [bundleTarget, setBundleTarget] = useState<Transaction[] | null>(null)
 
   const { data: accounts = [] } = useAccounts()
   const { data: payees = [] } = usePayees()
@@ -138,7 +138,7 @@ export default function Transactions() {
     const settlementSplit = splitsBySettlementTxnId.get(t.id)
     setDrawerSplitId(settlementSplit?.id ?? t.split_id ?? null)
     if (settlementSplit) {
-      const expenseTxn = allItems.find(item => item.id === settlementSplit.expense_transaction_id)
+      const expenseTxn = allItems.find(item => settlementSplit.expense_transaction_ids.includes(item.id))
       setDrawerSplitTitle(expenseTxn?.description ?? null)
     } else if (t.is_split) {
       setDrawerSplitTitle(t.description)
@@ -293,19 +293,17 @@ export default function Transactions() {
       {/* Sticky bulk action bar */}
       {selectedIds.size > 0 && (() => {
         const selectedItems = allItems.filter((t) => selectedIds.has(t.id))
-        const singleExpense =
-          selectedItems.length === 1 && selectedItems[0].type === 'expense'
-            ? selectedItems[0]
-            : null
+        const selectedExpenses = selectedItems.filter((t) => t.type === 'expense')
+        const allExpenses = selectedExpenses.length === selectedItems.length
         return (
           <div className="fixed bottom-0 left-0 right-0 z-30 flex items-center gap-3 bg-white border-t border-indigo-200 shadow-lg px-4 py-3 md:left-64">
             <span className="text-sm font-semibold text-indigo-700 shrink-0">
               {selectedIds.size} selected
             </span>
             <div className="flex items-center gap-2 flex-wrap">
-              {singleExpense ? (
+              {allExpenses ? (
                 <button
-                  onClick={() => setBundleTarget(singleExpense)}
+                  onClick={() => setBundleTarget(selectedExpenses)}
                   className="rounded-md bg-indigo-600 px-3 py-1.5 text-sm font-semibold text-white hover:bg-indigo-700"
                   aria-label="Bundle as split"
                 >
@@ -313,7 +311,7 @@ export default function Transactions() {
                 </button>
               ) : (
                 <span className="text-xs text-gray-400 italic">
-                  Select a single expense to bundle as split
+                  Select only expenses to bundle as split
                 </span>
               )}
             </div>
@@ -510,8 +508,8 @@ export default function Transactions() {
 
       {bundleTarget && (
         <BundleAsSplitModal
-          expenseTransactionId={bundleTarget.id}
-          expenseAmount={bundleTarget.amount}
+          expenseTransactionIds={bundleTarget.map((t) => t.id)}
+          expenseAmount={bundleTarget.reduce((sum, t) => sum + Number(t.amount), 0).toFixed(2)}
           open={!!bundleTarget}
           onClose={() => setBundleTarget(null)}
           onSuccess={() => setSelectedIds(new Set())}

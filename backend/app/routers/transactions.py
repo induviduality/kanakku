@@ -10,7 +10,7 @@ from app.db.session import get_session
 from app.dependencies import get_current_user
 from app.models.account import Account, AccountType
 from app.models.payment_method import PaymentMethod
-from app.models.split import Split
+from app.models.split import Split, SplitExpense
 from app.models.transaction import (
     Transaction,
     TransactionType,
@@ -116,8 +116,10 @@ async def _fetch_payment_method_name(
 async def _fetch_split_id(txn_id: uuid.UUID, session: AsyncSession) -> uuid.UUID | None:
     row = (
         await session.execute(
-            select(Split.id).where(
-                Split.expense_transaction_id == txn_id,
+            select(Split.id)
+            .join(SplitExpense, SplitExpense.split_id == Split.id)
+            .where(
+                SplitExpense.transaction_id == txn_id,
                 Split.deleted_at.is_(None),
             )
         )

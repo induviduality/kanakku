@@ -56,14 +56,33 @@ async def test_bundle_expense_only(authed) -> None:
 
     resp = await client.post(
         "/api/v1/splits/bundle",
-        json={"expense_transaction_id": exp_id},
+        json={"expense_transaction_ids": [exp_id]},
         headers=headers,
     )
     assert resp.status_code == 201
     data = resp.json()
+    assert exp_id in data["expense_transaction_ids"]
     assert len(data["shares"]) == 1
     assert data["shares"][0]["amount"] == "300.00"
     assert data["shares"][0]["status"] == "pending"
+
+
+async def test_bundle_multi_expense(authed) -> None:
+    """Two expense transactions bundled together → combined total."""
+    client, headers, acc_id = authed
+    exp1 = await _create_txn(client, headers, acc_id, "expense", "200.00")
+    exp2 = await _create_txn(client, headers, acc_id, "expense", "100.00")
+
+    resp = await client.post(
+        "/api/v1/splits/bundle",
+        json={"expense_transaction_ids": [exp1, exp2]},
+        headers=headers,
+    )
+    assert resp.status_code == 201
+    data = resp.json()
+    assert set(data["expense_transaction_ids"]) == {exp1, exp2}
+    assert len(data["shares"]) == 1
+    assert data["shares"][0]["amount"] == "300.00"
 
 
 async def test_bundle_with_income_leg(authed) -> None:
@@ -75,7 +94,7 @@ async def test_bundle_with_income_leg(authed) -> None:
     resp = await client.post(
         "/api/v1/splits/bundle",
         json={
-            "expense_transaction_id": exp_id,
+            "expense_transaction_ids": [exp_id],
             "income_transaction_ids": [inc_id],
         },
         headers=headers,
@@ -101,7 +120,7 @@ async def test_bundle_with_forgiven_share(authed) -> None:
     resp = await client.post(
         "/api/v1/splits/bundle",
         json={
-            "expense_transaction_id": exp_id,
+            "expense_transaction_ids": [exp_id],
             "forgiven_shares": [{"amount": "100.00"}],
         },
         headers=headers,
@@ -124,7 +143,7 @@ async def test_bundle_zero_remainder(authed) -> None:
     resp = await client.post(
         "/api/v1/splits/bundle",
         json={
-            "expense_transaction_id": exp_id,
+            "expense_transaction_ids": [exp_id],
             "income_transaction_ids": [inc_id],
         },
         headers=headers,
@@ -133,6 +152,45 @@ async def test_bundle_zero_remainder(authed) -> None:
     data = resp.json()
     assert len(data["shares"]) == 1
     assert data["shares"][0]["status"] == "settled"
+
+
+async def test_bundle_same_payee_income_grouped(authed) -> None:
+    """Two income txns with the same payee → one share, two settlements."""
+    import uuid as uuid_mod
+    client, headers, acc_id = authed
+    # Create a payee
+    pr = await client.post("/api/v1/payees", json={"name": "Rahul", "type": "person"}, headers=headers)
+    payee_id = pr.json()["id"]
+
+    exp_id = await _create_txn(client, headers, acc_id, "expense", "300.00")
+    # Two income txns from the same payee
+    inc1_resp = await client.post("/api/v1/transactions", json={
+        "type": "income", "transacted_at": "2026-01-16T10:00:00Z",
+        "amount": "100.00", "account_id": acc_id, "payee_id": payee_id,
+    }, headers=headers)
+    inc1_id = inc1_resp.json()["id"]
+    inc2_resp = await client.post("/api/v1/transactions", json={
+        "type": "income", "transacted_at": "2026-01-17T10:00:00Z",
+        "amount": "50.00", "account_id": acc_id, "payee_id": payee_id,
+    }, headers=headers)
+    inc2_id = inc2_resp.json()["id"]
+
+    resp = await client.post(
+        "/api/v1/splits/bundle",
+        json={
+            "expense_transaction_ids": [exp_id],
+            "income_transaction_ids": [inc1_id, inc2_id],
+        },
+        headers=headers,
+    )
+    assert resp.status_code == 201
+    data = resp.json()
+    # Rahul's two payments → grouped into one share of 150
+    shares = data["shares"]
+    rahul_shares = [s for s in shares if s["payee_id"] == payee_id]
+    assert len(rahul_shares) == 1
+    assert rahul_shares[0]["amount"] == "150.00"
+    assert len(rahul_shares[0]["settlements"]) == 2
 
 
 # ── Error cases ───────────────────────────────────────────────────────────────
@@ -146,7 +204,7 @@ async def test_bundle_sum_over_expense(authed) -> None:
     resp = await client.post(
         "/api/v1/splits/bundle",
         json={
-            "expense_transaction_id": exp_id,
+            "expense_transaction_ids": [exp_id],
             "income_transaction_ids": [inc_id],
             "forgiven_shares": [{"amount": "150.00"}],
         },
@@ -161,7 +219,7 @@ async def test_bundle_already_has_split(authed) -> None:
     client, headers, acc_id = authed
     exp_id = await _create_txn(client, headers, acc_id, "expense", "300.00")
 
-    payload = {"expense_transaction_id": exp_id}
+    payload = {"expense_transaction_ids": [exp_id]}
     resp1 = await client.post("/api/v1/splits/bundle", json=payload, headers=headers)
     assert resp1.status_code == 201
 
@@ -174,7 +232,7 @@ async def test_bundle_nonexistent_expense(authed) -> None:
     client, headers, _ = authed
     resp = await client.post(
         "/api/v1/splits/bundle",
-        json={"expense_transaction_id": str(uuid.uuid4())},
+        json={"expense_transaction_ids": [str(uuid.uuid4())]},
         headers=headers,
     )
     assert resp.status_code == 404
@@ -188,7 +246,7 @@ async def test_bundle_nonexistent_income_leg(authed) -> None:
     resp = await client.post(
         "/api/v1/splits/bundle",
         json={
-            "expense_transaction_id": exp_id,
+            "expense_transaction_ids": [exp_id],
             "income_transaction_ids": [str(uuid.uuid4())],
         },
         headers=headers,
@@ -203,26 +261,23 @@ async def test_bundle_income_leg_already_linked(authed) -> None:
     exp2_id = await _create_txn(client, headers, acc_id, "expense", "200.00")
     inc_id = await _create_txn(client, headers, acc_id, "income", "200.00")
 
-    # Bundle first expense with the income leg
     resp1 = await client.post(
         "/api/v1/splits/bundle",
-        json={"expense_transaction_id": exp1_id, "income_transaction_ids": [inc_id]},
+        json={"expense_transaction_ids": [exp1_id], "income_transaction_ids": [inc_id]},
         headers=headers,
     )
-    # exp1 = 300, inc leg = 200, user own = 100 → OK
     assert resp1.status_code == 201
 
-    # Try to use same income leg for second expense
     resp2 = await client.post(
         "/api/v1/splits/bundle",
-        json={"expense_transaction_id": exp2_id, "income_transaction_ids": [inc_id]},
+        json={"expense_transaction_ids": [exp2_id], "income_transaction_ids": [inc_id]},
         headers=headers,
     )
     assert resp2.status_code == 409
 
 
 async def test_bundle_non_income_leg_rejected(authed) -> None:
-    """Passing an expense txn as income_transaction_id → 422."""
+    """Passing an expense txn as income_transaction_ids → 422."""
     client, headers, acc_id = authed
     exp_id = await _create_txn(client, headers, acc_id, "expense", "300.00")
     exp2_id = await _create_txn(client, headers, acc_id, "expense", "100.00")
@@ -230,7 +285,7 @@ async def test_bundle_non_income_leg_rejected(authed) -> None:
     resp = await client.post(
         "/api/v1/splits/bundle",
         json={
-            "expense_transaction_id": exp_id,
+            "expense_transaction_ids": [exp_id],
             "income_transaction_ids": [exp2_id],
         },
         headers=headers,
@@ -242,6 +297,6 @@ async def test_bundle_requires_auth(client: AsyncClient, db_tables: None) -> Non
     import uuid
     resp = await client.post(
         "/api/v1/splits/bundle",
-        json={"expense_transaction_id": str(uuid.uuid4())},
+        json={"expense_transaction_ids": [str(uuid.uuid4())]},
     )
     assert resp.status_code == 401

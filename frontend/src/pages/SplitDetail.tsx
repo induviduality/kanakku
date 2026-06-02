@@ -283,7 +283,9 @@ export default function SplitDetail() {
     <main className="p-4 md:p-6 max-w-3xl mx-auto">
       <h1 className="text-2xl font-bold text-fg mb-1">{split.notes ?? 'Split Detail'}</h1>
       <p className="text-sm text-fg-muted mb-6">
-        Expense: <span className="kk-mono">{split.expense_transaction_id.slice(0, 16)}…</span>
+        {split.expense_transaction_ids.map((id, i) => (
+          <span key={id}>{i > 0 ? ', ' : 'Expense: '}<span className="kk-mono">{id.slice(0, 16)}…</span></span>
+        ))}
       </p>
 
       <div className="rounded-lg border border-border overflow-hidden mb-6">

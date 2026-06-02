@@ -47,7 +47,7 @@ async def _create_split_with_two_shares(client, headers, acc_id, share_amounts=(
     resp = await client.post(
         "/api/v1/splits",
         json={
-            "expense_transaction_id": exp_id,
+            "expense_transaction_ids": [exp_id],
             "shares": [{"amount": a} for a in share_amounts],
         },
         headers=headers,

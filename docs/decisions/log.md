@@ -1,5 +1,18 @@
 # Decision Log
 
+## 2026-06-02 — Split multi-expense: split_expenses join table replaces single FK
+
+**Context:** Original `splits.expense_transaction_id` was a single FK, allowing only one expense transaction per split. User required multiple expense transactions per split (e.g. bundling dinner + drinks into one split). Payee uniqueness rule also needed enforcement: at most one share per payee (including the user's own null-payee share).
+
+**Decision:** (1) New `split_expenses` join table with UNIQUE constraint on `transaction_id` (one expense can belong to at most one split). (2) `splits.expense_transaction_id` column dropped; `SplitExpense` model added. (3) DB trigger `trg_split_invariant` updated to sum via `split_expenses` JOIN. (4) Partial unique index on `split_shares(split_id, payee_id) WHERE payee_id IS NOT NULL` for non-null payee uniqueness; null-payee uniqueness (user's own share) enforced at application level in `create_split` only (bundle is exempt — it creates null-payee shares for anonymous income legs). (5) Bundle flow groups income transactions by `payee_id` → one share per payee with multiple settlements. (6) All API responses changed from `expense_transaction_id: UUID` to `expense_transaction_ids: list[UUID]`.
+
+**Alternatives considered:**
+- Keep single FK, limit to one expense per split — too restrictive for real-world use (e.g. dinner + drinks at same outing)
+- Allow multiple expenses via array column (PostgreSQL `UUID[]`) — join table is more relational, easier to add indexes/FKs/cascade rules
+- Enforce null-payee uniqueness at DB level via expression index on `(split_id) WHERE payee_id IS NULL` — not supported in PostgreSQL (can't have a unique index that allows at most one NULL per group); app-level check is correct
+
+**Affects:** `alembic/versions/0026_split_multi_expense_payee_uniqueness.py`, `models/split.py`, `schemas/split.py`, `routers/splits.py`, `routers/transactions.py`, `services/split_service.py`, `dev_seed.py`, all 4 split test files, `frontend/src/api/splits.ts`, `BundleAsSplitModal.tsx`, `Transactions.tsx`, `SplitDrawer.tsx`, `SplitDetail.tsx`, `TransactionForm.tsx`, `handlers.ts`
+
 ## 2026-05-31 — Use shared get_session in imports/gpay routers; register gpay before imports
 
 **Context:** `test_imports.py` and `test_gpay_matcher.py` all failed with FK violations or InterfaceErrors. Root cause: `imports.py` and `gpay.py` each did `from app.db.session import async_session_factory` at module level and defined their own `get_session`. The test fixture patches `_db_session.async_session_factory`, but the module-level binding in these routers was already fixed to the production factory — the patch never took effect.

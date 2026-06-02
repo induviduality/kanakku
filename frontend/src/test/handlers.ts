@@ -132,7 +132,7 @@ const settlement = (id: string, shareId: string, txnId: string, amount: string, 
 //   - Priya: ₹900 forgiven (absorbed by user)
 //   - Neel: ₹900 pending (untouched)
 const SPLIT_DINNER = {
-  id: 'split-dinner', user_id: 'user-1', expense_transaction_id: 'txn-split-dinner',
+  id: 'split-dinner', user_id: 'user-1', expense_transaction_ids: ['txn-split-dinner'],
   notes: 'Dinner at Taj', deleted_at: null,
   created_at: '2026-05-07T10:00:00Z', updated_at: '2026-05-12T10:00:00Z',
   shares: [
@@ -151,7 +151,7 @@ const SPLIT_DINNER = {
 
 // Scenario: Weekend trip fuel — 3-way, both payees fully settled via linked transactions
 const SPLIT_FUEL = {
-  id: 'split-fuel', user_id: 'user-1', expense_transaction_id: 'txn-split-fuel',
+  id: 'split-fuel', user_id: 'user-1', expense_transaction_ids: ['txn-split-fuel'],
   notes: 'Weekend trip fuel', deleted_at: null,
   created_at: '2026-05-14T10:00:00Z', updated_at: '2026-05-17T10:00:00Z',
   shares: [
@@ -169,7 +169,7 @@ const SPLIT_FUEL = {
 
 // Scenario: Movie + dinner — 2-way, Neel fully settled; my ₹900 pending
 const SPLIT_MOVIE = {
-  id: 'split-movie', user_id: 'user-1', expense_transaction_id: 'txn-split-movie',
+  id: 'split-movie', user_id: 'user-1', expense_transaction_ids: ['txn-split-movie'],
   notes: 'Movie + dinner', deleted_at: null,
   created_at: '2026-05-21T10:00:00Z', updated_at: '2026-05-22T10:00:00Z',
   shares: [
@@ -701,14 +701,14 @@ export const handlers = [
   http.post('/api/v1/splits', async ({ request }) => {
     const body = await request.json() as Record<string, unknown>
     return HttpResponse.json(
-      { ...SPLIT_RESPONSE, expense_transaction_id: body.expense_transaction_id },
+      { ...SPLIT_RESPONSE, expense_transaction_ids: body.expense_transaction_ids },
       { status: 201 },
     )
   }),
   http.post('/api/v1/splits/bundle', async ({ request }) => {
     const body = await request.json() as Record<string, unknown>
     return HttpResponse.json(
-      { ...SPLIT_RESPONSE, expense_transaction_id: body.expense_transaction_id },
+      { ...SPLIT_RESPONSE, expense_transaction_ids: body.expense_transaction_ids },
       { status: 201 },
     )
   }),

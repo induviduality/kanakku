@@ -154,7 +154,7 @@ export default function TransactionForm({
       const txn = await onSubmit(payload)
       if (type === 'expense' && isSplit && txn && 'id' in txn) {
         await createSplit.mutateAsync({
-          expense_transaction_id: (txn as { id: string }).id,
+          expense_transaction_ids: [(txn as { id: string }).id],
           shares: splitShares,
         })
       }
