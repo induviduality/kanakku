@@ -82,4 +82,40 @@ describe('ImportReview', () => {
     fireEvent.click(confirmedTab)
     expect(screen.queryByRole('button', { name: /confirm/i })).not.toBeInTheDocument()
   })
+
+  it('handles record selection and bulk confirm/reject actions', async () => {
+    renderPage()
+    await screen.findByText('SWIGGY')
+
+    // Find select-all checkbox
+    const selectAllCheckbox = screen.getByLabelText('select all')
+    expect(selectAllCheckbox).toBeInTheDocument()
+    expect(selectAllCheckbox).not.toBeChecked()
+
+    // Toggle select all
+    fireEvent.click(selectAllCheckbox)
+    expect(selectAllCheckbox).toBeChecked()
+
+    // Bulk buttons are present and clickable
+    const bulkConfirmBtn = screen.getByRole('button', { name: /✓ confirm/i })
+    const bulkRejectBtn = screen.getByRole('button', { name: /✕ reject/i })
+
+    expect(bulkConfirmBtn).toBeEnabled()
+    expect(bulkRejectBtn).toBeEnabled()
+
+    // Click bulk confirm
+    fireEvent.click(bulkConfirmBtn)
+  })
+
+  it('renders resolved and duplicate items correctly', async () => {
+    renderPage()
+    await screen.findByText('hdfc_jan_2026.pdf')
+    
+    // Switch to duplicates tab
+    const duplicateTab = screen.getByRole('tab', { name: /duplicate/i })
+    fireEvent.click(duplicateTab)
+
+    // Wait for empty state or duplicate records
+    await screen.findByText(/no duplicate records/i)
+  })
 })
