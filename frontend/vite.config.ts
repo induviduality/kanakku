@@ -68,5 +68,26 @@ export default defineConfig({
     environment: 'jsdom',
     setupFiles: ['./src/test/setup.ts'],
     exclude: ['**/node_modules/**', '**/e2e/**'],
+    coverage: {
+      // v8 provider (already in devDependencies as @vitest/coverage-v8).
+      //   coverage/lcov.info → consumed by SonarQube (sonar.javascript.lcov.reportPaths)
+      //   coverage/index.html → open directly, no server needed
+      provider: 'v8',
+      reporter: ['text', 'html', 'lcov'],
+      reportsDirectory: './coverage',
+      // Still emit reports when some tests fail (this suite has known failures),
+      // and include untested files so the coverage denominator is honest.
+      reportOnFailure: true,
+      all: true,
+      include: ['src/**/*.{ts,tsx}'],
+      exclude: [
+        'src/**/*.test.{ts,tsx}',
+        'src/**/*.spec.{ts,tsx}',
+        'src/test/**',
+        'src/mocks/**',
+        'src/main.tsx',
+        'src/**/*.d.ts',
+      ],
+    },
   },
 })
