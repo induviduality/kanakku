@@ -33,13 +33,13 @@ describe('BudgetForm page — create mode', () => {
 
     await user.click(screen.getByRole('radio', { name: /recurring/i }))
     await waitFor(() =>
-      expect(screen.getByLabelText(/recurrence rule/i)).toBeInTheDocument(),
+      expect(screen.getByLabelText(/recurrence/i)).toBeInTheDocument(),
     )
   })
 
   it('hides rrule field for adhoc type', () => {
     renderWithQuery(<BudgetFormPage />)
-    expect(screen.queryByLabelText(/recurrence rule/i)).not.toBeInTheDocument()
+    expect(screen.queryByLabelText(/recurrence/i)).not.toBeInTheDocument()
   })
 
   it('submits create form and navigates to /budgets', async () => {

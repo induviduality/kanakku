@@ -20,8 +20,8 @@ export const DEV_MODE: DevMode =
   raw === 'seeded'      ? 'seeded'      :
   'none'
 
-export const DEV_EMAIL    = (import.meta.env.VITE_DEV_EMAIL    as string | undefined) ?? 'dev@kanakku.com'
-export const DEV_PASSWORD = (import.meta.env.VITE_DEV_PASSWORD as string | undefined) ?? 'dev-password'
+export const DEV_EMAIL    = (import.meta.env.VITE_DEV_EMAIL    as string | undefined) ?? ''
+export const DEV_PASSWORD = (import.meta.env.VITE_DEV_PASSWORD as string | undefined) ?? ''
 
 /** When true, MSW intercepts all API requests — no backend needed. */
 export const MOCK_API = import.meta.env.VITE_MOCK_API === 'true'

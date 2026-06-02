@@ -75,4 +75,49 @@ describe('Accounts page', () => {
 
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
   })
+  it('edits an account', async () => {
+    const user = userEvent.setup()
+    renderWithQuery(<Accounts />)
+    await waitFor(() => screen.getByText('HDFC Savings'))
+
+    const editBtns = screen.getAllByRole('button', { name: /^edit$/i })
+    await user.click(editBtns[0])
+    await waitFor(() => screen.getByLabelText(/^name$/i))
+
+    await user.type(screen.getByLabelText(/^name$/i), ' Updated')
+    await user.click(screen.getByRole('checkbox', { name: /active/i }))
+    await user.click(screen.getByRole('button', { name: /^save$/i }))
+
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+  })
+
+  it('adds and deletes a payment method', async () => {
+    const user = userEvent.setup()
+    renderWithQuery(<Accounts />)
+    await waitFor(() => screen.getByText('HDFC Savings'))
+
+    // Expand payment methods panel
+    await user.click(screen.getByRole('button', { name: /payment methods for HDFC Savings/i }))
+    await waitFor(() => screen.getByText(/payment methods/i))
+
+    // Add PM
+    await user.click(screen.getByRole('button', { name: /add payment method/i }))
+    await waitFor(() => screen.getByRole('dialog', { name: /add payment method/i }))
+
+    await user.type(screen.getByLabelText(/^name$/i), 'New Debit Card')
+    await user.selectOptions(screen.getByLabelText(/^type$/i), 'debit_card')
+    await user.click(screen.getByRole('button', { name: /^add$/i }))
+
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: /add payment method/i })).not.toBeInTheDocument())
+
+    // Delete PM
+    const table = screen.getByRole('table')
+    const deletePmBtns = within(table).getAllByRole('button', { name: /^delete$/i })
+    await user.click(deletePmBtns[deletePmBtns.length - 1])
+    await waitFor(() => screen.getByRole('dialog', { name: /delete payment method/i }))
+    
+    const confirmBtn = within(screen.getByRole('dialog')).getByRole('button', { name: /^delete$/i })
+    await user.click(confirmBtn)
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+  })
 })

@@ -17,6 +17,14 @@ vi.mock('@tanstack/react-router', async (importOriginal) => {
   }
 })
 
+vi.mock('../lib/period-context', () => ({
+  usePeriod: () => ({
+    dashboardParams: { start_date: '2026-05-01', end_date: '2026-05-31' },
+    period: 'month'
+  }),
+  PeriodProvider: ({ children }: any) => <>{children}</>
+}))
+
 describe('BudgetDetail page', () => {
   it('shows loading while fetching', () => {
     renderWithQuery(<BudgetDetail />)

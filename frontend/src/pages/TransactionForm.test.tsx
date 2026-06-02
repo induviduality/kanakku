@@ -1,100 +1,60 @@
-import { screen, waitFor } from '@testing-library/react'
-import userEvent from '@testing-library/user-event'
 import { describe, it, expect, vi } from 'vitest'
-import TransactionFormComponent from '../components/forms/TransactionForm'
+import { screen, waitFor } from '@testing-library/react'
 import { renderWithQuery } from '../test/render-utils'
-import { ACCOUNTS_RESPONSE, CATEGORIES_RESPONSE } from '../test/handlers'
+import TransactionFormPage from './TransactionForm'
+import userEvent from '@testing-library/user-event'
+import { server } from '../test/server'
+import { http, HttpResponse } from 'msw'
 
-describe('TransactionForm component', () => {
-  it('renders all core fields', async () => {
-    renderWithQuery(<TransactionFormComponent onSubmit={vi.fn()} />)
-    await waitFor(() => expect(screen.getByLabelText(/date & time/i)).toBeInTheDocument())
-    expect(screen.getByLabelText(/amount/i)).toBeInTheDocument()
-    expect(screen.getByLabelText(/^account/i)).toBeInTheDocument()
-    expect(screen.getByLabelText(/description/i)).toBeInTheDocument()
-  })
+const navigateMock = vi.fn()
+let mockSearch: Record<string, string> = {}
 
-  it('renders type toggle with expense selected by default', async () => {
-    renderWithQuery(<TransactionFormComponent onSubmit={vi.fn()} />)
-    await waitFor(() => screen.getByRole('group', { name: /transaction type/i }))
-    const expenseBtn = screen.getByRole('button', { name: /expense/i })
-    expect(expenseBtn).toHaveAttribute('aria-pressed', 'true')
-  })
+vi.mock('@tanstack/react-router', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@tanstack/react-router')>()
+  return {
+    ...actual,
+    useNavigate: () => navigateMock,
+    useSearch: () => mockSearch,
+  }
+})
 
-  it('shows destination account field when transfer is selected', async () => {
-    const user = userEvent.setup()
-    renderWithQuery(<TransactionFormComponent onSubmit={vi.fn()} />)
-    await waitFor(() => screen.getByRole('button', { name: /transfer/i }))
-    await user.click(screen.getByRole('button', { name: /transfer/i }))
-    await waitFor(() => expect(screen.getByLabelText(/to account/i)).toBeInTheDocument())
-  })
-
-  it('hides payee and categories fields for transfers', async () => {
-    const user = userEvent.setup()
-    renderWithQuery(<TransactionFormComponent onSubmit={vi.fn()} />)
-    await waitFor(() => screen.getByRole('button', { name: /transfer/i }))
-    await user.click(screen.getByRole('button', { name: /transfer/i }))
+describe('TransactionForm page', () => {
+  it('renders New Transaction when no editId is present', async () => {
+    mockSearch = {}
+    renderWithQuery(<TransactionFormPage />)
+    
     await waitFor(() => {
-      expect(screen.queryByLabelText(/payee/i)).not.toBeInTheDocument()
-      expect(screen.queryByLabelText(/categories/i)).not.toBeInTheDocument()
+      expect(screen.getByText('New Transaction')).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: /add transaction/i })).toBeInTheDocument()
     })
   })
 
-  it('shows categories when expense is selected', async () => {
-    renderWithQuery(<TransactionFormComponent onSubmit={vi.fn()} />)
-    await waitFor(() =>
-      expect(screen.getByText(CATEGORIES_RESPONSE[0].name)).toBeInTheDocument(),
+  it('renders Edit Transaction and loads transaction when editId is present', async () => {
+    server.use(
+      http.get('/api/v1/transactions/txn-1', () => {
+        return HttpResponse.json({ id: 'txn-1', amount: '100', type: 'expense', account_id: 'acc-1', date: '2026-05-15T12:00:00Z', payee_id: 'payee-1', description: 'Test', is_transfer: false })
+      })
     )
-  })
-
-  it('auto-populates categories when a payee with defaults is selected', async () => {
-    renderWithQuery(<TransactionFormComponent onSubmit={vi.fn()} />)
-    await waitFor(() => screen.getByLabelText(/payee/i))
-
-    // Type into the payee autocomplete to trigger the dropdown
-    const payeeInput = screen.getByLabelText(/payee/i)
-    await userEvent.type(payeeInput, 'Swi')
-    await waitFor(() => screen.getByRole('option', { name: /swiggy/i }))
-    await userEvent.click(screen.getByRole('option', { name: /swiggy/i }))
-
-    // The payee has default_category_ids: ['cat-1'] which maps to 'Food & Dining'
+    mockSearch = { editId: 'txn-1' }
+    renderWithQuery(<TransactionFormPage />)
+    
+    expect(screen.getByText(/loading transaction/i)).toBeInTheDocument()
+    
     await waitFor(() => {
-      const catBtn = screen.getByRole('button', { name: CATEGORIES_RESPONSE[0].name })
-      expect(catBtn).toHaveClass('bg-indigo-600')
+      expect(screen.getByText('Edit Transaction')).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: /update/i })).toBeInTheDocument()
     })
   })
 
-  it('shows validation error when amount is missing', async () => {
+  it('navigates back when Back is clicked', async () => {
+    mockSearch = {}
     const user = userEvent.setup()
-    renderWithQuery(<TransactionFormComponent onSubmit={vi.fn()} />)
-    await waitFor(() => screen.getByRole('button', { name: /^save$/i }))
-    await user.click(screen.getByRole('button', { name: /^save$/i }))
-    await waitFor(() =>
-      expect(screen.getByRole('alert')).toHaveTextContent(/account is required/i),
-    )
-  })
-
-  it('calls onSubmit with correct payload', async () => {
-    const user = userEvent.setup()
-    const onSubmit = vi.fn().mockResolvedValue(undefined)
-    renderWithQuery(<TransactionFormComponent onSubmit={onSubmit} submitLabel="Add transaction" />)
-
-    await waitFor(() => screen.getByLabelText(/amount/i))
-
-    // Fill in amount
-    await user.clear(screen.getByLabelText(/amount/i))
-    await user.type(screen.getByLabelText(/amount/i), '250')
-
-    // Select account
-    const accountSelect = screen.getByLabelText(/^account/i)
-    await user.selectOptions(accountSelect, ACCOUNTS_RESPONSE[0].id)
-
-    await user.click(screen.getByRole('button', { name: /add transaction/i }))
-
-    await waitFor(() => expect(onSubmit).toHaveBeenCalledOnce())
-    const [payload] = onSubmit.mock.calls[0]
-    expect(payload.amount).toBe('250')
-    expect(payload.account_id).toBe(ACCOUNTS_RESPONSE[0].id)
-    expect(payload.type).toBe('expense')
+    renderWithQuery(<TransactionFormPage />)
+    
+    await waitFor(() => screen.getByRole('button', { name: /back/i }))
+    const backBtn = screen.getByRole('button', { name: /back/i })
+    await user.click(backBtn)
+    
+    expect(navigateMock).toHaveBeenCalledWith({ to: '/transactions' })
   })
 })

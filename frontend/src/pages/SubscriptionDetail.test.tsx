@@ -31,7 +31,7 @@ describe('SubscriptionDetail page', () => {
   it('lists linked transactions', async () => {
     renderWithQuery(<SubscriptionDetail />)
     await waitFor(() => screen.getByText('Netflix'))
-    await waitFor(() => expect(screen.getByText('Coffee')).toBeInTheDocument())
+    await waitFor(() => expect(screen.getByText('May salary')).toBeInTheDocument())
   })
 
   it('shows empty state when no history', async () => {

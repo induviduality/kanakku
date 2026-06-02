@@ -18,7 +18,7 @@ describe('Login page', () => {
   it('renders email and password fields', () => {
     renderWithQuery(<Login />)
     expect(screen.getByLabelText(/email/i)).toBeInTheDocument()
-    expect(screen.getByLabelText(/password/i)).toBeInTheDocument()
+    expect(screen.getByLabelText(/^password$/i)).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /sign in/i })).toBeInTheDocument()
   })
 
@@ -27,7 +27,7 @@ describe('Login page', () => {
     renderWithQuery(<Login />)
 
     await user.type(screen.getByLabelText(/email/i), 'user@example.com')
-    await user.type(screen.getByLabelText(/password/i), 'password123')
+    await user.type(screen.getByLabelText(/^password$/i), 'password123')
     await user.click(screen.getByRole('button', { name: /sign in/i }))
 
     await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith({ to: '/' }))
@@ -43,7 +43,7 @@ describe('Login page', () => {
     renderWithQuery(<Login />)
 
     await user.type(screen.getByLabelText(/email/i), 'user@example.com')
-    await user.type(screen.getByLabelText(/password/i), 'wrongpassword')
+    await user.type(screen.getByLabelText(/^password$/i), 'wrongpassword')
     await user.click(screen.getByRole('button', { name: /sign in/i }))
 
     await waitFor(() =>

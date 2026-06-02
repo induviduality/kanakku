@@ -10,7 +10,7 @@ interface PeriodCtx {
   shortLabel: string
 }
 
-const PeriodContext = createContext<PeriodCtx | null>(null)
+export const PeriodContext = createContext<PeriodCtx | null>(null)
 
 export function PeriodProvider({ children }: { children: React.ReactNode }) {
   const [selection, setSelection] = useState<PeriodSelection>(defaultPeriod)

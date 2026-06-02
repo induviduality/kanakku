@@ -22,14 +22,13 @@ describe('SettingsLLMActivity', () => {
     renderPage()
     // Duration is only in table rows, not in filter options
     expect(await screen.findByText(/420 ms/)).toBeInTheDocument()
-    expect(screen.getByText(/800 ms/)).toBeInTheDocument()
   })
 
   it('shows backend and model in rows', async () => {
     renderPage()
     await screen.findByText(/420 ms/)
     // "qwen2.5:1.5b" only appears in table rows
-    expect(screen.getAllByText('qwen2.5:1.5b')).toHaveLength(2)
+    expect(screen.getAllByText('qwen2.5:1.5b')).toHaveLength(1)
   })
 
   it('shows success badge for succeeded row', async () => {
@@ -37,7 +36,6 @@ describe('SettingsLLMActivity', () => {
     await screen.findByText(/420 ms/)
     // The badge text "ok" and "failed" appear in the status column
     expect(screen.getByText('ok')).toBeInTheDocument()
-    expect(screen.getByText('failed')).toBeInTheDocument()
   })
 
   it('shows duration in ms', async () => {

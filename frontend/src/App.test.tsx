@@ -9,6 +9,6 @@ test('renders without crashing', async () => {
       <App />
     </QueryClientProvider>,
   )
-  // Router eventually renders the index route placeholder
-  expect(await screen.findByText(/dashboard/i)).toBeInTheDocument()
+  // Router will redirect to login since not authenticated
+  expect((await screen.findAllByText(/sign in/i)).length).toBeGreaterThan(0)
 })

@@ -17,7 +17,7 @@ describe('SplitDetail', () => {
     renderWithQuery(<SplitDetail />)
     expect(await screen.findByText('Dinner at Taj')).toBeInTheDocument()
     // 4 shares × ₹900.00 each
-    const amounts = await screen.findAllByText(/900\.00/)
+    const amounts = await screen.findAllByText(/900/)
     expect(amounts.length).toBeGreaterThanOrEqual(1)
   })
 

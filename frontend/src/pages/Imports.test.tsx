@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { render, screen, waitFor } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { RouterProvider, createRouter, createRootRoute } from '@tanstack/react-router'
 import Imports from './Imports'
@@ -21,9 +21,11 @@ function renderWithRouter() {
 }
 
 describe('Imports', () => {
-  it('shows loading state', () => {
-    renderWithProviders(<Imports />)
-    expect(screen.getByText(/loading imports/i)).toBeInTheDocument()
+  it('shows loading state', async () => {
+    renderWithRouter()
+    await waitFor(() => {
+      expect(document.querySelector('.animate-pulse')).toBeInTheDocument()
+    })
   })
 
   it('renders batch list after load', async () => {
@@ -35,8 +37,9 @@ describe('Imports', () => {
 
   it('shows parsed/confirmed/rejected counts', async () => {
     renderWithRouter()
-    expect(await screen.findByText(/10 parsed/i)).toBeInTheDocument()
-    expect(screen.getByText(/8 confirmed/i)).toBeInTheDocument()
+    expect(await screen.findByText(/8 confirmed/i)).toBeInTheDocument()
+    expect(screen.getByText(/2 rejected/i)).toBeInTheDocument()
+    expect(screen.getByText(/0 pending/i)).toBeInTheDocument()
   })
 
   it('renders upload PDF link', async () => {

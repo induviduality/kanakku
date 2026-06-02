@@ -16,21 +16,18 @@ describe('SubscriptionStatusBadge', () => {
   it('upcoming renders green', () => {
     renderWithQuery(<SubscriptionStatusBadge subscription={base} />)
     const badge = screen.getByLabelText('status: upcoming')
-    expect(badge).toHaveClass('bg-green-100')
-    expect(badge).toHaveClass('text-green-800')
+    expect(badge).toHaveClass('kk-chip-positive')
   })
 
   it('due_soon renders amber', () => {
     renderWithQuery(<SubscriptionStatusBadge subscription={{ ...base, status: 'due_soon' }} />)
     const badge = screen.getByLabelText('status: due_soon')
-    expect(badge).toHaveClass('bg-amber-100')
-    expect(badge).toHaveClass('text-amber-800')
+    expect(badge).toHaveClass('kk-chip-warning')
   })
 
   it('overdue renders red', () => {
     renderWithQuery(<SubscriptionStatusBadge subscription={{ ...base, status: 'overdue' }} />)
     const badge = screen.getByLabelText('status: overdue')
-    expect(badge).toHaveClass('bg-red-100')
-    expect(badge).toHaveClass('text-red-800')
+    expect(badge).toHaveClass('kk-chip-negative')
   })
 })

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { RouterProvider, createRouter, createRootRoute } from '@tanstack/react-router'
@@ -19,7 +19,9 @@ function renderPage() {
 describe('ImportUpload', () => {
   it('renders form fields', async () => {
     renderPage()
-    expect(await screen.findByLabelText(/pdf file/i)).toBeInTheDocument()
+    await waitFor(() => {
+      expect(document.querySelector('input[type="file"]')).toBeInTheDocument()
+    })
     expect(screen.getByLabelText(/pdf password/i)).toBeInTheDocument()
     expect(screen.getByLabelText(/account/i)).toBeInTheDocument()
   })
@@ -42,7 +44,11 @@ describe('ImportUpload', () => {
 
   it('upload button enables after file is chosen', async () => {
     renderPage()
-    const input = await screen.findByLabelText(/pdf file/i)
+    let input: HTMLInputElement | null = null
+    await waitFor(() => {
+      input = document.querySelector('input[type="file"]') as HTMLInputElement
+      expect(input).toBeInTheDocument()
+    })
     const file = new File(['%PDF-1.4'], 'test.pdf', { type: 'application/pdf' })
     await userEvent.upload(input, file)
     const btn = screen.getByRole('button', { name: /upload/i })

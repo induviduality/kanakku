@@ -6,6 +6,8 @@ import Budgets from './Budgets'
 import { renderWithQuery } from '../test/render-utils'
 import { server } from '../test/server'
 
+import { PeriodProvider } from '../lib/period-context'
+
 vi.mock('@tanstack/react-router', async () => {
   const actual = await vi.importActual('@tanstack/react-router')
   return {
@@ -16,14 +18,22 @@ vi.mock('@tanstack/react-router', async () => {
   }
 })
 
+function renderBudgets() {
+  return renderWithQuery(
+    <PeriodProvider>
+      <Budgets />
+    </PeriodProvider>
+  )
+}
+
 describe('Budgets page', () => {
   it('shows loading state initially', () => {
-    renderWithQuery(<Budgets />)
+    renderBudgets()
     expect(screen.getByText(/loading budgets/i)).toBeInTheDocument()
   })
 
   it('renders budget list', async () => {
-    renderWithQuery(<Budgets />)
+    renderBudgets()
     await waitFor(() =>
       expect(screen.getByText('Monthly Groceries')).toBeInTheDocument(),
     )
@@ -31,31 +41,34 @@ describe('Budgets page', () => {
 
   it('shows empty state when no budgets', async () => {
     server.use(http.get('/api/v1/budgets', () => HttpResponse.json([])))
-    renderWithQuery(<Budgets />)
+    renderBudgets()
     await waitFor(() =>
-      expect(screen.getByText(/no budgets yet/i)).toBeInTheDocument(),
+      expect(screen.getByText('No budgets')).toBeInTheDocument(),
     )
   })
 
   it('opens create modal on Add budget click', async () => {
     const user = userEvent.setup()
-    renderWithQuery(<Budgets />)
+    renderBudgets()
     await waitFor(() => screen.getByRole('button', { name: /add budget/i }))
     await user.click(screen.getByRole('button', { name: /add budget/i }))
     await waitFor(() => expect(screen.getByRole('dialog')).toBeInTheDocument())
-    expect(screen.getByLabelText(/^name$/i)).toBeInTheDocument()
+    expect(screen.getAllByLabelText(/^name$/i).length).toBeGreaterThan(0)
   })
 
   it('creates a budget', async () => {
     const user = userEvent.setup()
-    renderWithQuery(<Budgets />)
+    renderBudgets()
     await waitFor(() => screen.getByRole('button', { name: /add budget/i }))
     await user.click(screen.getByRole('button', { name: /add budget/i }))
-    await waitFor(() => screen.getByLabelText(/^name$/i))
+    await waitFor(() => screen.getAllByLabelText(/^name$/i))
 
-    await user.type(screen.getByLabelText(/^name$/i), 'Holiday fund')
-    await user.clear(screen.getByLabelText(/amount/i))
-    await user.type(screen.getByLabelText(/amount/i), '20000')
+    const nameInputs = screen.getAllByLabelText(/^name$/i)
+    await user.type(nameInputs[0], 'Holiday fund')
+    
+    const amountInputs = screen.getAllByLabelText(/amount/i)
+    await user.clear(amountInputs[0])
+    await user.type(amountInputs[0], '20000')
     await user.click(screen.getByRole('button', { name: /^add$/i }))
 
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
@@ -63,7 +76,7 @@ describe('Budgets page', () => {
 
   it('shows recurring delete scope dialog for recurring budget', async () => {
     const user = userEvent.setup()
-    renderWithQuery(<Budgets />)
+    renderBudgets()
     await waitFor(() => screen.getByText('Monthly Groceries'))
 
     await user.click(screen.getByRole('button', { name: /delete monthly groceries/i }))
@@ -99,7 +112,7 @@ describe('Budgets page', () => {
       ),
     )
     const user = userEvent.setup()
-    renderWithQuery(<Budgets />)
+    renderBudgets()
     await waitFor(() => screen.getByText('Holiday trip'))
 
     await user.click(screen.getByRole('button', { name: /delete holiday trip/i }))
@@ -109,8 +122,8 @@ describe('Budgets page', () => {
   })
 
   it('shows progress bar for each budget', async () => {
-    renderWithQuery(<Budgets />)
+    renderBudgets()
     await waitFor(() => screen.getByText('Monthly Groceries'))
-    expect(screen.getByLabelText('budget progress')).toBeInTheDocument()
+    expect(screen.getAllByLabelText('budget progress').length).toBeGreaterThan(0)
   })
 })

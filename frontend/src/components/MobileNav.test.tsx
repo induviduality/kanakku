@@ -31,14 +31,14 @@ describe('MobileNav', () => {
     mockPathname.mockReturnValue('/')
     render(<MobileNav />)
     const link = screen.getByLabelText('Dashboard')
-    expect((link as HTMLElement).className).toContain('violet')
+    expect((link as HTMLElement).className).toContain('text-accent')
   })
 
   it('highlights active Transactions tab', () => {
     mockPathname.mockReturnValue('/transactions')
     render(<MobileNav />)
     const link = screen.getByLabelText('Transactions')
-    expect((link as HTMLElement).className).toContain('violet')
+    expect((link as HTMLElement).className).toContain('text-accent')
   })
 
   it('opens More sheet when More button is clicked', () => {

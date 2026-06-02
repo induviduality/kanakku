@@ -38,7 +38,7 @@ describe('PiggyBanks page', () => {
     server.use(http.get('/api/v1/piggy-banks', () => HttpResponse.json([])))
     renderWithQuery(<PiggyBanks />)
     await waitFor(() =>
-      expect(screen.getByText(/no piggy banks yet/i)).toBeInTheDocument(),
+      expect(screen.getByText(/no savings goals yet/i)).toBeInTheDocument(),
     )
   })
 

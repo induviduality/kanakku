@@ -49,7 +49,7 @@ export function rruleLabel(rule: string | null | undefined): string {
         return `${base} on the ${day}`
       }
       if (byDay) {
-        const days = byDay.split(',').map(d => DAY_NAMES[d.replace(/\d+/, '')] ?? d).join(', ')
+        const days = byDay.split(',').map(d => DAY_NAMES[d.replace(/[-+]?\d+/, '')] ?? d).join(', ')
         return `${base} on ${days}`
       }
       return base

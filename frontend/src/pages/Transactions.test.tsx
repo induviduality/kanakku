@@ -18,14 +18,14 @@ vi.mock('@tanstack/react-router', async () => {
 
 describe('Transactions page', () => {
   it('renders loading state initially', () => {
-    renderWithQuery(<Transactions />)
-    expect(screen.getByText(/loading transactions/i)).toBeInTheDocument()
+    const { container } = renderWithQuery(<Transactions />)
+    expect(container.querySelector('.animate-pulse')).toBeInTheDocument()
   })
 
   it('renders transaction list', async () => {
     renderWithQuery(<Transactions />)
     await waitFor(() =>
-      expect(screen.getAllByText('Coffee').length).toBeGreaterThan(0),
+      expect(screen.getAllByText(/May salary/i).length).toBeGreaterThan(0),
     )
   })
 
@@ -53,7 +53,7 @@ describe('Transactions page', () => {
 
   it('shows bulk select checkboxes per row', async () => {
     renderWithQuery(<Transactions />)
-    await waitFor(() => screen.getAllByText('Coffee').length > 0)
+    await waitFor(() => screen.getAllByText(/May salary/i).length > 0)
     const checkboxes = screen.getAllByRole('checkbox')
     expect(checkboxes.length).toBeGreaterThan(0)
   })
@@ -61,7 +61,7 @@ describe('Transactions page', () => {
   it('opens delete confirm dialog', async () => {
     const user = userEvent.setup()
     renderWithQuery(<Transactions />)
-    await waitFor(() => screen.getAllByText('Coffee').length > 0)
+    await waitFor(() => screen.getAllByText(/May salary/i).length > 0)
 
     // Click first Delete button
     const deleteButtons = screen.getAllByRole('button', { name: /^delete$/i })
@@ -74,7 +74,7 @@ describe('Transactions page', () => {
   it('deletes transaction after confirm', async () => {
     const user = userEvent.setup()
     renderWithQuery(<Transactions />)
-    await waitFor(() => screen.getAllByText('Coffee').length > 0)
+    await waitFor(() => screen.getAllByText(/May salary/i).length > 0)
 
     const deleteButtons = screen.getAllByRole('button', { name: /^delete$/i })
     await user.click(deleteButtons[0])
@@ -90,5 +90,62 @@ describe('Transactions page', () => {
     await waitFor(() =>
       expect(screen.getByRole('button', { name: /\+ new/i })).toBeInTheDocument(),
     )
+  })
+
+  it('applies and clears filters', async () => {
+    const user = userEvent.setup()
+    renderWithQuery(<Transactions />)
+    
+    // open filters
+    await waitFor(() => screen.getByRole('button', { name: /filters/i }))
+    await user.click(screen.getByRole('button', { name: /toggle filters/i }))
+    
+    // select type
+    const typeSelect = screen.getByLabelText(/filter by type/i)
+    await user.selectOptions(typeSelect, 'expense')
+    
+    // apply
+    await user.click(screen.getByRole('button', { name: /^apply$/i }))
+    
+    // button should show active
+    expect(screen.getByRole('button', { name: /toggle filters/i })).toHaveTextContent(/active/i)
+    
+    // clear
+    await user.click(screen.getByRole('button', { name: /toggle filters/i }))
+    await user.click(screen.getByRole('button', { name: /^clear$/i }))
+    expect(screen.getByRole('button', { name: /toggle filters/i })).toHaveTextContent('⚙ Filters')
+  })
+
+  it('opens drawer when row is clicked', async () => {
+    const user = userEvent.setup()
+    renderWithQuery(<Transactions />)
+    await waitFor(() => screen.getAllByText(/May salary/i).length > 0)
+    
+    const rows = screen.getAllByText(/May salary/i)
+    // Click the first row (the td text actually, but we can just click the table cell)
+    await user.click(rows[0])
+    
+    await waitFor(() => {
+      // TransactionDrawer renders a "Meta" section
+      expect(screen.getByText('Meta')).toBeInTheDocument()
+    })
+  })
+
+  it('shows Bundle as Split modal when multiple expenses are selected', async () => {
+    const user = userEvent.setup()
+    renderWithQuery(<Transactions />)
+    await waitFor(() => screen.getAllByRole('checkbox').length > 0)
+    
+    const checkboxes = screen.getAllByRole('checkbox')
+    // Select third and fourth (USB hub and Gym membership, both are expenses)
+    await user.click(checkboxes[2])
+    await user.click(checkboxes[3])
+    
+    const bundleBtn = await screen.findByRole('button', { name: /bundle as split/i })
+    await user.click(bundleBtn)
+    
+    await waitFor(() => {
+      expect(screen.getByRole('dialog', { name: /bundle as split/i })).toBeInTheDocument()
+    })
   })
 })

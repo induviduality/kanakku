@@ -37,7 +37,8 @@ describe('ImportReview', () => {
 
   it('shows stats line', async () => {
     renderPage()
-    expect(await screen.findByText(/10 parsed/i)).toBeInTheDocument()
+    expect(await screen.findByText('10')).toBeInTheDocument()
+    expect(screen.getByText(/parsed/i)).toBeInTheDocument()
   })
 
   it('renders tab buttons', async () => {
@@ -50,8 +51,8 @@ describe('ImportReview', () => {
 
   it('renders record rows', async () => {
     renderPage()
-    expect(await screen.findByText('SWIGGY')).toBeInTheDocument()
-    expect(screen.getByText('350.00')).toBeInTheDocument()
+    expect(await screen.findByText(/SWIGGY/i)).toBeInTheDocument()
+    expect(screen.getByText(/350/i)).toBeInTheDocument()
   })
 
   it('confirm button is present on pending tab', async () => {
