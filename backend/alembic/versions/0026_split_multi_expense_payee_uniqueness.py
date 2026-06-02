@@ -96,6 +96,50 @@ $$;
 """
 
 
+_VIEW_NEW = """
+CREATE OR REPLACE VIEW transaction_with_net_amount AS
+SELECT
+    t.id, t.user_id, t.type, t.transacted_at, t.amount, t.currency,
+    t.description, t.notes, t.account_id, t.payment_method_id, t.payee_id,
+    t.to_account_id, t.to_amount, t.to_currency, t.subscription_id,
+    t.import_record_id, t.created_at, t.updated_at, t.deleted_at,
+    CASE
+        WHEN s.id IS NULL THEN t.amount
+        ELSE COALESCE(
+            (SELECT SUM(ss.amount)
+             FROM split_shares ss
+             WHERE ss.split_id = s.id
+               AND (ss.payee_id IS NULL OR ss.status = 'forgiven'::splitsharestatus)),
+            t.amount
+        )
+    END AS net_amount
+FROM transactions t
+LEFT JOIN split_expenses se ON se.transaction_id = t.id
+LEFT JOIN splits s ON s.id = se.split_id AND s.deleted_at IS NULL;
+"""
+
+_VIEW_OLD = """
+CREATE OR REPLACE VIEW transaction_with_net_amount AS
+SELECT
+    t.id, t.user_id, t.type, t.transacted_at, t.amount, t.currency,
+    t.description, t.notes, t.account_id, t.payment_method_id, t.payee_id,
+    t.to_account_id, t.to_amount, t.to_currency, t.subscription_id,
+    t.import_record_id, t.created_at, t.updated_at, t.deleted_at,
+    CASE
+        WHEN s.id IS NULL THEN t.amount
+        ELSE COALESCE(
+            (SELECT SUM(ss.amount)
+             FROM split_shares ss
+             WHERE ss.split_id = s.id
+               AND (ss.payee_id IS NULL OR ss.status = 'forgiven'::splitsharestatus)),
+            t.amount
+        )
+    END AS net_amount
+FROM transactions t
+LEFT JOIN splits s ON s.expense_transaction_id = t.id AND s.deleted_at IS NULL;
+"""
+
+
 def upgrade() -> None:
     # 1. Create split_expenses join table
     op.create_table(
@@ -130,14 +174,18 @@ def upgrade() -> None:
     op.execute(_TRIGGER_FUNCTION_NEW)
     # Trigger itself (on split_shares) stays — only the function body changed
 
-    # 4. Drop old unique constraint then column from splits
+    # 4. Drop the view that depends on expense_transaction_id, then drop the column
+    op.execute("DROP VIEW IF EXISTS transaction_with_net_amount")
     op.drop_constraint("uq_splits_transaction", "splits", type_="unique")
     op.drop_constraint(
         "splits_expense_transaction_id_fkey", "splits", type_="foreignkey"
     )
     op.drop_column("splits", "expense_transaction_id")
 
-    # 5. Per-split payee uniqueness for named payees (NULL allowed multiple times
+    # 5. Recreate the view using the split_expenses join table
+    op.execute(_VIEW_NEW)
+
+    # 6. Per-split payee uniqueness for named payees (NULL allowed multiple times
     #    for anonymous/own shares created by bundle; only non-null is constrained here)
     op.execute(
         """
@@ -150,6 +198,9 @@ def upgrade() -> None:
 
 def downgrade() -> None:
     op.execute("DROP INDEX IF EXISTS uq_split_shares_payee_per_split")
+
+    # Drop the new view before restoring the column it no longer uses
+    op.execute("DROP VIEW IF EXISTS transaction_with_net_amount")
 
     op.add_column(
         "splits",
@@ -181,6 +232,9 @@ def downgrade() -> None:
     )
 
     op.execute(_TRIGGER_FUNCTION_OLD)
+
+    # Restore the old view that references expense_transaction_id
+    op.execute(_VIEW_OLD)
 
     op.drop_index("ix_split_expenses_split_id", table_name="split_expenses")
     op.drop_table("split_expenses")

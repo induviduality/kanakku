@@ -38,23 +38,40 @@ async def _create_txn(client: AsyncClient, headers: dict, acc_id: str, txn_type:
     return resp.json()["id"]
 
 
+async def _create_payee(client: AsyncClient, headers: dict, name: str = "Alice") -> str:
+    resp = await client.post(
+        "/api/v1/payees",
+        json={"name": name, "type": "person"},
+        headers=headers,
+    )
+    assert resp.status_code == 201
+    return resp.json()["id"]
+
+
 async def _create_split_with_two_shares(client, headers, acc_id, share_amounts=("800.00", "200.00")):
-    """Creates expense sum(amounts), split with given shares. Returns (split_id, share_ids)."""
-    total = str(sum(float(a) for a in share_amounts))
-    # format as decimal string
-    total = f"{float(total):.2f}"
+    """Creates expense sum(amounts), split with given shares. Returns (split_id, share_ids).
+    First share is the user's own (null payee), second has a named payee.
+    share_ids are returned in the same order as share_amounts.
+    """
+    total = f"{sum(float(a) for a in share_amounts):.2f}"
     exp_id = await _create_txn(client, headers, acc_id, "expense", total)
+    payee_id = await _create_payee(client, headers)
     resp = await client.post(
         "/api/v1/splits",
         json={
             "expense_transaction_ids": [exp_id],
-            "shares": [{"amount": a} for a in share_amounts],
+            "shares": [
+                {"amount": share_amounts[0]},  # user's own (null payee)
+                {"payee_id": payee_id, "amount": share_amounts[1]},
+            ],
         },
         headers=headers,
     )
     assert resp.status_code == 201
     data = resp.json()
-    return data["id"], [s["id"] for s in data["shares"]]
+    # Sort shares to match share_amounts order: null payee first, then named payee
+    sorted_shares = sorted(data["shares"], key=lambda s: (s["payee_id"] is not None, s["amount"]))
+    return data["id"], [s["id"] for s in sorted_shares]
 
 
 @pytest.fixture

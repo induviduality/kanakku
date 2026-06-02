@@ -66,6 +66,7 @@ async def authed(client: AsyncClient, db_tables: None):
 async def test_create_split_happy_path(authed) -> None:
     client, headers, acc_id = authed
     txn_id = await _create_transaction(client, headers, acc_id, amount="300.00")
+    payee_id = await _create_payee(client, headers)
 
     resp = await client.post(
         "/api/v1/splits",
@@ -74,7 +75,7 @@ async def test_create_split_happy_path(authed) -> None:
             "notes": "dinner split",
             "shares": [
                 {"amount": "200.00", "notes": "my share"},
-                {"amount": "100.00"},
+                {"payee_id": payee_id, "amount": "100.00"},
             ],
         },
         headers=headers,
@@ -98,14 +99,15 @@ async def test_create_split_multi_expense(authed) -> None:
     client, headers, acc_id = authed
     txn1 = await _create_transaction(client, headers, acc_id, amount="200.00")
     txn2 = await _create_transaction(client, headers, acc_id, amount="100.00")
+    payee_id = await _create_payee(client, headers, "Alice")
 
     resp = await client.post(
         "/api/v1/splits",
         json={
             "expense_transaction_ids": [txn1, txn2],
             "shares": [
-                {"amount": "150.00"},
-                {"amount": "150.00"},
+                {"amount": "150.00"},  # user's own (null payee)
+                {"payee_id": payee_id, "amount": "150.00"},
             ],
         },
         headers=headers,
@@ -119,12 +121,13 @@ async def test_create_split_multi_expense(authed) -> None:
 async def test_get_split(authed) -> None:
     client, headers, acc_id = authed
     txn_id = await _create_transaction(client, headers, acc_id, amount="500.00")
+    payee_id = await _create_payee(client, headers)
 
     create_resp = await client.post(
         "/api/v1/splits",
         json={
             "expense_transaction_ids": [txn_id],
-            "shares": [{"amount": "300.00"}, {"amount": "200.00"}],
+            "shares": [{"amount": "300.00"}, {"payee_id": payee_id, "amount": "200.00"}],
         },
         headers=headers,
     )
@@ -157,7 +160,7 @@ async def test_duplicate_named_payee_rejected(authed) -> None:
         headers=headers,
     )
     assert resp.status_code == 422
-    assert "payee" in resp.json()["detail"].lower()
+    assert "payee" in str(resp.json()["detail"]).lower()
 
 
 async def test_duplicate_null_payee_rejected(authed) -> None:
@@ -177,7 +180,7 @@ async def test_duplicate_null_payee_rejected(authed) -> None:
         headers=headers,
     )
     assert resp.status_code == 422
-    assert "payee" in resp.json()["detail"].lower()
+    assert "payee" in str(resp.json()["detail"]).lower()
 
 
 async def test_share_exceeds_total_expense_rejected(authed) -> None:
