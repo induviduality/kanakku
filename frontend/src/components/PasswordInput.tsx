@@ -20,7 +20,7 @@ export function PasswordInput({ className = '', wrapperClassName = '', ...props 
         tabIndex={-1}
         onClick={() => setShow((v) => !v)}
         aria-label={show ? 'Hide password' : 'Show password'}
-        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 focus:outline-none"
+        className="absolute right-3 top-1/2 -translate-y-1/2 z-10 text-fg-muted hover:text-fg focus:outline-none"
       >
         {show ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
       </button>
