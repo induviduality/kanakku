@@ -21,3 +21,12 @@ docker/volumes/
 
 # Claude Code local settings
 .claude/settings.local.json
+
+# Code quality / coverage reports (generated locally — see docs/code-coverage/)
+backend/.coverage
+backend/coverage.xml
+backend/htmlcov/
+backend/reports/
+frontend/coverage/
+frontend/reports/
+.scannerwork/
