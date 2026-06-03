@@ -9,7 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.account import Account
 from app.models.payee import Payee, PayeeType
-from app.models.split import Split, SplitShare, SplitShareStatus
+from app.models.split import Split, SplitExpense, SplitShare, SplitShareStatus
 from app.models.transaction import Transaction, TransactionType
 from app.models.user import User
 from app.models.user_settings import UserSettings
@@ -62,8 +62,10 @@ async def _make_split_with_shares(
     shares: list[tuple[str, SplitShareStatus, uuid.UUID | None]],
 ) -> Split:
     """shares: list of (amount, status, payee_id)"""
-    split = Split(id=uuid.uuid4(), user_id=user_id, expense_transaction_id=txn.id)
+    split = Split(id=uuid.uuid4(), user_id=user_id)
     session.add(split)
+    await session.flush()
+    session.add(SplitExpense(split_id=split.id, transaction_id=txn.id))
     await session.flush()
     for amount, status, payee_id in shares:
         share = SplitShare(

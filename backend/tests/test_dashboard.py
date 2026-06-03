@@ -365,7 +365,7 @@ async def test_dashboard_pending_splits_summary(authed) -> None:
     resp = await client.post(
         "/api/v1/splits",
         json={
-            "expense_transaction_id": txn["id"],
+            "expense_transaction_ids": [txn["id"]],
             "shares": [
                 {"payee_id": None, "amount": "500.00"},
                 {"payee_id": payee_id, "amount": "500.00"},

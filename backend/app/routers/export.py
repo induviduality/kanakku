@@ -28,6 +28,11 @@ from app.models.user import User
 from app.schemas.export import ExportJobResponse
 from app.workers.export_worker import _EXPORT_TABLES, SCHEMA_VERSION
 
+try:
+    import arq
+except ImportError:
+    arq = None  # type: ignore[assignment]
+
 logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["portability"])
@@ -45,19 +50,24 @@ async def trigger_export(current_user: UserDep, session: SessionDep) -> ExportJo
     session.add(job)
     await session.flush()
 
-    try:
-        import arq
+    enqueued = False
+    if arq is not None:
+        try:
+            from app.config import settings as cfg
+            redis_settings = arq.connections.RedisSettings.from_dsn(cfg.redis_url)
+            pool = await arq.create_pool(redis_settings)
+            await pool.enqueue_job("export_archive", str(job.id), str(current_user.id))
+            await pool.aclose()
+            enqueued = True
+        except Exception:
+            pass
 
-        from app.config import settings as cfg
-        redis_settings = arq.connections.RedisSettings.from_dsn(cfg.redis_url)
-        pool = await arq.create_pool(redis_settings)
-        await pool.enqueue_job("export_archive", str(job.id), str(current_user.id))
-        await pool.aclose()
-    except Exception:
+    await session.commit()
+
+    if not enqueued:
         from app.workers.export_worker import export_archive
         await export_archive({}, str(job.id), str(current_user.id))
 
-    await session.commit()
     await session.refresh(job)
     return job
 

@@ -90,10 +90,9 @@ async def _export_archive(email: str, output: str) -> None:
         uid = user.id
 
         table_data: dict[str, list[dict[str, object]]] = {}
-        async with session.begin():
-            for table_name, query in _EXPORT_TABLES:
-                result = await session.execute(sa.text(query), {"user_id": uid})
-                table_data[table_name] = [_row_to_dict(r) for r in result]
+        for table_name, query in _EXPORT_TABLES:
+            result = await session.execute(sa.text(query), {"user_id": uid})
+            table_data[table_name] = [_row_to_dict(r) for r in result]
 
     manifest = {
         "schema_version": SCHEMA_VERSION,

@@ -14,7 +14,7 @@ from decimal import Decimal
 
 import sqlalchemy as sa
 
-from app.db.session import async_session_factory
+import app.db.session as _db_session
 from app.models.export_job import ExportJob, ExportJobStatus
 
 logger = logging.getLogger(__name__)
@@ -115,7 +115,7 @@ async def export_archive(ctx: dict[str, object], job_id: str, user_id: str) -> N
     jid = uuid.UUID(job_id)
     uid = uuid.UUID(user_id)
 
-    async with async_session_factory() as session:
+    async with _db_session.async_session_factory() as session:
         result = await session.execute(sa.select(ExportJob).where(ExportJob.id == jid))
         job = result.scalar_one_or_none()
         if job is None:
