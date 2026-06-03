@@ -35,8 +35,25 @@ describe('Categories page', () => {
     await waitFor(() => screen.getByLabelText(/^name$/i))
 
     await user.type(screen.getByLabelText(/^name$/i), 'Healthcare')
+    await user.type(screen.getByLabelText(/^name$/i), 'Healthcare')
+    
+    // Select applicability
+    const applicabilitySelect = screen.getByLabelText(/applies to/i)
+    await user.selectOptions(applicabilitySelect, 'expense')
+
     await user.click(screen.getByRole('button', { name: /^add$/i }))
 
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+  })
+
+  it('cancels create modal explicitly', async () => {
+    const user = userEvent.setup()
+    renderWithQuery(<Categories />)
+    await waitFor(() => screen.getByRole('button', { name: /add category/i }))
+    await user.click(screen.getByRole('button', { name: /add category/i }))
+    await waitFor(() => screen.getByLabelText(/^name$/i))
+
+    await user.click(screen.getByRole('button', { name: /^cancel$/i }))
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
   })
 
@@ -69,6 +86,20 @@ describe('Categories page', () => {
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
   })
 
+  it('cancels delete', async () => {
+    const user = userEvent.setup()
+    renderWithQuery(<Categories />)
+    await waitFor(() => screen.getAllByText('Food & Dining').length > 0)
+
+    await user.click(screen.getAllByRole('button', { name: /^delete$/i })[0])
+    await waitFor(() => screen.getByRole('dialog'))
+
+    const cancelBtn = within(screen.getByRole('dialog')).getByRole('button', { name: /^cancel$/i })
+    await user.click(cancelBtn)
+
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+  })
+
   it('allows editing an existing category', async () => {
     const user = userEvent.setup()
     renderWithQuery(<Categories />)
@@ -91,6 +122,21 @@ describe('Categories page', () => {
     await waitFor(() => {
       expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
     })
+  })
+
+  it('cancels edit category', async () => {
+    const user = userEvent.setup()
+    renderWithQuery(<Categories />)
+    await waitFor(() => screen.getAllByText('Food & Dining').length > 0)
+
+    const editButtons = screen.getAllByTitle('Edit')
+    await user.click(editButtons[0])
+
+    await waitFor(() => expect(screen.getByRole('heading', { name: /edit category/i })).toBeInTheDocument())
+
+    await user.click(screen.getByRole('button', { name: /^cancel$/i }))
+
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
   })
 
   it('triggers seed default categories', async () => {

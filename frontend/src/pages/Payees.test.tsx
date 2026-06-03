@@ -13,9 +13,13 @@ describe('Payees page', () => {
     await waitFor(() => expect(screen.getAllByText('Swiggy').length).toBeGreaterThan(0))
   })
 
-  it('shows search input', async () => {
+  it('shows search input and allows typing', async () => {
+    const user = userEvent.setup()
     renderWithQuery(<Payees />)
-    await waitFor(() => expect(screen.getByRole('searchbox', { name: /search payees/i })).toBeInTheDocument())
+    const searchInput = await screen.findByRole('searchbox', { name: /search payees/i })
+    expect(searchInput).toBeInTheDocument()
+    await user.type(searchInput, 'test search')
+    expect(searchInput).toHaveValue('test search')
   })
 
   it('opens create modal', async () => {
@@ -57,6 +61,93 @@ describe('Payees page', () => {
     expect(screen.getByDisplayValue('Swiggy')).toBeInTheDocument()
   })
 
+  it('cancels create modal', async () => {
+    const user = userEvent.setup()
+    renderWithQuery(<Payees />)
+    await waitFor(() => screen.getByRole('button', { name: /add payee/i }))
+    await user.click(screen.getByRole('button', { name: /add payee/i }))
+    await waitFor(() => screen.getByRole('dialog'))
+
+    await user.click(screen.getByRole('button', { name: /^cancel$/i }))
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+  })
+
+  it('can fill out all fields in create modal', async () => {
+    const user = userEvent.setup()
+    renderWithQuery(<Payees />)
+    await waitFor(() => screen.getByRole('button', { name: /add payee/i }))
+    await user.click(screen.getByRole('button', { name: /add payee/i }))
+    await waitFor(() => screen.getByLabelText(/^name$/i))
+
+    await user.type(screen.getByLabelText(/^name$/i), 'Zomato')
+    await user.selectOptions(screen.getByLabelText(/^type$/i), 'business')
+    await user.type(screen.getByLabelText(/^notes$/i), 'Food delivery')
+    await user.click(screen.getByRole('button', { name: /^add$/i }))
+
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+  })
+
+  it('edits a payee', async () => {
+    const user = userEvent.setup()
+    renderWithQuery(<Payees />)
+    await waitFor(() => screen.getAllByText('Swiggy').length > 0)
+
+    await user.click(screen.getAllByRole('button', { name: /^edit$/i })[0])
+    await waitFor(() => screen.getByRole('dialog'))
+
+    const nameInput = screen.getByLabelText(/^name$/i)
+    await user.clear(nameInput)
+    await user.type(nameInput, 'Swiggy Updated')
+
+    const notesInput = screen.getByLabelText(/^notes$/i)
+    await user.clear(notesInput)
+    await user.type(notesInput, 'Updated notes')
+
+    server.use(
+      http.patch('/api/v1/payees/:id', () => {
+        return HttpResponse.json({ id: 'updated-id' })
+      })
+    )
+
+    await user.click(screen.getByRole('button', { name: /^save$/i }))
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+  })
+
+  it('cancels create modal with escape key', async () => {
+    const user = userEvent.setup()
+    renderWithQuery(<Payees />)
+    await waitFor(() => screen.getByRole('button', { name: /add payee/i }))
+    await user.click(screen.getByRole('button', { name: /add payee/i }))
+    await waitFor(() => screen.getByRole('dialog'))
+
+    await user.keyboard('{Escape}')
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+  })
+
+  it('cancels edit modal', async () => {
+    const user = userEvent.setup()
+    renderWithQuery(<Payees />)
+    await waitFor(() => screen.getAllByText('Swiggy').length > 0)
+
+    await user.click(screen.getAllByRole('button', { name: /^edit$/i })[0])
+    await waitFor(() => screen.getByRole('dialog'))
+
+    await user.click(screen.getByRole('button', { name: /^cancel$/i }))
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+  })
+
+  it('cancels edit modal with escape key', async () => {
+    const user = userEvent.setup()
+    renderWithQuery(<Payees />)
+    await waitFor(() => screen.getAllByText('Swiggy').length > 0)
+
+    await user.click(screen.getAllByRole('button', { name: /^edit$/i })[0])
+    await waitFor(() => screen.getByRole('dialog'))
+
+    await user.keyboard('{Escape}')
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+  })
+
   it('deletes a payee after confirm', async () => {
     const user = userEvent.setup()
     renderWithQuery(<Payees />)
@@ -68,6 +159,35 @@ describe('Payees page', () => {
     const confirmBtn = within(screen.getByRole('dialog')).getByRole('button', { name: /^delete$/i })
     await user.click(confirmBtn)
 
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+  })
+
+  it('cancels delete dialog', async () => {
+    const user = userEvent.setup()
+    renderWithQuery(<Payees />)
+    await waitFor(() => screen.getAllByText('Swiggy').length > 0)
+
+    await user.click(screen.getAllByRole('button', { name: /^delete$/i })[0])
+    await waitFor(() => screen.getByRole('dialog'))
+
+    const cancelBtn = within(screen.getByRole('dialog')).getByRole('button', { name: /^cancel$/i })
+    await user.click(cancelBtn)
+
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+  })
+
+  it('opens and closes drawer on view', async () => {
+    const user = userEvent.setup()
+    renderWithQuery(<Payees />)
+    await waitFor(() => screen.getAllByText('Swiggy').length > 0)
+
+    await user.click(screen.getAllByRole('button', { name: /^view$/i })[0])
+    await waitFor(() => screen.getByRole('dialog'))
+    expect(within(screen.getByRole('dialog')).getAllByText('Swiggy').length).toBeGreaterThan(0)
+
+    // Using close button to trigger onClose
+    const closeBtn = screen.getByRole('button', { name: /close/i })
+    await user.click(closeBtn)
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
   })
 })

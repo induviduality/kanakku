@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import ReportDashboard from './ReportDashboard'
 
@@ -42,5 +42,29 @@ describe('ReportDashboard', () => {
     await screen.findByText('Top Expenses')
     expect(screen.getByRole('button', { name: /edit widget top expenses/i })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /delete widget top expenses/i })).toBeInTheDocument()
+  })
+
+  it('handles add widget flow', async () => {
+    renderPage()
+    const addBtn = await screen.findByRole('button', { name: /add widget/i })
+    fireEvent.click(addBtn)
+    
+    const cancelBtn = await screen.findByRole('button', { name: /cancel/i })
+    expect(cancelBtn).toBeInTheDocument()
+    
+    fireEvent.click(cancelBtn)
+    expect(screen.queryByRole('button', { name: /cancel/i })).not.toBeInTheDocument()
+  })
+
+  it('handles edit widget flow and save', async () => {
+    renderPage()
+    const editBtn = await screen.findByRole('button', { name: /edit widget top expenses/i })
+    fireEvent.click(editBtn)
+    
+    const saveBtn = await screen.findByRole('button', { name: /save/i })
+    expect(saveBtn).toBeInTheDocument()
+    
+    fireEvent.click(saveBtn)
+    await waitFor(() => expect(screen.queryByRole('button', { name: /save/i })).not.toBeInTheDocument())
   })
 })

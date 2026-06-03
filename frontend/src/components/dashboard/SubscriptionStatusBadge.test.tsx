@@ -30,4 +30,12 @@ describe('SubscriptionStatusBadge', () => {
     const badge = screen.getByLabelText('status: overdue')
     expect(badge).toHaveClass('kk-chip-negative')
   })
+
+  it('unknown status fallbacks gracefully', () => {
+    // @ts-ignore testing invalid state
+    renderWithQuery(<SubscriptionStatusBadge subscription={{ ...base, status: 'unknown' }} />)
+    const badge = screen.getByLabelText('status: unknown')
+    expect(badge).toHaveClass('kk-chip-positive')
+    expect(badge).toHaveTextContent('unknown')
+  })
 })

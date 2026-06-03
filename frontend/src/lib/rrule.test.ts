@@ -8,8 +8,10 @@ describe('rrule lib', () => {
     expect(rruleLabel('')).toBe('')
   })
 
-  it('returns raw rule if no FREQ is present', () => {
+  it('returns raw rule if no FREQ is present or parts are malformed', () => {
     expect(rruleLabel('BYMONTHDAY=1')).toBe('BYMONTHDAY=1')
+    expect(rruleLabel('FREQ;INTERVAL=1')).toBe('FREQ;INTERVAL=1') // v is undefined
+    expect(rruleLabel('=DAILY;FREQ=DAILY')).toBe('Daily') // k is empty
   })
 
   it('handles DAILY rules', () => {
@@ -24,6 +26,7 @@ describe('rrule lib', () => {
     expect(rruleLabel('FREQ=WEEKLY;BYDAY=MO')).toBe('Weekly on Monday')
     expect(rruleLabel('FREQ=WEEKLY;BYDAY=MO,WE,FR')).toBe('Weekly on Monday, Wednesday, Friday')
     expect(rruleLabel('FREQ=WEEKLY;INTERVAL=2;BYDAY=TU,TH')).toBe('Every 2 weeks on Tuesday, Thursday')
+    expect(rruleLabel('FREQ=WEEKLY;BYDAY=FOO')).toBe('Weekly on FOO') // Fallback for unknown day
   })
 
   it('handles MONTHLY rules', () => {
@@ -44,6 +47,7 @@ describe('rrule lib', () => {
     // By day
     expect(rruleLabel('FREQ=MONTHLY;BYDAY=1MO')).toBe('Monthly on Monday')
     expect(rruleLabel('FREQ=MONTHLY;BYDAY=-1FR')).toBe('Monthly on Friday')
+    expect(rruleLabel('FREQ=MONTHLY;BYDAY=1FOO')).toBe('Monthly on 1FOO') // Fallback for unknown day
   })
 
   it('handles YEARLY rules', () => {

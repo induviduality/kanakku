@@ -1,6 +1,8 @@
 import { describe, it, expect, vi } from 'vitest'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { http, HttpResponse } from 'msw'
+import { server } from '../../test/server'
 import WidgetEditor from './WidgetEditor'
 
 function renderEditor(
@@ -111,5 +113,74 @@ describe('WidgetEditor', () => {
       query: 'SELECT * FROM accounts',
       viz_type: 'bar',
     }))
+  })
+
+  it('handles preview success', async () => {
+    server.use(
+      http.post('/api/v1/reports/query', () => {
+        return HttpResponse.json({ columns: ['id', 'name'], rows: [{ id: 1, name: 'test' }] })
+      })
+    )
+    renderEditor(vi.fn(), vi.fn(), { title: 'Test', query: 'SELECT 1', viz_type: 'table' })
+    const runBtn = screen.getByRole('button', { name: /run/i })
+    fireEvent.click(runBtn)
+    await waitFor(() => expect(screen.getByText('test')).toBeInTheDocument())
+  })
+
+  it('handles preview failure with JSON error', async () => {
+    server.use(
+      http.post('/api/v1/reports/query', () => {
+        return HttpResponse.json({ detail: 'Syntax error' }, { status: 400 })
+      })
+    )
+    renderEditor(vi.fn(), vi.fn(), { title: 'Test', query: 'SELECT 1', viz_type: 'table' })
+    const runBtn = screen.getByRole('button', { name: /run/i })
+    fireEvent.click(runBtn)
+    await waitFor(() => expect(screen.getByText('Syntax error')).toBeInTheDocument())
+  })
+
+  it('handles preview failure without JSON error', async () => {
+    server.use(
+      http.post('/api/v1/reports/query', () => {
+        return new HttpResponse(null, { status: 500 })
+      })
+    )
+    renderEditor(vi.fn(), vi.fn(), { title: 'Test', query: 'SELECT 1', viz_type: 'table' })
+    const runBtn = screen.getByRole('button', { name: /run/i })
+    fireEvent.click(runBtn)
+    await waitFor(() => expect(screen.getByText('Query failed')).toBeInTheDocument())
+  })
+
+  it('changes visualization type and config', async () => {
+    renderEditor(vi.fn(), vi.fn(), { title: 'Test', query: 'SELECT 1', viz_type: 'table' })
+    const barBtn = screen.getByRole('radio', { name: /bar chart/i })
+    fireEvent.click(barBtn)
+    expect(barBtn).toHaveAttribute('aria-checked', 'true')
+
+    const configArea = screen.getByRole('textbox', { name: /visualization config/i })
+    fireEvent.change(configArea, { target: { value: '{"x_key": "name"}' } })
+    expect(configArea).toHaveValue('{"x_key": "name"}')
+  })
+
+  it('handles invalid json in config gracefully', async () => {
+    // Render a widget with a chart type to show the config box and a preview
+    server.use(
+      http.post('/api/v1/reports/query', () => {
+        return HttpResponse.json({ columns: ['id'], rows: [{ id: 1 }] })
+      })
+    )
+    renderEditor(vi.fn(), vi.fn(), { title: 'Test', query: 'SELECT 1', viz_type: 'bar', viz_config: { x_key: 'id' } })
+    
+    // First run to get preview
+    const runBtn = screen.getByRole('button', { name: /run/i })
+    fireEvent.click(runBtn)
+    
+    // Type invalid json
+    const configArea = screen.getByRole('textbox', { name: /visualization config/i })
+    fireEvent.change(configArea, { target: { value: '{"invalid"' } })
+    
+    // Attempt save to trigger JSON parse in save
+    const saveBtn = screen.getByRole('button', { name: /save widget/i })
+    fireEvent.click(saveBtn) // Will parse config, shouldn't crash
   })
 })

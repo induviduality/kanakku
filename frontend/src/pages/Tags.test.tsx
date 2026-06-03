@@ -35,8 +35,85 @@ describe('Tags page', () => {
     await waitFor(() => screen.getByLabelText(/^name$/i))
 
     await user.type(screen.getByLabelText(/^name$/i), 'work')
+    const colorInput = screen.getByLabelText(/color/i)
+    await user.type(colorInput, '#00FF00')
     await user.click(screen.getByRole('button', { name: /^add$/i }))
 
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+  })
+
+  it('cancels create modal', async () => {
+    const user = userEvent.setup()
+    renderWithQuery(<Tags />)
+    await waitFor(() => screen.getByRole('button', { name: /add tag/i }))
+    await user.click(screen.getByRole('button', { name: /add tag/i }))
+    await waitFor(() => screen.getByLabelText(/^name$/i))
+
+    // Use Escape to trigger the EntityModal onClose handler
+    await user.keyboard('{Escape}')
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+  })
+
+  it('cancels create modal explicitly', async () => {
+    const user = userEvent.setup()
+    renderWithQuery(<Tags />)
+    await waitFor(() => screen.getByRole('button', { name: /add tag/i }))
+    await user.click(screen.getByRole('button', { name: /add tag/i }))
+    await waitFor(() => screen.getByLabelText(/^name$/i))
+
+    await user.click(within(screen.getByRole('dialog')).getByRole('button', { name: /^cancel$/i }))
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+  })
+
+  it('edits a tag', async () => {
+    const user = userEvent.setup()
+    renderWithQuery(<Tags />)
+    await waitFor(() => screen.getAllByText('weekend').length > 0)
+
+    // Click the edit button for the first tag
+    const editBtns = screen.getAllByTitle(/edit/i)
+    await user.click(editBtns[0])
+    
+    await waitFor(() => screen.getByRole('dialog'))
+    const nameInput = within(screen.getByRole('dialog')).getByLabelText(/^name$/i)
+    await user.clear(nameInput)
+    await user.type(nameInput, 'holiday')
+
+    const colorInput = within(screen.getByRole('dialog')).getByLabelText(/color/i)
+    await user.clear(colorInput)
+    await user.type(colorInput, '#123456')
+
+    await user.click(within(screen.getByRole('dialog')).getByRole('button', { name: /^save$/i }))
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+  })
+
+  it('cancels edit tag', async () => {
+    const user = userEvent.setup()
+    renderWithQuery(<Tags />)
+    await waitFor(() => screen.getAllByText('weekend').length > 0)
+
+    const editBtns = screen.getAllByTitle(/edit/i)
+    await user.click(editBtns[0])
+    
+    await waitFor(() => screen.getByRole('dialog'))
+    
+    // Click the Cancel button in the form explicitly to cover line 161
+    await user.click(within(screen.getByRole('dialog')).getByRole('button', { name: /^cancel$/i }))
+
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+  })
+
+  it('cancels edit tag with escape', async () => {
+    const user = userEvent.setup()
+    renderWithQuery(<Tags />)
+    await waitFor(() => screen.getAllByText('weekend').length > 0)
+
+    const editBtns = screen.getAllByTitle(/edit/i)
+    await user.click(editBtns[0])
+    await waitFor(() => screen.getByRole('dialog'))
+
+    // Trigger EntityModal onClose
+    await user.keyboard('{Escape}')
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
   })
 
@@ -75,6 +152,21 @@ describe('Tags page', () => {
 
     const confirmBtn = within(screen.getByRole('dialog')).getByRole('button', { name: /^delete$/i })
     await user.click(confirmBtn)
+
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+  })
+
+  it('cancels delete', async () => {
+    const user = userEvent.setup()
+    renderWithQuery(<Tags />)
+    await waitFor(() => screen.getAllByText('weekend').length > 0)
+
+    // Click first delete button
+    await user.click(screen.getAllByRole('button', { name: /^delete$/i })[0])
+    await waitFor(() => screen.getByRole('dialog'))
+
+    const cancelBtn = within(screen.getByRole('dialog')).getByRole('button', { name: /^cancel$/i })
+    await user.click(cancelBtn)
 
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
   })

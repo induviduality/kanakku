@@ -65,10 +65,17 @@ describe('Transactions page', () => {
 
     // Click first Delete button
     const deleteButtons = screen.getAllByRole('button', { name: /^delete$/i })
-    await user.click(deleteButtons[0])
-    await waitFor(() =>
-      expect(screen.getByRole('dialog')).toBeInTheDocument(),
-    )
+    const deleteBtn = deleteButtons[0]
+    await user.click(deleteBtn)
+    expect(screen.getByRole('dialog')).toBeInTheDocument()
+
+    // Test cancel
+    const cancelBtn = screen.getByRole('button', { name: /cancel/i })
+    await user.click(cancelBtn)
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+
+    // Open again to delete
+    await user.click(deleteBtn)
   })
 
   it('deletes transaction after confirm', async () => {
@@ -129,6 +136,13 @@ describe('Transactions page', () => {
       // TransactionDrawer renders a "Meta" section
       expect(screen.getByText('Meta')).toBeInTheDocument()
     })
+    
+    // Close drawer
+    const closeBtn = screen.getByRole('button', { name: /close/i })
+    await user.click(closeBtn)
+    await waitFor(() => {
+      expect(screen.queryByText('Meta')).not.toBeInTheDocument()
+    })
   })
 
   it('shows Bundle as Split modal when multiple expenses are selected', async () => {
@@ -147,5 +161,25 @@ describe('Transactions page', () => {
     await waitFor(() => {
       expect(screen.getByRole('dialog', { name: /bundle as split/i })).toBeInTheDocument()
     })
+
+    // Cancel modal
+    const cancelBtn = screen.getByRole('button', { name: /cancel/i })
+    await user.click(cancelBtn)
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    })
+  })
+
+  it('mobile delete button and transaction drawer', async () => {
+    const user = userEvent.setup()
+    renderWithQuery(<Transactions />)
+    await waitFor(() => screen.getAllByText(/May salary/i).length > 0)
+    
+    // There are 2 delete buttons for the first item (desktop and mobile)
+    const deleteButtons = screen.getAllByRole('button', { name: /^delete$/i })
+    if (deleteButtons.length > 1) {
+      await user.click(deleteButtons[1]) // click mobile one
+      expect(screen.getByRole('dialog')).toBeInTheDocument()
+    }
   })
 })

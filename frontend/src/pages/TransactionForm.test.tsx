@@ -57,4 +57,59 @@ describe('TransactionForm page', () => {
     
     expect(navigateMock).toHaveBeenCalledWith({ to: '/transactions' })
   })
+
+  it('submits new transaction', async () => {
+    mockSearch = {}
+    const user = userEvent.setup()
+    renderWithQuery(<TransactionFormPage />)
+    
+    await waitFor(() => screen.getByRole('button', { name: /add transaction/i }))
+    
+    // Fill out the required form fields. Note: the internal form needs date, amount, account_id
+    const amountInput = screen.getByLabelText(/^amount$/i)
+    await user.clear(amountInput)
+    await user.type(amountInput, '200')
+    
+    // Select account
+    await user.selectOptions(screen.getByLabelText(/account/i), 'acc-1')
+
+    server.use(
+      http.post('/api/v1/transactions', () => {
+        return HttpResponse.json({ id: 'new-txn-1' })
+      })
+    )
+
+    const submitBtn = screen.getByRole('button', { name: /add transaction/i })
+    await user.click(submitBtn)
+    
+    await waitFor(() => {
+      expect(navigateMock).toHaveBeenCalledWith({ to: '/transactions' })
+    })
+  })
+
+  it('submits edit transaction', async () => {
+    server.use(
+      http.get('/api/v1/transactions/txn-1', () => {
+        return HttpResponse.json({ id: 'txn-1', amount: '100', type: 'expense', account_id: 'acc-1', transacted_at: '2026-05-15T12:00:00Z', payee_id: 'payee-1', description: 'Test', is_transfer: false })
+      })
+    )
+    mockSearch = { editId: 'txn-1' }
+    const user = userEvent.setup()
+    renderWithQuery(<TransactionFormPage />)
+    
+    await waitFor(() => screen.getByRole('button', { name: /update/i }))
+
+    server.use(
+      http.patch('/api/v1/transactions/txn-1', () => {
+        return HttpResponse.json({ id: 'txn-1' })
+      })
+    )
+
+    const submitBtn = screen.getByRole('button', { name: /update/i })
+    await user.click(submitBtn)
+    
+    await waitFor(() => {
+      expect(navigateMock).toHaveBeenCalledWith({ to: '/transactions' })
+    })
+  })
 })

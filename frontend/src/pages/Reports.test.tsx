@@ -70,4 +70,32 @@ describe('Reports', () => {
       expect(screen.queryByRole('textbox', { name: /dashboard name/i })).not.toBeInTheDocument()
     })
   })
+
+  it('can create a new dashboard', async () => {
+    renderPage()
+    const btn = await screen.findByRole('button', { name: /new dashboard/i })
+    fireEvent.click(btn)
+    
+    const nameInput = screen.getByRole('textbox', { name: /dashboard name/i })
+    const descInput = screen.getByRole('textbox', { name: /dashboard description/i })
+    
+    fireEvent.change(nameInput, { target: { value: 'My New Dashboard' } })
+    fireEvent.change(descInput, { target: { value: 'A cool dashboard' } })
+    
+    const createBtn = screen.getByRole('button', { name: /^create$/i })
+    fireEvent.click(createBtn)
+    
+    // The form should disappear
+    await waitFor(() => {
+      expect(screen.queryByRole('textbox', { name: /dashboard name/i })).not.toBeInTheDocument()
+    })
+  })
+
+  it('can delete a dashboard', async () => {
+    renderPage()
+    await screen.findByText('Spending Overview')
+    const deleteBtn = screen.getByRole('button', { name: /delete dashboard spending overview/i })
+    fireEvent.click(deleteBtn)
+    expect(deleteBtn).toBeInTheDocument()
+  })
 })

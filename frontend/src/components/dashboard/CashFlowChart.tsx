@@ -38,7 +38,7 @@ function formatLabel(dateStr: string, unit: 'day' | 'week' | 'month'): string {
   return d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })
 }
 
-function formatINR(value: number) {
+export function formatINR(value: number) {
   const abs = Math.abs(value)
   const sign = value < 0 ? '-' : ''
   if (abs >= 100_000) return `${sign}₹${(abs / 100_000).toFixed(1)}L`
@@ -48,7 +48,7 @@ function formatINR(value: number) {
 
 interface TooltipEntry { name: string; value: number; color: string; payload: Record<string, number | null> }
 
-function CustomTooltip({ active, payload, label }: {
+export function CustomTooltip({ active, payload, label }: {
   active?: boolean
   payload?: TooltipEntry[]
   label?: string
