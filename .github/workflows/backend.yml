@@ -1,15 +1,7 @@
 name: Backend
 
 on:
-  push:
-    branches: [master]
-    paths:
-      - "backend/**"
-      - ".github/workflows/backend.yml"
-  pull_request:
-    paths:
-      - "backend/**"
-      - ".github/workflows/backend.yml"
+  workflow_dispatch:
 
 # Cancel superseded runs on the same ref.
 concurrency:
