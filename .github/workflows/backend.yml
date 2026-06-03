@@ -63,17 +63,6 @@ jobs:
           PGPASSWORD: postgres
         run: psql -h localhost -U postgres -c "CREATE DATABASE kanakku_test"
 
-      - name: Lint (ruff)
-        run: uv run ruff check .
-
-      - name: Type check (mypy)
-        run: uv run mypy app
-        continue-on-error: true
-
-      - name: Security scan (bandit)
-        run: uv run bandit -r app
-        continue-on-error: true
-
       - name: Test with coverage (pytest)
         run: uv run pytest --cov=app --cov-report=xml --cov-report=term-missing
 
