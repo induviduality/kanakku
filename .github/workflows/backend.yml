@@ -1,0 +1,95 @@
+name: Backend
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - "backend/**"
+      - ".github/workflows/backend.yml"
+  pull_request:
+    paths:
+      - "backend/**"
+      - ".github/workflows/backend.yml"
+
+# Cancel superseded runs on the same ref.
+concurrency:
+  group: backend-${{ github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    working-directory: backend
+
+jobs:
+  build:
+    name: Lint, test & build
+    runs-on: ubuntu-latest
+
+    # The pytest suite talks to a real Postgres. conftest.py swaps the database
+    # name in DATABASE_URL from `kanakku` to `kanakku_test`, so the service DB
+    # must be named `kanakku` and the `kanakku_test` DB is created below.
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: kanakku
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/kanakku
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up uv (with Python 3.12)
+        uses: astral-sh/setup-uv@v5
+        with:
+          python-version: "3.12"
+          enable-cache: true
+
+      - name: Install dependencies
+        run: uv sync --extra dev
+
+      - name: Create test database
+        env:
+          PGPASSWORD: postgres
+        run: psql -h localhost -U postgres -c "CREATE DATABASE kanakku_test"
+
+      - name: Lint (ruff)
+        run: uv run ruff check .
+
+      - name: Type check (mypy)
+        run: uv run mypy app
+        continue-on-error: true
+
+      - name: Security scan (bandit)
+        run: uv run bandit -r app
+        continue-on-error: true
+
+      - name: Test with coverage (pytest)
+        run: uv run pytest --cov=app --cov-report=xml --cov-report=term-missing
+
+      - name: Build wheel
+        run: uv build
+
+      - name: Upload coverage report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-coverage
+          path: backend/coverage.xml
+          if-no-files-found: ignore
+
+      - name: Upload built package
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-dist
+          path: backend/dist/
