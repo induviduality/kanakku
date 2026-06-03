@@ -181,5 +181,6 @@ describe('PiggyBanks page', () => {
     if (closeDrawerBtn) {
       await user.click(closeDrawerBtn)
     }
+    expect(screen.getByText('Europe Trip')).toBeInTheDocument()
   })
 })

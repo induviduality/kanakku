@@ -182,5 +182,6 @@ describe('WidgetEditor', () => {
     // Attempt save to trigger JSON parse in save
     const saveBtn = screen.getByRole('button', { name: /save widget/i })
     fireEvent.click(saveBtn) // Will parse config, shouldn't crash
+    expect(screen.getByRole('dialog')).toBeInTheDocument()
   })
 })

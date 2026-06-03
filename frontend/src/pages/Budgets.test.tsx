@@ -149,6 +149,7 @@ describe('Budgets page', () => {
     if (closeDrawerBtn) {
       await user.click(closeDrawerBtn)
     }
+    expect(screen.getByText('Monthly Groceries')).toBeInTheDocument()
   })
 
   it('cancels the delete dialog', async () => {

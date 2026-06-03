@@ -84,6 +84,7 @@ describe('BudgetDetail page', () => {
 
     await user.click(screen.getByText('Groceries run'))
     // Interaction succeeds without throwing
+    expect(screen.getByRole('dialog')).toBeInTheDocument()
   })
 
   it('opens transaction drawer on Enter key', async () => {
@@ -96,6 +97,7 @@ describe('BudgetDetail page', () => {
     row.focus()
     await user.keyboard('{Enter}')
     // Interaction succeeds without throwing
+    expect(row).toBeInTheDocument()
   })
 
   it('opens transaction drawer on Space key', async () => {
@@ -108,5 +110,6 @@ describe('BudgetDetail page', () => {
     row.focus()
     await user.keyboard(' ')
     // Interaction succeeds without throwing
+    expect(row).toBeInTheDocument()
   })
 })
