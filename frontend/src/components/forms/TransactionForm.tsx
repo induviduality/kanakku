@@ -86,11 +86,12 @@ export default function TransactionForm({
     }
   }, [initial])
 
-  // When payee changes, auto-populate categories from payee defaults
+  // When payee changes, auto-populate categories from payee defaults — only when
+  // the user hasn't already chosen any, to avoid clobbering a manual selection.
   useEffect(() => {
     if (!payeeId) return
     const payee = payees.find((p) => p.id === payeeId)
-    if (payee?.default_category_ids?.length) {
+    if (payee?.default_category_ids?.length && selectedCategories.length === 0) {
       setSelectedCategories(payee.default_category_ids)
     }
   }, [payeeId, payees])
