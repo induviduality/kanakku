@@ -23,10 +23,8 @@ from typing import Any
 
 
 def _get_engine() -> "Any":
-    from sqlalchemy.ext.asyncio import create_async_engine
-
-    from app.config import settings
-    return create_async_engine(settings.database_url, echo=False)
+    from app.db.session import engine
+    return engine
 
 
 async def _find_user(session: "Any", email: str) -> "Any":
@@ -67,8 +65,6 @@ async def _create_user(email: str, password: str) -> None:
         session.add(UserSettings(user_id=user.id))
         await session.commit()
         print(f"Created user: {email} (id={user.id})")
-
-    await engine.dispose()
 
 
 # ── export-archive ────────────────────────────────────────────────────────────
@@ -118,7 +114,6 @@ async def _export_archive(email: str, output: str) -> None:
     out_path.write_bytes(buf.getvalue())
     total = sum(len(r) for r in table_data.values())
     print(f"Exported {total} records to {out_path}")
-    await engine.dispose()
 
 
 # ── import-archive ────────────────────────────────────────────────────────────
@@ -186,7 +181,6 @@ async def _import_archive(email: str, input_path: str) -> None:
 
     total = sum(inserted.values())
     print(f"Imported {total} records into user {email}")
-    await engine.dispose()
 
 
 # ── main ──────────────────────────────────────────────────────────────────────

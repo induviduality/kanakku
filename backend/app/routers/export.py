@@ -14,7 +14,6 @@ import logging
 import pathlib
 import tarfile
 import uuid
-from collections.abc import AsyncGenerator
 from typing import Annotated
 
 import sqlalchemy as sa
@@ -22,7 +21,7 @@ from fastapi import APIRouter, Depends, HTTPException, UploadFile, status
 from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.db.session import async_session_factory
+from app.db.session import get_session
 from app.dependencies import get_current_user
 from app.models.export_job import ExportJob, ExportJobStatus
 from app.models.user import User
@@ -32,12 +31,6 @@ from app.workers.export_worker import _EXPORT_TABLES, SCHEMA_VERSION
 logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["portability"])
-
-
-async def get_session() -> AsyncGenerator[AsyncSession, None]:
-    async with async_session_factory() as session:
-        yield session
-
 
 SessionDep = Annotated[AsyncSession, Depends(get_session)]
 UserDep = Annotated[User, Depends(get_current_user)]

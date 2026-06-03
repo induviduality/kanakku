@@ -17,7 +17,7 @@ from decimal import Decimal
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.split import Split, SplitShare, SplitShareStatus
+from app.models.split import Split, SplitExpense, SplitShare, SplitShareStatus
 from app.models.transaction import Transaction
 
 
@@ -35,8 +35,10 @@ async def net_expense(session: AsyncSession, transaction_id: uuid.UUID) -> Decim
 
     split = (
         await session.execute(
-            select(Split).where(
-                Split.expense_transaction_id == transaction_id,
+            select(Split)
+            .join(SplitExpense, SplitExpense.split_id == Split.id)
+            .where(
+                SplitExpense.transaction_id == transaction_id,
                 Split.deleted_at.is_(None),
             )
         )

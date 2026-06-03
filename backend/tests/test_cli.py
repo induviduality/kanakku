@@ -19,19 +19,10 @@ async def test_create_user_succeeds(db_session) -> None:
 
     await _create_user("cli@example.com", "secure123")
 
-    from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
-
-    from app.config import settings
-
-    engine = create_async_engine(settings.database_url)
-    factory = async_sessionmaker(engine, expire_on_commit=False)
-    async with factory() as session:
-        result = await session.execute(
-            sa.select(User).where(User.email == "cli@example.com")
-        )
-        user = result.scalar_one_or_none()
-    await engine.dispose()
-    assert user is not None
+    result = await db_session.execute(
+        sa.select(User).where(User.email == "cli@example.com")
+    )
+    assert result.scalar_one_or_none() is not None
 
 
 @pytest.mark.usefixtures("db_tables")
