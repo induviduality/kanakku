@@ -94,3 +94,5 @@ All tasks finished:
 - PiggyBank date_started field + Savings Goals in SideNav
 - Remove GPay features + decouple Ollama from docker-compose
 - Split multi-expense + payee uniqueness: `split_expenses` join table, DB trigger update, all-expense multi-select bundle, full frontend migration to `expense_transaction_ids[]` — DONE (2026-06-02)
+- Bug-review frontend cosmetic fixes: CI disabled (workflow_dispatch), Vite proxy port 8000→8765 (M4), TransactionForm + Autocomplete dark-theme tokens (M5), payee default-category auto-overwrite guard (M7) — DONE (2026-06-03)
+- C2/FR-7.9/FR-7.10 net-expense dashboard: migration 0027 fixes SQL view for partial forgiveness; _monthly_totals uses net_amount view for expenses and excludes settlement income; _category_breakdown uses net_amount; new _pending_splits_from_others_total + pending_splits_from_others field in DashboardResponse; 7 new integration tests — DONE (2026-06-03)

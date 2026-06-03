@@ -1,5 +1,18 @@
 # Decision Log
 
+## 2026-06-03 — C2: dashboard net-expense uses SQL view; settlement income excluded at query time
+
+**Context:** FR-7.9 / FR-7.10 require the dashboard to show net split amounts (own share + forgiven) not gross, and to exclude friend repayments from income. Three implementation paths considered.
+
+**Decision:** (1) Fix the `transaction_with_net_amount` SQL view (migration 0027) to also sum `forgiven_amount` for partially-forgiven shares — the Python service already did this correctly, the view was inconsistent. (2) `_monthly_totals` now selects `SUM(net_amount)` from the view for expenses; for income, a `NOT IN (SELECT transaction_id FROM split_share_settlements)` subquery excludes settlement transactions. (3) `_category_breakdown` joins against the view instead of `transactions` directly. (4) New `_pending_splits_from_others_total` is a raw-SQL correlated subquery (amount − forgiven − settled) scoped to the dashboard period, exposed as `pending_splits_from_others` on `DashboardResponse`.
+
+**Alternatives considered:**
+- Python-level post-processing (call `net_expense()` per transaction in a loop) — O(N) DB round-trips; rejected
+- Define the view as a full SQLAlchemy ORM mapped class — heavier setup for a read-only view used in one place; `sa.table()` lightweight reference is sufficient
+- Recalculate pending in `_pending_splits_summary` (already exists) — that helper is global (all time), not period-scoped; a separate helper is cleaner
+
+**Affects:** `alembic/versions/0027_fix_net_amount_view_partial_forgiveness.py`, `routers/dashboard.py`, `schemas/dashboard.py`, `tests/test_dashboard_net_expense.py`
+
 ## 2026-06-02 — Split multi-expense: split_expenses join table replaces single FK
 
 **Context:** Original `splits.expense_transaction_id` was a single FK, allowing only one expense transaction per split. User required multiple expense transactions per split (e.g. bundling dinner + drinks into one split). Payee uniqueness rule also needed enforcement: at most one share per payee (including the user's own null-payee share).

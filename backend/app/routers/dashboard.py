@@ -16,7 +16,7 @@ from app.models.budget import Budget, budget_categories
 from app.models.category import Category
 from app.models.payee import Payee
 from app.models.piggy_bank import PiggyBank
-from app.models.split import Split, SplitShare, SplitShareStatus
+from app.models.split import Split, SplitExpense, SplitShare, SplitShareSettlement, SplitShareStatus
 from app.models.subscription import Subscription
 from app.models.transaction import (
     Transaction,
@@ -41,6 +41,18 @@ from app.schemas.dashboard import (
 from app.services.subscription_dates import compute_next_billing_date, subscription_status
 
 router = APIRouter(prefix="/dashboard", tags=["dashboard"])
+
+# Lightweight reference to the transaction_with_net_amount SQL view.
+# net_amount = own_share + fully-forgiven + partial-forgiven (FR-7.9).
+_net_view = sa.table(
+    "transaction_with_net_amount",
+    sa.column("id", sa.UUID()),
+    sa.column("user_id", sa.UUID()),
+    sa.column("type"),
+    sa.column("transacted_at"),
+    sa.column("net_amount", sa.Numeric(15, 2)),
+    sa.column("deleted_at"),
+)
 
 
 class DashboardPeriod(StrEnum):
@@ -140,24 +152,40 @@ async def _monthly_totals(
     month_start: datetime,
     month_end: datetime,
 ) -> tuple[Decimal, Decimal]:
-    rows = (
+    # Expense: use net_amount from the view (own share + forgiven only, per FR-7.9).
+    exp_row = (
         await session.execute(
-            sa.select(Transaction.type, sa.func.sum(Transaction.amount))
+            sa.select(sa.func.coalesce(sa.func.sum(_net_view.c.net_amount), Decimal("0")))
+            .where(
+                _net_view.c.user_id == user_id,
+                _net_view.c.deleted_at.is_(None),
+                _net_view.c.type == TransactionType.expense,
+                _net_view.c.transacted_at >= month_start,
+                _net_view.c.transacted_at < month_end,
+            )
+        )
+    ).scalar()
+    total_expense = exp_row or Decimal("0")
+
+    # Income: exclude split settlement transactions (friend repayments are cost
+    # recovery, not real income — FR-7.10).
+    settlement_txn_ids = sa.select(SplitShareSettlement.transaction_id)
+    inc_row = (
+        await session.execute(
+            sa.select(sa.func.coalesce(sa.func.sum(Transaction.amount), Decimal("0")))
             .where(
                 Transaction.user_id == user_id,
                 Transaction.deleted_at.is_(None),
+                Transaction.type == TransactionType.income,
                 Transaction.transacted_at >= month_start,
                 Transaction.transacted_at < month_end,
-                Transaction.type.in_([TransactionType.expense, TransactionType.income]),
+                Transaction.id.not_in(settlement_txn_ids),
             )
-            .group_by(Transaction.type)
         )
-    ).all()
-    totals: dict[str, Decimal] = {r[0]: r[1] for r in rows}
-    return (
-        totals.get(TransactionType.expense, Decimal("0")),
-        totals.get(TransactionType.income, Decimal("0")),
-    )
+    ).scalar()
+    total_income = inc_row or Decimal("0")
+
+    return total_expense, total_income
 
 
 async def _budgets_summary(
@@ -258,24 +286,26 @@ async def _category_breakdown(
     month_end: datetime,
     total_spent: Decimal,
 ) -> list[CategoryBreakdownItem]:
+    # Use net_amount from the view so a ₹4k split dinner where user's share is
+    # ₹1k is attributed as ₹1k to the category, not ₹4k (FR-7.9).
     rows = (
         await session.execute(
             sa.select(
                 transaction_categories.c.category_id,
                 Category.name,
-                sa.func.sum(Transaction.amount).label("amount"),
+                sa.func.sum(_net_view.c.net_amount).label("amount"),
             )
             .join(
                 transaction_categories,
-                transaction_categories.c.transaction_id == Transaction.id,
+                transaction_categories.c.transaction_id == _net_view.c.id,
             )
             .join(Category, Category.id == transaction_categories.c.category_id)
             .where(
-                Transaction.user_id == user_id,
-                Transaction.deleted_at.is_(None),
-                Transaction.type == TransactionType.expense,
-                Transaction.transacted_at >= month_start,
-                Transaction.transacted_at < month_end,
+                _net_view.c.user_id == user_id,
+                _net_view.c.deleted_at.is_(None),
+                _net_view.c.type == TransactionType.expense,
+                _net_view.c.transacted_at >= month_start,
+                _net_view.c.transacted_at < month_end,
             )
             .group_by(transaction_categories.c.category_id, Category.name)
             .order_by(sa.desc("amount"))
@@ -342,6 +372,48 @@ async def _recent_transactions(
             )
         )
     return result
+
+
+async def _pending_splits_from_others_total(
+    session: AsyncSession,
+    user_id: uuid.UUID,
+    period_start: datetime,
+    period_end: datetime,
+) -> Decimal:
+    """Sum of outstanding amounts others owe the user for splits in the period.
+
+    outstanding per share = share.amount - share.forgiven_amount - already settled
+    Only 'pending' payee shares are included; the period filter is based on the
+    split's expense transaction date.
+    """
+    row = (
+        await session.execute(
+            sa.text("""
+                SELECT COALESCE(SUM(
+                    ss.amount
+                    - ss.forgiven_amount
+                    - COALESCE((
+                        SELECT SUM(sss.amount)
+                        FROM split_share_settlements sss
+                        WHERE sss.share_id = ss.id
+                      ), 0)
+                ), 0)
+                FROM split_shares ss
+                JOIN splits sp ON sp.id = ss.split_id
+                JOIN split_expenses se ON se.split_id = sp.id
+                JOIN transactions t ON t.id = se.transaction_id
+                WHERE ss.payee_id IS NOT NULL
+                  AND ss.status = 'pending'
+                  AND sp.user_id = :user_id
+                  AND sp.deleted_at IS NULL
+                  AND t.deleted_at IS NULL
+                  AND t.transacted_at >= :start
+                  AND t.transacted_at < :end
+            """),
+            {"user_id": user_id, "start": period_start, "end": period_end},
+        )
+    ).scalar()
+    return row or Decimal("0")
 
 
 async def _pending_splits_summary(
@@ -743,6 +815,7 @@ async def home_dashboard(
     # real parallelism here since the connection is not re-entrant).
     total_spent, total_income = await _monthly_totals(session, user.id, period_start, period_end)
     prev_spent, prev_income = await _monthly_totals(session, user.id, prev_start, prev_end)
+    pending_from_others = await _pending_splits_from_others_total(session, user.id, period_start, period_end)
     budgets = await _budgets_summary(session, user.id, period_start, period_end)
     cats = await _category_breakdown(session, user.id, period_start, period_end, total_spent)
     recent = await _recent_transactions(session, user.id, period_start, period_end)
@@ -769,6 +842,7 @@ async def home_dashboard(
         prev_inflow=prev_income,
         prev_outflow=prev_spent,
         prev_savings_rate=_savings_rate(prev_income, prev_spent),
+        pending_splits_from_others=pending_from_others,
         budgets_summary=budgets,
         category_breakdown=cats,
         recent_transactions=recent,

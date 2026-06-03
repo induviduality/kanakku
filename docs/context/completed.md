@@ -1,5 +1,20 @@
 # Completed Milestones
 
+## Ad-hoc Fixes (2026-06-03) — C2 Net-expense dashboard (FR-7.9 / FR-7.10)
+
+- `alembic/versions/0027_fix_net_amount_view_partial_forgiveness.py`: fixes `transaction_with_net_amount` view to include `forgiven_amount` for partial forgiveness (previously only counted fully-forgiven shares)
+- `routers/dashboard.py`: `_monthly_totals` now sums `net_amount` from view for expenses; income excludes transactions linked in `split_share_settlements` (FR-7.10); new `_pending_splits_from_others_total` helper returns period-scoped outstanding balances (amount − forgiven − settled)
+- `routers/dashboard.py`: `_category_breakdown` now sums `net_amount` instead of raw `amount`
+- `schemas/dashboard.py`: `DashboardResponse` gains `pending_splits_from_others: Decimal`
+- `tests/test_dashboard_net_expense.py`: 7 new integration tests covering net share, partial forgiveness, settlement exclusion, period scoping, and category net amounts
+
+## Ad-hoc Fixes (2026-06-03) — Frontend cosmetic bug-review fixes
+
+- `.github/workflows/frontend.yml` + `backend.yml`: disabled automatic CI triggers (workflow_dispatch only)
+- `frontend/vite.config.ts`: corrected proxy target port 8000 → 8765 (M4)
+- `frontend/src/components/forms/TransactionForm.tsx`: migrated all classes to dark-theme design tokens (kk-input, text-fg-muted, bg-surface-2, bg-accent-dim, border-border-strong); payee default-category no longer overwrites a manual selection (M5, M7)
+- `frontend/src/components/Autocomplete.tsx`: migrated dropdown classes to design tokens (M5)
+
 ## Ad-hoc Fixes (2026-06-02) — Split multi-expense + payee uniqueness
 
 - `alembic/versions/0026_split_multi_expense_payee_uniqueness.py`: creates `split_expenses` join table (UNIQUE on `transaction_id`), migrates existing data, drops `splits.expense_transaction_id`, updates DB trigger to sum via join, adds partial unique index on `split_shares(split_id, payee_id)` for non-null payees

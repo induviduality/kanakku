@@ -110,6 +110,10 @@ class DashboardResponse(BaseModel):
     prev_outflow: Decimal
     prev_savings_rate: float | None
 
+    # Amount others owe the user for pending split shares in the period.
+    # Shown as context alongside outflow: "of which ₹Z pending from others".
+    pending_splits_from_others: Decimal
+
     budgets_summary: list[BudgetSummaryItem]
     category_breakdown: list[CategoryBreakdownItem]
     recent_transactions: list[RecentTransaction]
