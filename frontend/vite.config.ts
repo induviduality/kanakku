@@ -57,10 +57,10 @@ export default defineConfig({
     }),
   ],
   server: {
-    // Proxy /api to a locally running backend (uvicorn on 8000).
-    // Only active when VITE_MOCK_API is not true — MSW handles requests otherwise.
+    // Proxy /api to a locally running backend (uvicorn on 8765).
+    // Only active when VITE_MOCK_API is not set — MSW handles requests otherwise.
     proxy: {
-      '/api': 'http://localhost:8000',
+      '/api': 'http://localhost:8765',
     },
   },
   test: {
