@@ -172,7 +172,7 @@ export default function TransactionForm({
     <form onSubmit={handleSubmit} noValidate className="space-y-4">
       {/* Type toggle */}
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">Type</label>
+        <label className="block text-sm font-medium text-fg-muted mb-1">Type</label>
         <div className="flex flex-wrap gap-1.5" role="group" aria-label="Transaction type">
           {TYPE_OPTIONS.map((t) => (
             <button
@@ -183,8 +183,8 @@ export default function TransactionForm({
                 type === t
                   ? t === 'opening_balance'
                     ? 'bg-accent/20 border-accent/50 text-accent'
-                    : 'bg-indigo-600 border-indigo-600 text-white'
-                  : 'bg-white border-gray-300 text-gray-600 hover:border-indigo-400'
+                    : 'bg-accent-dim border-accent-dim text-white'
+                  : 'bg-surface-2 border-border-strong text-fg-muted hover:border-accent'
               }`}
               aria-pressed={type === t}
             >
@@ -201,20 +201,20 @@ export default function TransactionForm({
 
       {/* Date/time */}
       <div>
-        <label htmlFor="txn-date" className="block text-sm font-medium text-gray-700">Date & Time</label>
+        <label htmlFor="txn-date" className="block text-sm font-medium text-fg-muted">Date & Time</label>
         <input
           id="txn-date"
           type="datetime-local"
           value={transactedAt}
           onChange={(e) => setTransactedAt(e.target.value)}
           required
-          className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          className="mt-1 kk-input"
         />
       </div>
 
       {/* Amount */}
       <div>
-        <label htmlFor="txn-amount" className="block text-sm font-medium text-gray-700">Amount</label>
+        <label htmlFor="txn-amount" className="block text-sm font-medium text-fg-muted">Amount</label>
         <div className="mt-1 flex gap-2">
           <input
             id="txn-amount"
@@ -225,7 +225,7 @@ export default function TransactionForm({
             onChange={(e) => setAmount(e.target.value)}
             required
             placeholder="0.00"
-            className="flex-1 rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            className="kk-input flex-1"
           />
           <input
             id="txn-currency"
@@ -234,7 +234,7 @@ export default function TransactionForm({
             onChange={(e) => setCurrency(e.target.value.toUpperCase())}
             placeholder="INR"
             maxLength={10}
-            className="w-20 rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            className="kk-input w-20"
             aria-label="Currency"
           />
         </div>
@@ -242,7 +242,7 @@ export default function TransactionForm({
 
       {/* Source account */}
       <div>
-        <label htmlFor="txn-account" className="block text-sm font-medium text-gray-700">
+        <label htmlFor="txn-account" className="block text-sm font-medium text-fg-muted">
           {type === 'transfer' ? 'From Account' : 'Account'}
         </label>
         <select
@@ -250,7 +250,7 @@ export default function TransactionForm({
           value={accountId}
           onChange={(e) => setAccountId(e.target.value)}
           required
-          className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          className="mt-1 kk-input"
         >
           <option value="">Select account…</option>
           {accounts
@@ -265,13 +265,13 @@ export default function TransactionForm({
       {/* To account (transfers only) */}
       {type === 'transfer' && (
         <div>
-          <label htmlFor="txn-to-account" className="block text-sm font-medium text-gray-700">To Account</label>
+          <label htmlFor="txn-to-account" className="block text-sm font-medium text-fg-muted">To Account</label>
           <select
             id="txn-to-account"
             value={toAccountId}
             onChange={(e) => setToAccountId(e.target.value)}
             required
-            className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            className="mt-1 kk-input"
           >
             <option value="">Select destination…</option>
             {accounts.filter((a) => !a.deleted_at && a.is_active && a.id !== accountId).map((a) => (
@@ -284,7 +284,7 @@ export default function TransactionForm({
       {/* Payment method */}
       {type !== 'transfer' && type !== 'opening_balance' && accountId && pmOptions.length > 0 && (
         <div>
-          <label htmlFor="txn-pm" className="block text-sm font-medium text-gray-700">Payment Method</label>
+          <label htmlFor="txn-pm" className="block text-sm font-medium text-fg-muted">Payment Method</label>
           <Autocomplete
             id="txn-pm"
             options={pmOptions}
@@ -298,7 +298,7 @@ export default function TransactionForm({
       {/* Payee (not for transfers or opening balance) */}
       {type !== 'transfer' && type !== 'opening_balance' && (
         <div>
-          <label htmlFor="txn-payee" className="block text-sm font-medium text-gray-700">Payee</label>
+          <label htmlFor="txn-payee" className="block text-sm font-medium text-fg-muted">Payee</label>
           <Autocomplete
             id="txn-payee"
             options={payeeOptions}
@@ -316,7 +316,7 @@ export default function TransactionForm({
       {/* Categories (not for transfers or opening balance) */}
       {type !== 'transfer' && type !== 'opening_balance' && (
         <div>
-          <label className="block text-sm font-medium text-gray-700">Categories</label>
+          <label className="block text-sm font-medium text-fg-muted">Categories</label>
           <div className="mt-1 flex flex-wrap gap-1">
             {allCategories.filter((c) => !c.deleted_at).map((c) => (
               <button
@@ -325,8 +325,8 @@ export default function TransactionForm({
                 onClick={() => toggleCategory(c.id)}
                 className={`rounded-full px-3 py-1 text-xs font-medium border transition-colors
                   ${selectedCategories.includes(c.id)
-                    ? 'bg-indigo-600 text-white border-indigo-600'
-                    : 'bg-white text-gray-600 border-gray-300 hover:border-indigo-400'}`}
+                    ? 'bg-accent-dim text-white border-accent-dim'
+                    : 'bg-surface-2 text-fg-muted border-border-strong hover:border-accent'}`}
               >
                 {c.name}
               </button>
@@ -337,46 +337,46 @@ export default function TransactionForm({
 
       {/* Description */}
       <div>
-        <label htmlFor="txn-desc" className="block text-sm font-medium text-gray-700">Description</label>
+        <label htmlFor="txn-desc" className="block text-sm font-medium text-fg-muted">Description</label>
         <input
           id="txn-desc"
           type="text"
           value={description}
           onChange={(e) => setDescription(e.target.value)}
           placeholder="What was this for?"
-          className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          className="mt-1 kk-input"
         />
       </div>
 
       {/* Reference / UTR */}
       <div>
-        <label htmlFor="txn-ref" className="block text-sm font-medium text-gray-700">Ref / UTR</label>
+        <label htmlFor="txn-ref" className="block text-sm font-medium text-fg-muted">Ref / UTR</label>
         <input
           id="txn-ref"
           type="text"
           value={externalRef}
           onChange={(e) => setExternalRef(e.target.value)}
           placeholder="UPI ref, UTR, cheque no., …"
-          className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          className="mt-1 kk-input"
         />
       </div>
 
       {/* Notes */}
       <div>
-        <label htmlFor="txn-notes" className="block text-sm font-medium text-gray-700">Notes</label>
+        <label htmlFor="txn-notes" className="block text-sm font-medium text-fg-muted">Notes</label>
         <textarea
           id="txn-notes"
           value={notes}
           onChange={(e) => setNotes(e.target.value)}
           rows={2}
-          className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          className="mt-1 w-full rounded-md border border-border-strong bg-surface-2 px-3 py-2 text-sm text-fg focus:outline-none focus:border-accent/50 focus:bg-surface-3 resize-none"
         />
       </div>
 
       {/* Tags (not for opening balance) */}
       {type !== 'opening_balance' && (
         <div>
-          <label className="block text-sm font-medium text-gray-700">Tags</label>
+          <label className="block text-sm font-medium text-fg-muted">Tags</label>
           <div className="mt-1 flex flex-wrap gap-1">
             {allTags.filter((t) => !t.deleted_at).map((t) => (
               <button
@@ -385,8 +385,8 @@ export default function TransactionForm({
                 onClick={() => toggleTag(t.id)}
                 className={`rounded-full px-3 py-1 text-xs font-medium border transition-colors
                   ${selectedTags.includes(t.id)
-                    ? 'bg-indigo-600 text-white border-indigo-600'
-                    : 'bg-white text-gray-600 border-gray-300 hover:border-indigo-400'}`}
+                    ? 'bg-accent-dim text-white border-accent-dim'
+                    : 'bg-surface-2 text-fg-muted border-border-strong hover:border-accent'}`}
               >
                 {t.name}
               </button>
@@ -398,7 +398,7 @@ export default function TransactionForm({
       {/* Budget (expense only) */}
       {type === 'expense' && allBudgets.length > 0 && (
         <div>
-          <label className="block text-sm font-medium text-gray-700">Budget</label>
+          <label className="block text-sm font-medium text-fg-muted">Budget</label>
           <div className="mt-1 flex flex-wrap gap-1">
             {allBudgets.map((b) => (
               <button
@@ -407,8 +407,8 @@ export default function TransactionForm({
                 onClick={() => setSelectedBudgetId(selectedBudgetId === b.id ? null : b.id)}
                 className={`rounded-full px-3 py-1 text-xs font-medium border transition-colors
                   ${selectedBudgetId === b.id
-                    ? 'bg-indigo-600 text-white border-indigo-600'
-                    : 'bg-white text-gray-600 border-gray-300 hover:border-indigo-400'}`}
+                    ? 'bg-accent-dim text-white border-accent-dim'
+                    : 'bg-surface-2 text-fg-muted border-border-strong hover:border-accent'}`}
               >
                 {b.name}
               </button>
@@ -431,7 +431,7 @@ export default function TransactionForm({
               aria-label="Split this expense"
               className="rounded"
             />
-            <span className="text-sm font-medium text-gray-700">Split this expense</span>
+            <span className="text-sm font-medium text-fg-muted">Split this expense</span>
           </label>
           {isSplit && (
             <div className="mt-3">
@@ -450,7 +450,7 @@ export default function TransactionForm({
       <button
         type="submit"
         disabled={isSubmitting}
-        className="w-full rounded-md bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700 disabled:opacity-50"
+        className="w-full rounded-md bg-accent-dim px-4 py-2 text-sm font-semibold text-white hover:bg-accent disabled:opacity-50"
       >
         {isSubmitting ? 'Saving…' : submitLabel}
       </button>

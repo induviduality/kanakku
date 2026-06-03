@@ -96,7 +96,7 @@ export default function Autocomplete({
             setOpen(true)
             if (!e.target.value) onChange(null)
           }}
-          className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          className="kk-input"
           role="combobox"
           aria-expanded={open}
           aria-autocomplete="list"
@@ -105,7 +105,7 @@ export default function Autocomplete({
           <button
             type="button"
             onClick={clear}
-            className="ml-1 text-gray-400 hover:text-gray-600 text-sm px-1"
+            className="ml-1 text-fg-faint hover:text-fg-muted text-sm px-1"
             aria-label="Clear"
           >
             ×
@@ -116,7 +116,7 @@ export default function Autocomplete({
       {open && (filtered.length > 0 || showCreate) && (
         <ul
           role="listbox"
-          className="absolute z-50 mt-1 w-full rounded-md border border-gray-200 bg-white shadow-lg max-h-48 overflow-auto"
+          className="absolute z-50 mt-1 w-full rounded-md border border-border-strong bg-surface-3 shadow max-h-48 overflow-auto"
         >
           {filtered.map((opt) => (
             <li
@@ -124,7 +124,7 @@ export default function Autocomplete({
               role="option"
               aria-selected={opt.id === value}
               onClick={() => select(opt)}
-              className="cursor-pointer px-3 py-2 text-sm hover:bg-indigo-50 aria-selected:bg-indigo-100"
+              className="cursor-pointer px-3 py-2 text-sm text-fg hover:bg-accent-subtle aria-selected:bg-accent-subtle"
             >
               {opt.label}
             </li>
@@ -134,7 +134,7 @@ export default function Autocomplete({
               role="option"
               aria-selected={false}
               onClick={handleCreate}
-              className="cursor-pointer px-3 py-2 text-sm text-indigo-600 hover:bg-indigo-50 border-t border-gray-100"
+              className="cursor-pointer px-3 py-2 text-sm text-accent hover:bg-accent-subtle border-t border-border"
             >
               {creating ? 'Creating…' : `Create "${query.trim()}"`}
             </li>
