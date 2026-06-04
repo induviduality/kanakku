@@ -42,13 +42,23 @@ Before starting any task:
 3. Read docs/context/completed.md (understand what's already built)
 
 After completing any task (update after EACH TASK, not after a full milestone):
-1. Append to docs/decisions/log.md if any non-trivial decision was made.
+1. **Validate the changes before doing anything else.**
+   - Backend Python changes: `python -m py_compile <changed files>` for syntax,
+     then run the relevant test file(s): `.venv/Scripts/pytest tests/test_<area>.py -x -q`
+     (skip if no DB is available, but always do the syntax check).
+   - Frontend changes: `bun run build` and confirm zero *new* TypeScript errors
+     in the files you touched. Pre-existing errors in other files are acceptable;
+     errors in your files are not.
+   - Import changes / new modules: verify the import resolves (`python -c "import ..."`)
+     with the venv active.
+   If validation finds a bug, fix it before moving on — do not commit broken code.
+2. Append to docs/decisions/log.md if any non-trivial decision was made.
    Non-trivial = anything where you chose between two reasonable approaches.
-2. Update docs/context/completed.md with a brief summary of the just-finished task.
-3. Update docs/context/current-milestone.md to reflect the just-finished task
+3. Update docs/context/completed.md with a brief summary of the just-finished task.
+4. Update docs/context/current-milestone.md to reflect the just-finished task
    and set the next task (or mark milestone done if all tasks complete).
-4. Check docs/todo.md and cross off the completed items, if applicable.
-5. Commit the changes before moving on to the next task. Do not batch
+5. Check docs/todo.md and cross off the completed items, if applicable.
+6. Commit the changes before moving on to the next task. Do not batch
    multiple tasks into one commit.
 
 IMPORTANT: Steps 2–4 must happen after EVERY individual task, not just at
