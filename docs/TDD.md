@@ -6,6 +6,21 @@
 
 ---
 
+> ## v1 Implementation Deviations
+>
+> The following sections describe features as *designed*. The current implementation diverges in two areas that are intentional and logged:
+>
+> **Ollama decoupled from Docker Compose (milestone 13 / ad-hoc sprint)**
+> Ollama is no longer a service in `docker-compose.yml`. The LLM code (`app/llm/*`) and the **Settings → LLM Activity** page still ship, but `LLM_BACKEND` defaults to `none` so no model runs unless explicitly configured. Any section in this TDD that references an `ollama` compose service or `docker compose exec ollama` commands reflects the original design, not the current deployment. See [decisions/log.md](decisions/log.md) and [reviews/project-review-2026-06-02.md](reviews/project-review-2026-06-02.md).
+>
+> **GPay Takeout Enrichment removed (ad-hoc sprint)**
+> FR-12 (§2.1.12, §3.3.12) and the related endpoints, models, and frontend pages were removed in the ad-hoc sprint. Migration `0016_gpay_matches` remains in history; the feature description in this TDD is preserved as a record of the original design intent. See [decisions/log.md](decisions/log.md).
+>
+> **`opening_balance` as a 4th transaction type**
+> The implementation added `opening_balance` as a transaction type despite the spec and `CLAUDE.md` stating "three types only". This is pending a formal decision to either legitimize it in the spec or move it off the transaction enum.
+
+---
+
 ## Table of Contents
 
 1. [Overview](#1-overview)

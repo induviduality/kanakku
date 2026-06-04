@@ -68,7 +68,7 @@ cp ../infra/env.example .env
 alembic upgrade head
 
 # Start API server (hot reload)
-uvicorn app.main:app --reload --port 8000
+uvicorn app.main:app --reload --port 8765
 ```
 
 API is now at `http://localhost:8765`. Docs at `http://localhost:8765/docs`.
@@ -76,7 +76,7 @@ API is now at `http://localhost:8765`. Docs at `http://localhost:8765/docs`.
 To also run the ARQ background worker (needed for PDF imports, exports):
 ```bash
 # In a second terminal, with venv activated
-python -m arq app.worker.WorkerSettings
+python -m arq app.workers.purge_worker.WorkerSettings
 ```
 
 ### 1c. Frontend
@@ -95,8 +95,9 @@ Frontend is now at `http://localhost:5173`.
 
 ### 1d. Ollama (optional — only needed for LLM features)
 
+Ollama is **not** included in the Docker Compose stack. Install it separately from [ollama.com](https://ollama.com), then run it as a standalone process.
+
 ```bash
-# Install from https://ollama.com, then:
 ollama pull qwen2.5:1.5b
 ollama serve   # starts on http://localhost:11434
 ```
@@ -107,7 +108,7 @@ LLM_BACKEND=ollama
 OLLAMA_HOST=http://localhost:11434
 ```
 
-If you don't have Ollama, set `LLM_BACKEND=none` — all LLM calls return null results gracefully.
+If you don't want LLM features, set `LLM_BACKEND=none` — all LLM calls return null results gracefully.
 
 ### 1e. Environment file for local dev
 
@@ -186,18 +187,10 @@ Services and their ports:
 | Frontend | `http://localhost:5173` |
 | PostgreSQL | `localhost:5432` |
 | Redis | `localhost:6379` |
-| Ollama | `http://localhost:11434` |
 
 Run migrations inside the container:
 ```bash
 docker compose exec api alembic upgrade head
-```
-
-Pull the Ollama model after first startup:
-```bash
-docker compose exec ollama ollama pull qwen2.5:1.5b
-# Or run the init script:
-bash infra/scripts/init-ollama.sh
 ```
 
 Rebuild after code changes:
@@ -240,9 +233,10 @@ POSTGRES_DB=kanakku
 POSTGRES_USER=kanakku
 POSTGRES_PASSWORD=<strong-password>
 JWT_SECRET=<openssl rand -hex 32>
-LLM_BACKEND=ollama
-OLLAMA_HOST=http://ollama:11434
-LLM_MODEL=qwen2.5:1.5b
+LLM_BACKEND=none
+# LLM_BACKEND=ollama          # optional: set if running a standalone Ollama instance
+# OLLAMA_HOST=http://<ollama-host>:11434
+# LLM_MODEL=qwen2.5:1.5b
 REDIS_URL=redis://redis:6379
 PUBLIC_BASE_URL=https://<your-domain>
 DEBUG=false
@@ -256,9 +250,6 @@ docker compose up -d
 
 # Run migrations
 docker compose exec api alembic upgrade head
-
-# Pull Ollama model (takes a while on first run)
-docker compose exec ollama ollama pull qwen2.5:1.5b
 ```
 
 The Caddyfile proxies traffic: frontend on `/`, API on `/api`. Access at `http://<pi-ip>` or `http://kanakku.local` if using mDNS.
@@ -324,10 +315,7 @@ The Caddyfile handles Let's Encrypt TLS automatically when `DOMAIN` is a real pu
 ```bash
 docker compose up -d
 docker compose exec api alembic upgrade head
-docker compose exec ollama ollama pull qwen2.5:1.5b
 ```
-
-For a cloud VPS, you can point `OLLAMA_HOST` to the same compose Ollama service (`http://ollama:11434`), or to a remote Ollama instance elsewhere.
 
 ---
 
@@ -358,4 +346,4 @@ Make sure PostgreSQL is running and `DATABASE_URL` in your `.env` is correct.
 Run `ollama pull qwen2.5:1.5b` manually. First pull is ~1GB and can time out in scripts.
 
 **Port already in use**
-Check for existing processes: `netstat -ano | findstr :8000` (Windows) or `lsof -i :8000` (macOS/Linux).
+Check for existing processes: `netstat -ano | findstr :8765` (Windows) or `lsof -i :8765` (macOS/Linux).
