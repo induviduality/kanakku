@@ -25,9 +25,10 @@ ENV PATH="/opt/venv/bin:$PATH"
 COPY . .
 
 RUN useradd --no-create-home --shell /bin/false appuser && \
-    chown -R appuser:appuser /app
+    chown -R appuser:appuser /app && \
+    chmod +x /app/entrypoint.sh
 USER appuser
 
 EXPOSE 8765
 
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8765"]
+ENTRYPOINT ["/app/entrypoint.sh"]
