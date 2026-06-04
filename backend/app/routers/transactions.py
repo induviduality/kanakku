@@ -255,6 +255,20 @@ async def create_transaction(
             detail="opening_balance cannot be applied to liability accounts (credit_card, loan)",
         )
 
+    if body.type == TransactionType.opening_balance:
+        existing = (await session.execute(
+            select(Transaction.id).where(
+                Transaction.account_id == body.account_id,
+                Transaction.type == TransactionType.opening_balance,
+                Transaction.deleted_at.is_(None),
+            ).limit(1)
+        )).scalar_one_or_none()
+        if existing is not None:
+            raise HTTPException(
+                status_code=422,
+                detail="An opening_balance transaction already exists for this account",
+            )
+
     if body.to_account_id:
         await _get_account_or_404(body.to_account_id, current_user.id, session)
 

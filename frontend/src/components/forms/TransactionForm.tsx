@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import type { TransactionCreate, TransactionPatch, TransactionType } from '../../api/transactions'
+import type { Transaction, TransactionCreate, TransactionPatch, TransactionType } from '../../api/transactions'
 import { useAccounts, usePaymentMethods } from '../../api/accounts'
 import { useCategories } from '../../api/categories'
 import { useTags } from '../../api/tags'
@@ -11,7 +11,7 @@ import Autocomplete from '../Autocomplete'
 import SplitSharesEditor from '../SplitSharesEditor'
 
 interface TransactionFormProps {
-  initial?: any
+  initial?: Transaction
   onSubmit: (data: TransactionCreate | TransactionPatch) => Promise<{ id: string } | void>
   submitLabel?: string
   isSubmitting?: boolean
