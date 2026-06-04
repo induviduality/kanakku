@@ -11,7 +11,7 @@ import Autocomplete from '../Autocomplete'
 import SplitSharesEditor from '../SplitSharesEditor'
 
 interface TransactionFormProps {
-  initial?: Transaction
+  initial?: Partial<Transaction>
   onSubmit: (data: TransactionCreate | TransactionPatch) => Promise<{ id: string } | void>
   submitLabel?: string
   isSubmitting?: boolean

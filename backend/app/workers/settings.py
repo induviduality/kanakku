@@ -1,7 +1,7 @@
 """Unified ARQ WorkerSettings — registers every job the API can enqueue."""
 
+from arq import cron
 from arq.connections import RedisSettings
-from arq.cron import cron
 
 from app.config import settings
 from app.workers.export_worker import export_archive

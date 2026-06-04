@@ -2,6 +2,7 @@ import { screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, it, expect, vi } from 'vitest'
 import TransactionFormComponent from './TransactionForm'
+import type { TransactionType } from '../../api/transactions'
 import { renderWithQuery } from '../../test/render-utils'
 import { ACCOUNTS_RESPONSE, CATEGORIES_RESPONSE } from '../../test/handlers'
 
@@ -224,7 +225,7 @@ describe('TransactionForm component', () => {
 
   it('populates fields from initial prop', async () => {
     const initial = {
-      type: 'income',
+      type: 'income' as TransactionType,
       amount: '500',
       account_id: 'acc-1',
       description: 'Refund',
