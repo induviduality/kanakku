@@ -63,6 +63,8 @@ Items are crossed off as they are fixed.
 
 ## TDD Drift (decisions needed)
 
-- [ ] **T1** — `opening_balance` as a 4th transaction type contradicts the "three types only" principle in `CLAUDE.md` and `TDD.md`. Either update the principle text and TDD to legitimize it, or move opening balance off the transaction enum.
-- [ ] **T2** — Dashboard sub-queries are sequential despite TDD §4.14 saying they should be parallelized (correctly noted in code — needs a decision entry or TDD update).
-- [ ] **T3** — CORS and rate-limiting gaps vs. TDD §4.11/§4.12 — document as deferred or implement.
+- [x] **T1** — `opening_balance` as a 4th transaction type contradicts the "three types only" principle in `CLAUDE.md` and `TDD.md`. **Resolved (2026-06-04):** legitimized in TDD v3.1 and `CLAUDE.md`; decision logged.
+- [x] **T2** — Dashboard sub-queries are sequential despite TDD §4.14 saying they should be parallelized. **Accepted as-is:** `asyncio.gather` cannot safely share one `AsyncSession`; true parallelism requires one session-per-coroutine with added connection-pool pressure. Not worth the complexity at current scale. TDD §4.14 is aspirational and will be noted as deferred.
+- [ ] **T3** — CORS and rate-limiting gaps vs. TDD §4.11/§4.12.
+  - **CORS:** genuinely moot — frontend and API share the same Caddy origin in all deployment topologies; no cross-origin request is ever issued. Note as N/A in TDD.
+  - **Rate limiting on auth/imports:** genuinely missing. Low risk behind a tunnel, but still a gap vs. spec. Tracked as L4.

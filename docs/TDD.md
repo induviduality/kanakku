@@ -1,8 +1,8 @@
 # Kanakku — Personal Finance Tracker Technical Design Document
 
-**Status:** v3
+**Status:** v3.1
 **Author:** Induja
-**Last updated:** 2026-05-22
+**Last updated:** 2026-06-04
 
 ---
 
@@ -16,8 +16,8 @@
 > **GPay Takeout Enrichment removed (ad-hoc sprint)**
 > FR-12 (§2.1.12, §3.3.12) and the related endpoints, models, and frontend pages were removed in the ad-hoc sprint. Migration `0016_gpay_matches` remains in history; the feature description in this TDD is preserved as a record of the original design intent. See [decisions/log.md](decisions/log.md).
 >
-> **`opening_balance` as a 4th transaction type**
-> The implementation added `opening_balance` as a transaction type despite the spec and `CLAUDE.md` stating "three types only". This is pending a formal decision to either legitimize it in the spec or move it off the transaction enum.
+> **`opening_balance` as a 4th transaction type (v3.1)**
+> `opening_balance` is a legitimate transaction type used to record the starting balance of an account at the point it is added to the system. It is excluded from all income/expense reports and may only appear once per non-deleted account. Formalized in TDD v3.1; see §2.1.6 and §3.3.6.
 
 ---
 
@@ -123,12 +123,13 @@ The result: most people either give up tracking, or settle for a tool that captu
 - **FR-5.3** Tags with name and color, free-form, many-to-many with transactions.
 
 ### 2.1.6 Transactions
-- **FR-6.1** Three types: expense, income, transfer.
+- **FR-6.1** Four types: `expense`, `income`, `transfer`, `opening_balance`.
 - **FR-6.2** Fields: transacted-at timestamp, amount, currency, account, optional payment method, payee, description, notes.
 - **FR-6.3** Transacted-at independent of created-at/updated-at.
 - **FR-6.4** Currency defaults to user primary; overrideable per transaction.
 - **FR-6.5** Transfers specify source and destination accounts.
 - **FR-6.6** Transactions can link to budgets, subscriptions, piggy banks.
+- **FR-6.7** `opening_balance` transactions record the starting balance of an account when it is first added. At most one non-deleted `opening_balance` transaction is allowed per account. These transactions are excluded from all income/expense/net reports.
 
 ### 2.1.7 Splits
 - **FR-7.1** A split wraps exactly one expense transaction.
@@ -271,7 +272,7 @@ The transaction is central. Around it:
 - A **split** wraps one expense transaction and partitions its cost into **shares**.
 - **Import batches** trace where transactions came from.
 
-Transactions are type-pure: expense, income, transfer. "Being a split" is a property of being referenced by a split entity, not a transaction type.
+Transactions are type-pure: `expense`, `income`, `transfer`, `opening_balance`. "Being a split" is a property of being referenced by a split entity, not a transaction type. `opening_balance` transactions seed an account's starting balance and are excluded from all reports.
 
 ## 3.3 Feature Specifications
 
@@ -549,7 +550,7 @@ tags (
 
 transactions (
   id, user_id FK→users,
-  type enum(expense/income/transfer),
+  type enum(expense/income/transfer/opening_balance),
   transacted_at TIMESTAMPTZ NOT NULL,
   amount Numeric(15, 2), currency,
   description, notes,

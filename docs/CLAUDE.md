@@ -12,8 +12,9 @@ Full spec at docs/tdd.md.
   No data leaves the host unless LLM_BACKEND is explicitly set to a cloud provider.
 - FR-7.9: Net expense for splits = user_own_share + forgiven_shares only.
   Pending shares do not reduce reported expense.
-- Transactions have three types only: expense, income, transfer.
+- Transactions have four types: expense, income, transfer, opening_balance.
   "split_parent" is NOT a transaction type — splits are a separate entity.
+  opening_balance seeds an account's starting balance and is excluded from all reports.
 - Soft delete everywhere. deleted_at nullable column. 30-day recovery.
 - All DB constraints enforced at both application AND database level.
 

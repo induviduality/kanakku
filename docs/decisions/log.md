@@ -1,5 +1,13 @@
 # Decision Log
 
+## 2026-06-04 — `opening_balance` legitimized as a 4th transaction type (TDD v3.1)
+
+**Context:** The original spec and `CLAUDE.md` stated "three types only: expense, income, transfer." The ad-hoc sprint added `opening_balance` to seed an account's starting balance when it is first created. The implementation was already in place (migration, model enum, router guard, frontend display); the spec just hadn't been updated.
+
+**Decision:** Legitimize `opening_balance` as the 4th transaction type in TDD v3.1 and update `CLAUDE.md`. Constraints remain: (1) at most one non-deleted `opening_balance` per account (enforced at application level in the accounts router), (2) excluded from all income/expense/net reports, (3) `split_parent` is still not a type — splits remain a separate entity.
+
+**Affects:** `docs/TDD.md` (v3.1), `docs/CLAUDE.md`
+
 ## 2026-06-03 — C2: dashboard net-expense uses SQL view; settlement income excluded at query time
 
 **Context:** FR-7.9 / FR-7.10 require the dashboard to show net split amounts (own share + forgiven) not gross, and to exclude friend repayments from income. Three implementation paths considered.
