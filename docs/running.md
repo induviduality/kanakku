@@ -76,7 +76,7 @@ API is now at `http://localhost:8765`. Docs at `http://localhost:8765/docs`.
 To also run the ARQ background worker (needed for PDF imports, exports):
 ```bash
 # In a second terminal, with venv activated
-python -m arq app.workers.purge_worker.WorkerSettings
+python -m arq app.workers.settings.WorkerSettings
 ```
 
 ### 1c. Frontend
