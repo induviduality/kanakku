@@ -62,12 +62,17 @@ async def setup(
     session.add(user)
     await session.flush()
     session.add(UserSettings(user_id=user.id))
+
+    access_token = create_access_token(user.id)
+    refresh_token = create_refresh_token(user.id)
+    session.add(SessionModel(
+        id=uuid.uuid4(),
+        user_id=user.id,
+        token_hash=_hash_token(refresh_token),
+        expires_at=datetime.now(UTC) + REFRESH_TOKEN_EXPIRES,
+    ))
     await session.commit()
-    await session.refresh(user)
-    return TokenResponse(
-        access_token=create_access_token(user.id),
-        refresh_token=create_refresh_token(user.id),
-    )
+    return TokenResponse(access_token=access_token, refresh_token=refresh_token)
 
 
 @router.get("/dev-login", response_model=TokenResponse)
