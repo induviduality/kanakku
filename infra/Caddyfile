@@ -1,13 +1,11 @@
 # Kanakku Caddyfile
 #
-# Modes (set PUBLIC_DOMAIN in .env):
-#   Local dev / LAN:   PUBLIC_DOMAIN=localhost  → HTTP only, no TLS
-#   Production:        PUBLIC_DOMAIN=kanakku.yourdomain.com → auto HTTPS (Let's Encrypt)
+# Caddy serves plain HTTP internally on CADDY_PORT in all deployments.
+# TLS is terminated upstream — by Tailscale, a Pi reverse proxy, or a VPS
+# ingress layer. Caddy is not responsible for TLS certificates.
 #
-# For VPN-only access (recommended for home server):
-#   Use Tailscale and set PUBLIC_DOMAIN to your Tailscale hostname.
-#   Tailscale provides TLS certificates via HTTPS certificates feature.
-#   See docs/operations.md for Tailscale setup.
+# Set PUBLIC_DOMAIN in .env to match your upstream's hostname (used for
+# request routing). Set CADDY_PORT to whatever port your upstream forwards to.
 
 {
     admin off

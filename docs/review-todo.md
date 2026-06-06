@@ -18,13 +18,13 @@ Items are crossed off as they are fixed.
 - [x] **H1** — `expense_calculator.net_expense()` broken by migration 0026. **Already fixed** (ad-hoc sprint): code already uses `SplitExpense.transaction_id`; `test_expense_calculator.py` also updated. No action needed.
 - [x] **H2** — Compose hardwired to external `proxy-nw` network → clean `docker compose up` fails on fresh host. Move `proxy-nw` + Caddy attachment to a `docker-compose.tunnel.yml` override, or document a required `docker network create` step prominently.
 - [x] **H3** — No automatic database migrations on deploy. Added `backend/entrypoint.sh` (runs `alembic upgrade head` then execs uvicorn); Dockerfile now uses it as `ENTRYPOINT`.
-- [ ] **H4** — Caddy/TLS story incoherent: Caddyfile comment says "auto HTTPS" but config uses `http://` + custom port, so ACME can never run. Commit to one story (tunnel-terminated HTTP, or real HTTPS with 80/443) and update Caddyfile comment + README.
+- [x] **H4** — Caddy/TLS story incoherent: Caddyfile comment says "auto HTTPS" but config uses `http://` + custom port, so ACME can never run. Commit to one story (tunnel-terminated HTTP, or real HTTPS with 80/443) and update Caddyfile comment + README.
 
 ---
 
 ## MEDIUM
 
-- [ ] **M1** — Read-only Postgres role (`app_readonly`) never used: `readonly_database_url` defaults to `database_url`. Provision role with password in DB init, add `READONLY_DATABASE_URL` to `env.example`, fail fast if it equals `DATABASE_URL` in non-dev.
+- [x] **M1** — Read-only Postgres role (`app_readonly`) never used: `readonly_database_url` defaults to `database_url`. Resolved by dropping `readonly_database_url`/`get_readonly_engine` entirely; query endpoint now runs on the regular session with `SET TRANSACTION READ ONLY` + sqlglot SELECT-only AST check as the two enforcement layers.
 - [ ] **M2** — `user_id` guard on SQL query endpoint bypassable (`WHERE user_id = :user_id OR 1=1` passes). Document as not a hard multi-tenant boundary; consider RLS as the proper fix.
 - [x] **M3** — Reports schema-reference panel was stale. Updated `_SCHEMA` in `reports.py`: fixed transactions (removed duplicate `transacted_at`, added `external_ref`, added `opening_balance` type), fixed accounts.type, replaced stale splits/split_shares with correct schema, added `split_expenses` and `split_share_settlements` tables, fixed budgets (type, period, added missing columns).
 - [x] **M4** — Vite dev proxy targets wrong port (`8000` instead of `8765`). Point proxy at `http://localhost:8765`.

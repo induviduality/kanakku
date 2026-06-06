@@ -39,16 +39,12 @@ async def db_engine() -> AsyncGenerator[AsyncEngine, None]:
     # Monkey-patch the app's global engine so FastAPI's get_session uses the test DB.
     original_engine = _db_session.engine
     original_factory = _db_session.async_session_factory
-    original_readonly = _db_session._readonly_engine
     _db_session.engine = engine
     _db_session.async_session_factory = async_sessionmaker(engine, expire_on_commit=False)
-    # Also patch the readonly engine so reports/query uses the test DB.
-    _db_session._readonly_engine = engine
     yield engine
     await engine.dispose()
     _db_session.engine = original_engine
     _db_session.async_session_factory = original_factory
-    _db_session._readonly_engine = original_readonly
 
 
 @pytest.fixture

@@ -13,7 +13,7 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
-from app.db.session import get_readonly_engine, get_session
+from app.db.session import get_session
 from app.dependencies import get_current_user
 from app.models.report_dashboard import ReportDashboard, ReportWidget, VizType
 from app.models.user import User
@@ -79,6 +79,7 @@ def _serialize_value(v: Any) -> Any:
 async def run_query(
     req: QueryRequest,
     user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
 ) -> QueryResponse:
     try:
         _validate_sql(req.sql)
@@ -88,20 +89,19 @@ async def run_query(
     bind_params: dict[str, Any] = {**(req.params or {}), "user_id": user.id}
 
     try:
-        async with get_readonly_engine().begin() as conn:
-            await conn.execute(text("SET TRANSACTION READ ONLY"))
-            await conn.execute(
-                text(f"SET LOCAL statement_timeout = '{settings.query_timeout_ms}'")
-            )
-            result = await conn.execute(text(req.sql).bindparams(**bind_params))
-            columns = list(result.keys())
-            fetch_limit = settings.query_row_limit + 1
-            raw_rows = result.fetchmany(fetch_limit)
-            truncated = len(raw_rows) > settings.query_row_limit
-            rows: list[dict[str, Any]] = [
-                {col: _serialize_value(val) for col, val in zip(columns, row)}
-                for row in raw_rows[: settings.query_row_limit]
-            ]
+        await session.execute(text("SET TRANSACTION READ ONLY"))
+        await session.execute(
+            text(f"SET LOCAL statement_timeout = '{settings.query_timeout_ms}'")
+        )
+        result = await session.execute(text(req.sql).bindparams(**bind_params))
+        columns = list(result.keys())
+        fetch_limit = settings.query_row_limit + 1
+        raw_rows = result.fetchmany(fetch_limit)
+        truncated = len(raw_rows) > settings.query_row_limit
+        rows: list[dict[str, Any]] = [
+            {col: _serialize_value(val) for col, val in zip(columns, row)}
+            for row in raw_rows[: settings.query_row_limit]
+        ]
     except HTTPException:
         raise
     except Exception as exc:

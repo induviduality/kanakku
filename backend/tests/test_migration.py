@@ -53,12 +53,10 @@ def _run_with_test_db(fn: "Callable[[], None]") -> None:
     import app.config as _cfg
     original = _cfg.settings.database_url
     object.__setattr__(_cfg.settings, "database_url", _test_db_url())
-    object.__setattr__(_cfg.settings, "readonly_database_url", _test_db_url())
     try:
         fn()
     finally:
         object.__setattr__(_cfg.settings, "database_url", original)
-        object.__setattr__(_cfg.settings, "readonly_database_url", original)
 
 
 def test_migration_upgrade_head() -> None:
