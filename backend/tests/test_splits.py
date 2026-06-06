@@ -348,3 +348,265 @@ async def test_get_split_cross_user_404(client: AsyncClient, db_tables: None) ->
 
     resp = await client.get(f"/api/v1/splits/{split_id}", headers=headers_b)
     assert resp.status_code == 404
+
+
+# ── Atomic create with inline settlements + forgiveness ─────────────────────────
+
+async def test_create_split_with_settlement(authed) -> None:
+    """A payee share can be settled inline by linking an income transaction."""
+    client, headers, acc_id = authed
+    exp_id = await _create_transaction(client, headers, acc_id, amount="300.00")
+    inc_id = await _create_transaction(client, headers, acc_id, txn_type="income", amount="200.00")
+    payee_id = await _create_payee(client, headers)
+
+    resp = await client.post(
+        "/api/v1/splits",
+        json={
+            "expense_transaction_ids": [exp_id],
+            "shares": [
+                {"amount": "100.00"},  # my share
+                {"payee_id": payee_id, "amount": "200.00", "settlement_transaction_ids": [inc_id]},
+            ],
+        },
+        headers=headers,
+    )
+    assert resp.status_code == 201
+    data = resp.json()
+    payee_share = next(s for s in data["shares"] if s["payee_id"] == payee_id)
+    assert payee_share["status"] == "settled"
+    assert payee_share["paid_amount"] == "200.00"
+    assert len(payee_share["settlements"]) == 1
+    assert payee_share["settlements"][0]["amount"] == "200.00"
+
+
+async def test_create_split_with_forgiveness(authed) -> None:
+    """A payee share can be forgiven inline at create time."""
+    client, headers, acc_id = authed
+    exp_id = await _create_transaction(client, headers, acc_id, amount="300.00")
+    payee_id = await _create_payee(client, headers)
+
+    resp = await client.post(
+        "/api/v1/splits",
+        json={
+            "expense_transaction_ids": [exp_id],
+            "shares": [
+                {"amount": "100.00"},
+                {"payee_id": payee_id, "amount": "200.00", "forgiven_amount": "200.00"},
+            ],
+        },
+        headers=headers,
+    )
+    assert resp.status_code == 201
+    data = resp.json()
+    payee_share = next(s for s in data["shares"] if s["payee_id"] == payee_id)
+    assert payee_share["status"] == "forgiven"
+    assert payee_share["forgiven_amount"] == "200.00"
+
+
+async def test_create_split_partial_settlement_and_forgiveness(authed) -> None:
+    """A share can be partly paid and partly forgiven, totalling the share amount."""
+    client, headers, acc_id = authed
+    exp_id = await _create_transaction(client, headers, acc_id, amount="300.00")
+    inc_id = await _create_transaction(client, headers, acc_id, txn_type="income", amount="120.00")
+    payee_id = await _create_payee(client, headers)
+
+    resp = await client.post(
+        "/api/v1/splits",
+        json={
+            "expense_transaction_ids": [exp_id],
+            "shares": [
+                {"amount": "100.00"},
+                {
+                    "payee_id": payee_id,
+                    "amount": "200.00",
+                    "settlement_transaction_ids": [inc_id],
+                    "forgiven_amount": "80.00",
+                },
+            ],
+        },
+        headers=headers,
+    )
+    assert resp.status_code == 201
+    payee_share = next(s for s in resp.json()["shares"] if s["payee_id"] == payee_id)
+    assert payee_share["status"] == "settled"  # paid > 0 and fully resolved
+    assert payee_share["paid_amount"] == "120.00"
+    assert payee_share["forgiven_amount"] == "80.00"
+
+
+async def test_create_split_paid_plus_forgiven_exceeds_share_rejected(authed) -> None:
+    """settlements + forgiven > share amount → 422."""
+    client, headers, acc_id = authed
+    exp_id = await _create_transaction(client, headers, acc_id, amount="300.00")
+    inc_id = await _create_transaction(client, headers, acc_id, txn_type="income", amount="150.00")
+    payee_id = await _create_payee(client, headers)
+
+    resp = await client.post(
+        "/api/v1/splits",
+        json={
+            "expense_transaction_ids": [exp_id],
+            "shares": [
+                {"amount": "100.00"},
+                {
+                    "payee_id": payee_id,
+                    "amount": "200.00",
+                    "settlement_transaction_ids": [inc_id],
+                    "forgiven_amount": "100.00",  # 150 + 100 = 250 > 200
+                },
+            ],
+        },
+        headers=headers,
+    )
+    assert resp.status_code == 422
+    assert "exceeds share amount" in resp.json()["detail"]
+
+
+async def test_create_split_settlement_already_linked_rejected(authed) -> None:
+    """An income transaction already used as a settlement cannot be reused → 409."""
+    client, headers, acc_id = authed
+    exp1 = await _create_transaction(client, headers, acc_id, amount="200.00")
+    inc_id = await _create_transaction(client, headers, acc_id, txn_type="income", amount="200.00")
+    payee_id = await _create_payee(client, headers)
+
+    resp1 = await client.post(
+        "/api/v1/splits",
+        json={
+            "expense_transaction_ids": [exp1],
+            "shares": [{"payee_id": payee_id, "amount": "200.00", "settlement_transaction_ids": [inc_id]}],
+        },
+        headers=headers,
+    )
+    assert resp1.status_code == 201
+
+    exp2 = await _create_transaction(client, headers, acc_id, amount="200.00")
+    payee2 = await _create_payee(client, headers, "Bob")
+    resp2 = await client.post(
+        "/api/v1/splits",
+        json={
+            "expense_transaction_ids": [exp2],
+            "shares": [{"payee_id": payee2, "amount": "200.00", "settlement_transaction_ids": [inc_id]}],
+        },
+        headers=headers,
+    )
+    assert resp2.status_code == 409
+
+
+async def test_create_split_own_share_settlement_rejected(authed) -> None:
+    """The user's own (null-payee) share cannot carry settlements → 422."""
+    client, headers, acc_id = authed
+    exp_id = await _create_transaction(client, headers, acc_id, amount="300.00")
+    inc_id = await _create_transaction(client, headers, acc_id, txn_type="income", amount="100.00")
+
+    resp = await client.post(
+        "/api/v1/splits",
+        json={
+            "expense_transaction_ids": [exp_id],
+            "shares": [{"amount": "300.00", "settlement_transaction_ids": [inc_id]}],
+        },
+        headers=headers,
+    )
+    assert resp.status_code == 422
+    assert "own share" in str(resp.json()["detail"]).lower()
+
+
+async def test_create_split_own_share_forgiveness_rejected(authed) -> None:
+    """The user's own (null-payee) share cannot be forgiven → 422."""
+    client, headers, acc_id = authed
+    exp_id = await _create_transaction(client, headers, acc_id, amount="300.00")
+
+    resp = await client.post(
+        "/api/v1/splits",
+        json={
+            "expense_transaction_ids": [exp_id],
+            "shares": [{"amount": "300.00", "forgiven_amount": "50.00"}],
+        },
+        headers=headers,
+    )
+    assert resp.status_code == 422
+    assert "own share" in str(resp.json()["detail"]).lower()
+
+
+async def test_create_split_duplicate_settlement_across_shares_rejected(authed) -> None:
+    """The same income transaction linked to two shares in one request → 422."""
+    client, headers, acc_id = authed
+    exp_id = await _create_transaction(client, headers, acc_id, amount="300.00")
+    inc_id = await _create_transaction(client, headers, acc_id, txn_type="income", amount="100.00")
+    payee1 = await _create_payee(client, headers, "Alice")
+    payee2 = await _create_payee(client, headers, "Bob")
+
+    resp = await client.post(
+        "/api/v1/splits",
+        json={
+            "expense_transaction_ids": [exp_id],
+            "shares": [
+                {"payee_id": payee1, "amount": "150.00", "settlement_transaction_ids": [inc_id]},
+                {"payee_id": payee2, "amount": "150.00", "settlement_transaction_ids": [inc_id]},
+            ],
+        },
+        headers=headers,
+    )
+    assert resp.status_code == 422
+    assert "settlement transaction" in str(resp.json()["detail"]).lower()
+
+
+async def test_create_split_settlement_must_be_income(authed) -> None:
+    """Linking an expense transaction as a settlement → 422."""
+    client, headers, acc_id = authed
+    exp_id = await _create_transaction(client, headers, acc_id, amount="300.00")
+    other_exp = await _create_transaction(client, headers, acc_id, amount="100.00")
+    payee_id = await _create_payee(client, headers)
+
+    resp = await client.post(
+        "/api/v1/splits",
+        json={
+            "expense_transaction_ids": [exp_id],
+            "shares": [
+                {"amount": "100.00"},
+                {"payee_id": payee_id, "amount": "200.00", "settlement_transaction_ids": [other_exp]},
+            ],
+        },
+        headers=headers,
+    )
+    assert resp.status_code == 422
+    assert "income" in resp.json()["detail"].lower()
+
+
+async def test_create_split_rolls_back_on_settlement_failure(authed) -> None:
+    """A failure during settlement processing must leave nothing persisted:
+    the expense transaction stays unlinked and re-creating the split succeeds."""
+    client, headers, acc_id = authed
+    exp_id = await _create_transaction(client, headers, acc_id, amount="300.00")
+    payee_id = await _create_payee(client, headers)
+
+    # First create fails (settlement references a non-existent transaction)
+    bad = await client.post(
+        "/api/v1/splits",
+        json={
+            "expense_transaction_ids": [exp_id],
+            "shares": [
+                {"amount": "100.00"},
+                {
+                    "payee_id": payee_id,
+                    "amount": "200.00",
+                    "settlement_transaction_ids": [str(uuid.uuid4())],
+                },
+            ],
+        },
+        headers=headers,
+    )
+    assert bad.status_code == 404
+
+    # No split should have been persisted
+    listing = await client.get("/api/v1/splits", headers=headers)
+    assert listing.status_code == 200
+    assert listing.json() == []
+
+    # The expense is still unlinked → a valid create now succeeds
+    good = await client.post(
+        "/api/v1/splits",
+        json={
+            "expense_transaction_ids": [exp_id],
+            "shares": [{"amount": "100.00"}, {"payee_id": payee_id, "amount": "200.00"}],
+        },
+        headers=headers,
+    )
+    assert good.status_code == 201

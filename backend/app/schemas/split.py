@@ -11,6 +11,10 @@ class SplitShareCreate(BaseModel):
     payee_id: uuid.UUID | None = None
     amount: Decimal
     notes: str | None = None
+    # Income transactions that settle this share; each is credited at its full amount.
+    settlement_transaction_ids: list[uuid.UUID] = []
+    # Amount forgiven on this share (reduces what the payee owes; increases net expense).
+    forgiven_amount: Decimal = Decimal("0")
 
     @field_validator("amount")
     @classmethod
@@ -18,6 +22,22 @@ class SplitShareCreate(BaseModel):
         if v <= 0:
             raise ValueError("amount must be positive")
         return v
+
+    @field_validator("forgiven_amount")
+    @classmethod
+    def forgiven_non_negative(cls, v: Decimal) -> Decimal:
+        if v < 0:
+            raise ValueError("forgiven_amount must be non-negative")
+        return v
+
+    @model_validator(mode="after")
+    def own_share_has_no_settlement_or_forgiveness(self) -> "SplitShareCreate":
+        if self.payee_id is None:
+            if self.settlement_transaction_ids:
+                raise ValueError("the user's own share cannot have settlement transactions")
+            if self.forgiven_amount > 0:
+                raise ValueError("the user's own share cannot be forgiven")
+        return self
 
 
 class ForgivenShareCreate(BaseModel):
@@ -79,6 +99,13 @@ class SplitCreate(BaseModel):
         null_count = sum(1 for s in self.shares if s.payee_id is None)
         if null_count > 1:
             raise ValueError("only one share without a payee (user's own share) is allowed per split")
+        return self
+
+    @model_validator(mode="after")
+    def no_duplicate_settlements(self) -> "SplitCreate":
+        all_ids = [tid for s in self.shares for tid in s.settlement_transaction_ids]
+        if len(all_ids) != len(set(all_ids)):
+            raise ValueError("a settlement transaction may be linked to at most one share")
         return self
 
 

@@ -205,17 +205,75 @@ async def create_split(
 
     share_rows: list[SplitShare] = []
     for s in body.shares:
+        forgiven = s.forgiven_amount or Decimal("0.00")
+
+        # Validate and load this share's settlement transactions (each full amount)
+        settlement_txns: list[Transaction] = []
+        for inc_id in s.settlement_transaction_ids:
+            inc = (
+                await session.execute(
+                    select(Transaction).where(
+                        Transaction.id == inc_id,
+                        Transaction.user_id == user.id,
+                        Transaction.deleted_at.is_(None),
+                    )
+                )
+            ).scalar_one_or_none()
+            if inc is None:
+                raise HTTPException(
+                    status_code=404, detail=f"Settlement transaction {inc_id} not found"
+                )
+            if inc.type != TransactionType.income:
+                raise HTTPException(
+                    status_code=422,
+                    detail=f"Settlement transaction {inc_id} must be an income transaction",
+                )
+            already_used = (
+                await session.execute(
+                    select(SplitShareSettlement).where(
+                        SplitShareSettlement.transaction_id == inc_id
+                    )
+                )
+            ).scalar_one_or_none()
+            if already_used is not None:
+                raise HTTPException(
+                    status_code=409,
+                    detail=f"Income transaction {inc_id} is already linked to a split",
+                )
+            settlement_txns.append(inc)
+
+        paid_total = sum((t.amount for t in settlement_txns), Decimal("0.00"))
+        if paid_total + forgiven > s.amount:
+            raise HTTPException(
+                status_code=422,
+                detail=(
+                    f"Paid ({paid_total}) + forgiven ({forgiven}) "
+                    f"exceeds share amount ({s.amount})"
+                ),
+            )
+
         share = SplitShare(
             id=uuid.uuid4(),
             split_id=split.id,
             payee_id=s.payee_id,
             amount=s.amount,
-            status=SplitShareStatus.pending,
-            forgiven_amount=Decimal("0.00"),
+            status=_derive_status(s.amount, paid_total, forgiven),
+            forgiven_amount=forgiven,
             notes=s.notes,
         )
         session.add(share)
         share_rows.append(share)
+        await session.flush()  # need share.id for settlement rows
+
+        for t in settlement_txns:
+            session.add(
+                SplitShareSettlement(
+                    id=uuid.uuid4(),
+                    share_id=share.id,
+                    transaction_id=t.id,
+                    amount=t.amount,
+                )
+            )
 
     await session.flush()
 

@@ -1,5 +1,13 @@
 # Completed Milestones
 
+## Create Split Drawer — Task A (2026-06-06) — Atomic create with inline settlements + forgiveness
+
+- Spec: `docs/specs/create-split-drawer.md`
+- `schemas/split.py`: `SplitShareCreate` gains `settlement_transaction_ids: list[UUID]` and `forgiven_amount: Decimal`; validators reject negative forgiveness and forbid settlements/forgiveness on the null-payee (own) share; `SplitCreate` gains a cross-share duplicate-settlement guard
+- `routers/splits.py` `create_split`: within the single existing transaction, each share now validates + inserts its settlements (income-only, not-already-linked → 409, each credited at full amount), enforces `Σ(settlements) + forgiven ≤ share.amount` (422), and derives status via `_derive_status`. Any failure raises before commit → full rollback (no partial split). No migration (columns/tables already existed)
+- `tests/test_splits.py`: +11 tests (settlement, forgiveness, partial both, paid+forgiven overflow, already-linked 409, own-share settlement/forgiveness rejection, cross-share duplicate, settlement-must-be-income, rollback). 25 pass; other split suites (44) still green
+- Next: Task B — frontend Create Split drawer
+
 ## Review fix M6 (2026-06-06) — Remove split creation from TransactionForm
 
 - `components/forms/TransactionForm.tsx`: removed `isSplit` state, `splitShares` state, `createSplit` mutation, share-sum validation, post-submit split API call, and the "Split this expense" toggle + `SplitSharesEditor` render

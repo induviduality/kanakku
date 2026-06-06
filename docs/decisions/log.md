@@ -1,5 +1,18 @@
 # Decision Log
 
+## 2026-06-06 — Create Split: settlements + forgiveness folded into POST /splits (atomic), not follow-up calls
+
+**Context:** The new Create Split drawer (spec: `docs/specs/create-split-drawer.md`) lets the user pick expenses, set payee shares, link settlement income transactions, and forgive — all before submitting. The existing API would require the client to call `POST /splits` then N× `settle` then M× `forgive`. That sequence is not atomic: if any call after the first fails, the split is already committed and the expense transactions are linked, so a retry hits 409 and the user is stuck with a half-built split.
+
+**Decision:** Extend `POST /splits` to accept per-share `settlement_transaction_ids` and `forgiven_amount`, processed inside the one transaction that already creates the split + shares + `SplitExpense` rows. Each settlement is credited at the income transaction's **full amount** (no manual partial amounts — a share is resolved solely by which transactions are linked plus forgiveness). Validation enforced before commit: settlement must be income, must not already be linked (409), `Σ(settlements) + forgiven ≤ share.amount` (422), and the null-payee own share may carry neither settlements nor forgiveness. Any `HTTPException` raised before `session.commit()` rolls the whole thing back. The standalone `settle`/`forgive`/`unsettle` endpoints stay unchanged for the SplitDrawer's post-hoc editing.
+
+**Alternatives considered:**
+- Client-side 3-call sequence (create → settle → forgive) — rejected: not atomic, broken retry path, leaves orphan splits
+- A new dedicated endpoint (e.g. `POST /splits/full`) — unnecessary; the existing create path already builds the split in one transaction, so extending its schema is the smaller change and keeps one creation entry point
+- Allow manual per-settlement credit amounts (like the `settle` endpoint does) — rejected per product decision: settlement is whole-transaction-only in this flow; partial money handling is done by adjusting the share or forgiveness
+
+**Affects:** `app/schemas/split.py`, `app/routers/splits.py` (`create_split`), `tests/test_splits.py`. No migration — `split_share_settlements` and `split_shares.forgiven_amount` already exist.
+
 ## 2026-06-06 — M2: SQL query endpoint user_id enforcement via AST rewrite
 
 **Context:** The previous `_validate_sql` guard checked that the user's SQL *mentioned* a `user_id` column (string walk), then bound `:user_id` as a parameter. This was bypassable: `WHERE user_id = :user_id OR 1=1` passes the check and, depending on AND/OR precedence, could leak all rows.
