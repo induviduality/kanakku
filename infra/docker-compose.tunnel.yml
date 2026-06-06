@@ -1,0 +1,13 @@
+# Attach Caddy to an external proxy network managed by another compose stack.
+# Use this when a shared reverse proxy (e.g. nginx-proxy, Traefik) runs on the
+# same host and needs to reach this app's Caddy container.
+#
+# Usage:
+#   docker compose -f docker-compose.yml -f docker-compose.tunnel.yml up -d
+#
+# Requires PROXY_NETWORK to be set in .env to the name of the pre-existing network.
+
+networks:
+  proxy-nw:
+    external: true
+    name: ${PROXY_NETWORK}

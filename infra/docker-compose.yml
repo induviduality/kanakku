@@ -132,5 +132,3 @@ volumes:
 networks:
   default:
   proxy-nw:
-    external: true
-    name: ${PROXY_NETWORK:-my-example-proxy-nw}

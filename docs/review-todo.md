@@ -16,7 +16,7 @@ Items are crossed off as they are fixed.
 ## HIGH
 
 - [x] **H1** — `expense_calculator.net_expense()` broken by migration 0026. **Already fixed** (ad-hoc sprint): code already uses `SplitExpense.transaction_id`; `test_expense_calculator.py` also updated. No action needed.
-- [ ] **H2** — Compose hardwired to external `proxy-nw` network → clean `docker compose up` fails on fresh host. Move `proxy-nw` + Caddy attachment to a `docker-compose.tunnel.yml` override, or document a required `docker network create` step prominently.
+- [x] **H2** — Compose hardwired to external `proxy-nw` network → clean `docker compose up` fails on fresh host. Move `proxy-nw` + Caddy attachment to a `docker-compose.tunnel.yml` override, or document a required `docker network create` step prominently.
 - [x] **H3** — No automatic database migrations on deploy. Added `backend/entrypoint.sh` (runs `alembic upgrade head` then execs uvicorn); Dockerfile now uses it as `ENTRYPOINT`.
 - [ ] **H4** — Caddy/TLS story incoherent: Caddyfile comment says "auto HTTPS" but config uses `http://` + custom port, so ACME can never run. Commit to one story (tunnel-terminated HTTP, or real HTTPS with 80/443) and update Caddyfile comment + README.
 
