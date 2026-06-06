@@ -25,7 +25,7 @@ Items are crossed off as they are fixed.
 ## MEDIUM
 
 - [x] **M1** — Read-only Postgres role (`app_readonly`) never used: `readonly_database_url` defaults to `database_url`. Resolved by dropping `readonly_database_url`/`get_readonly_engine` entirely; query endpoint now runs on the regular session with `SET TRANSACTION READ ONLY` + sqlglot SELECT-only AST check as the two enforcement layers.
-- [ ] **M2** — `user_id` guard on SQL query endpoint bypassable (`WHERE user_id = :user_id OR 1=1` passes). Document as not a hard multi-tenant boundary; consider RLS as the proper fix.
+- [x] **M2** — `user_id` guard on SQL query endpoint bypassable. Fixed: `_inject_user_id_filter()` rewrites the query AST via sqlglot to inject `table.user_id = :user_id` for every user-owned table, wrapping any existing WHERE in parens to prevent OR-bypass. Users no longer need to write the filter manually.
 - [x] **M3** — Reports schema-reference panel was stale. Updated `_SCHEMA` in `reports.py`: fixed transactions (removed duplicate `transacted_at`, added `external_ref`, added `opening_balance` type), fixed accounts.type, replaced stale splits/split_shares with correct schema, added `split_expenses` and `split_share_settlements` tables, fixed budgets (type, period, added missing columns).
 - [x] **M4** — Vite dev proxy targets wrong port (`8000` instead of `8765`). Point proxy at `http://localhost:8765`.
 - [x] **M5** — Light-theme classes (`bg-white`, `text-gray-700`, `border-gray-300`) on dark-themed `TransactionForm`. Migrate to design tokens (`fg`/`surface`/`border`).

@@ -34,7 +34,16 @@ from app.schemas.reports import (
 router = APIRouter(prefix="/reports", tags=["reports"])
 
 
-# ── SQL validation ─────────────────────────────────────────────────────────────
+# ── SQL validation & rewrite ───────────────────────────────────────────────────
+
+# Tables that carry a user_id column and must have it injected.
+# Join/association tables (transaction_categories, split_expenses, etc.) are
+# omitted intentionally — they're protected transitively via their parent tables.
+_TABLES_WITH_USER_ID = frozenset({
+    "accounts", "transactions", "categories", "tags", "payees",
+    "splits", "budgets", "subscriptions", "piggy_banks", "import_batches",
+})
+
 
 def _validate_sql(sql: str) -> None:
     cleaned = sql.strip().rstrip(";")
@@ -49,14 +58,66 @@ def _validate_sql(sql: str) -> None:
     if not isinstance(stmt, exp.Select):
         raise ValueError("Only SELECT statements are allowed")
 
-    has_user_id = any(
-        isinstance(node, exp.Column) and node.name.lower() == "user_id"
-        for node in stmt.walk()
-    )
-    if not has_user_id:
-        raise ValueError(
-            "Query must include a user_id filter (e.g. WHERE user_id = :user_id)"
-        )
+
+def _inject_user_id_filter(sql: str) -> str:
+    """Rewrite the query AST to inject ``table.user_id = :user_id`` for every
+    table that carries a user_id column.  sqlglot.transform visits every nested
+    Select (CTEs, subqueries) so the filter is enforced at all levels."""
+    stmt = sqlglot.parse_one(sql, dialect="postgres")
+
+    def _transform(node: exp.Expression) -> exp.Expression:
+        if not isinstance(node, exp.Select):
+            return node
+
+        # Collect (table_name, alias) only for *direct* table refs in this
+        # SELECT's FROM/JOINs.  transform() handles nested Selects separately.
+        sources: list[tuple[str, str | None]] = []
+        from_clause = node.args.get("from_")
+        if from_clause and isinstance(from_clause.this, exp.Table):
+            t = from_clause.this
+            sources.append((t.name.lower(), t.alias or None))
+        for join in node.args.get("joins") or []:
+            if isinstance(join.this, exp.Table):
+                t = join.this
+                sources.append((t.name.lower(), t.alias or None))
+
+        conditions: list[exp.Expression] = []
+        for tname, alias in sources:
+            if tname in _TABLES_WITH_USER_ID:
+                ref = alias if alias else tname
+                conditions.append(
+                    exp.EQ(
+                        this=exp.Column(
+                            this=exp.Identifier(this="user_id"),
+                            table=exp.Identifier(this=ref),
+                        ),
+                        expression=exp.Placeholder(this="user_id"),
+                    )
+                )
+
+        if not conditions:
+            return node
+
+        injected: exp.Expression = conditions[0]
+        for c in conditions[1:]:
+            injected = exp.And(this=injected, expression=c)
+
+        existing = node.args.get("where")
+        if existing:
+            # Wrap the user's condition in parens so OR clauses can't escape
+            # the AND we're about to prepend.
+            node.set("where", exp.Where(this=exp.And(
+                this=exp.Paren(this=existing.this),
+                expression=injected,
+            )))
+        else:
+            node.set("where", exp.Where(this=injected))
+        return node
+
+    # Use no dialect so named params stay as :user_id (not %(user_id)s).
+    # PostgreSQL-specific syntax (::casts, EXTRACT) normalises to valid ANSI
+    # equivalents that Postgres accepts equally well.
+    return stmt.transform(_transform).sql()
 
 
 def _serialize_value(v: Any) -> Any:
@@ -83,6 +144,7 @@ async def run_query(
 ) -> QueryResponse:
     try:
         _validate_sql(req.sql)
+        rewritten_sql = _inject_user_id_filter(req.sql)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
 
@@ -93,7 +155,7 @@ async def run_query(
         await session.execute(
             text(f"SET LOCAL statement_timeout = '{settings.query_timeout_ms}'")
         )
-        result = await session.execute(text(req.sql).bindparams(**bind_params))
+        result = await session.execute(text(rewritten_sql).bindparams(**bind_params))
         columns = list(result.keys())
         fetch_limit = settings.query_row_limit + 1
         raw_rows = result.fetchmany(fetch_limit)

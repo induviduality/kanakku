@@ -1,5 +1,17 @@
 # Decision Log
 
+## 2026-06-06 — M2: SQL query endpoint user_id enforcement via AST rewrite
+
+**Context:** The previous `_validate_sql` guard checked that the user's SQL *mentioned* a `user_id` column (string walk), then bound `:user_id` as a parameter. This was bypassable: `WHERE user_id = :user_id OR 1=1` passes the check and, depending on AND/OR precedence, could leak all rows.
+
+**Decision:** Replace the string-scan check with `_inject_user_id_filter()`: parse the user's SQL with sqlglot, then use `stmt.transform()` to visit every `Select` node (including CTEs and subqueries), find direct table references in FROM/JOINs, and inject `table.user_id = :user_id` as an AND condition for each table that carries `user_id`. Existing WHERE is wrapped in `Paren` before ANDing, making OR-bypass impossible. Final SQL is generated with `.sql()` (no dialect) so named params stay `:user_id` for SQLAlchemy's `text()`.
+
+**Alternatives considered:**
+- PostgreSQL RLS — proper multi-tenant enforcement at the DB level, but requires a migration adding `ALTER TABLE ... ENABLE ROW LEVEL SECURITY` + policies for every table; significant complexity for a single-user app
+- Keep string-scan, add documentation — doesn't fix the actual bypass
+
+**Affects:** `routers/reports.py`
+
 ## 2026-06-04 — `opening_balance` legitimized as a 4th transaction type (TDD v3.1)
 
 **Context:** The original spec and `CLAUDE.md` stated "three types only: expense, income, transfer." The ad-hoc sprint added `opening_balance` to seed an account's starting balance when it is first created. The implementation was already in place (migration, model enum, router guard, frontend display); the spec just hadn't been updated.

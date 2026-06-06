@@ -1,5 +1,9 @@
 # Completed Milestones
 
+## Review fix M2 (2026-06-06) — SQL query endpoint user_id injection
+
+- `routers/reports.py`: replaced string-scan `has_user_id` guard with `_inject_user_id_filter()` — uses sqlglot AST transform to inject `table.user_id = :user_id` for every user-owned table into every SELECT (including CTEs and subqueries). Existing WHERE wrapped in parens to block OR-bypass. `.sql()` (no dialect) used so named params stay as `:user_id` for SQLAlchemy. Users no longer need to write the user_id filter themselves.
+
 ## Ad-hoc Fixes (2026-06-03) — C2 Net-expense dashboard (FR-7.9 / FR-7.10)
 
 - `alembic/versions/0027_fix_net_amount_view_partial_forgiveness.py`: fixes `transaction_with_net_amount` view to include `forgiven_amount` for partial forgiveness (previously only counted fully-forgiven shares)
