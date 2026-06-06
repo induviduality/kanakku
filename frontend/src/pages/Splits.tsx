@@ -1,9 +1,11 @@
 import { useState } from 'react'
 import { Link } from '@tanstack/react-router'
+import { Plus } from 'lucide-react'
 import { useListSplits, type Split, type SplitShareStatus } from '../api/splits'
 import { usePeriod } from '../lib/period-context'
 import { EmptyState } from '../components/EmptyState'
 import { SplitDrawer } from '../components/drawers/SplitDrawer'
+import { CreateSplitDrawer } from '../components/drawers/CreateSplitDrawer'
 
 function StatusBadge({ status }: { status: SplitShareStatus }) {
   const styles: Record<SplitShareStatus, string> = {
@@ -84,6 +86,7 @@ export default function Splits() {
   const { data, isLoading, isError } = useListSplits()
   const { dashboardParams, shortLabel } = usePeriod()
   const [selectedSplitId, setSelectedSplitId] = useState<string | null>(null)
+  const [createOpen, setCreateOpen] = useState(false)
 
   if (isLoading) {
     return (
@@ -117,6 +120,18 @@ export default function Splits() {
   return (
     <>
     <div className="p-4 md:p-6 max-w-3xl mx-auto space-y-8">
+      {/* Page header */}
+      <div className="flex items-center justify-between">
+        <h1 className="text-lg font-semibold text-fg">Splits</h1>
+        <button
+          type="button"
+          onClick={() => setCreateOpen(true)}
+          className="inline-flex items-center gap-1.5 rounded-md bg-accent px-3 py-1.5 text-sm font-medium text-white hover:bg-accent/90"
+        >
+          <Plus className="h-4 w-4" /> Create Split
+        </button>
+      </div>
+
       {/* Unsettled section */}
       <section>
         <SectionHeader title="Unsettled" viewAllTo="/splits/pending" hasItems={unsettled.length > 0} />
@@ -165,6 +180,11 @@ export default function Splits() {
     </div>
 
     <SplitDrawer splitId={selectedSplitId} onClose={() => setSelectedSplitId(null)} />
+    <CreateSplitDrawer
+      open={createOpen}
+      onClose={() => setCreateOpen(false)}
+      onCreated={id => setSelectedSplitId(id)}
+    />
     </>
   )
 }

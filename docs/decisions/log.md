@@ -1,5 +1,18 @@
 # Decision Log
 
+## 2026-06-06 — Create Split drawer: "already-linked income" derived client-side from existing splits
+
+**Context:** Task B (Create Split drawer frontend). The Link Transaction panel must hide income transactions already used as settlements (the backend rejects them with 409). For expense parents the `Transaction` response exposes `is_split` / `split_id` (computed via the `SplitExpense` join in `transactions.py` `_fetch_split_id`). But settlement **income** transactions carry **no** such flag — `split_id`/`is_split` are only populated for expense parents, so there was no per-transaction signal to exclude already-linked income.
+
+**Decision:** The drawer derives the used-income set on the client from `useListSplits()` — iterate every split's `shares[].settlements[].transaction_id` into a `Set` and exclude those (plus ids already staged on another card in the same form) from the Link panel. The atomic `POST /splits` 409 check remains the server-side safety net.
+
+**Alternatives considered:**
+- Add a backend flag (e.g. `is_settlement`/`settlement_split_id`) to `TransactionResponse` — cleaner per-row signal, but requires a join in the hot transactions list path and a schema change; the splits list is already fetched cheaply and is small for a single user
+- Filter income server-side via a new query param — more API surface for a single consumer
+- Rely solely on the 409 — violates the spec's requirement to exclude them in the picker, and gives a worse UX
+
+**Affects:** `frontend/src/components/drawers/CreateSplitDrawer.tsx`
+
 ## 2026-06-06 — Create Split: settlements + forgiveness folded into POST /splits (atomic), not follow-up calls
 
 **Context:** The new Create Split drawer (spec: `docs/specs/create-split-drawer.md`) lets the user pick expenses, set payee shares, link settlement income transactions, and forgive — all before submitting. The existing API would require the client to call `POST /splits` then N× `settle` then M× `forgive`. That sequence is not atomic: if any call after the first fails, the split is already committed and the expense transactions are linked, so a retry hits 409 and the user is stuck with a half-built split.

@@ -42,6 +42,23 @@ export interface ForgivenShareCreate {
   notes?: string
 }
 
+/** One share in an atomic POST /splits. Settlements + forgiveness are applied inline. */
+export interface SplitShareCreate {
+  payee_id?: string | null
+  amount: string
+  notes?: string
+  /** Income transactions settling this share; each is credited at its full amount. */
+  settlement_transaction_ids?: string[]
+  /** Amount forgiven on this share. */
+  forgiven_amount?: string
+}
+
+export interface SplitCreate {
+  expense_transaction_ids: string[]
+  notes?: string
+  shares: SplitShareCreate[]
+}
+
 export interface BundleCreate {
   expense_transaction_ids: string[]
   income_transaction_ids?: string[]
@@ -89,6 +106,14 @@ export function useBundleSplit() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: (body: BundleCreate) => apiPost<Split>('/splits/bundle', body),
+    onSuccess: () => invalidateSplitsAndTransactions(qc),
+  })
+}
+
+export function useCreateSplit() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (body: SplitCreate) => apiPost<Split>('/splits', body),
     onSuccess: () => invalidateSplitsAndTransactions(qc),
   })
 }

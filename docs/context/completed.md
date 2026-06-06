@@ -1,5 +1,15 @@
 # Completed Milestones
 
+## Create Split Drawer — Task B (2026-06-06) — Frontend drawer
+
+- Spec: `docs/specs/create-split-drawer.md`
+- `api/splits.ts`: re-added `SplitShareCreate` (now with `settlement_transaction_ids` + `forgiven_amount`) + `SplitCreate` types and a `useCreateSplit` hook (invalidates splits + transactions)
+- `components/drawers/CreateSplitDrawer.tsx` (new): single-file drawer with internal `LinkTransactionPanel`. Sections: expense multi-select (search, grays out already-split via `is_split`), My share (+"Use remainder"), payee cards (Autocomplete with inline payee create, amount +"Use remainder", collapsible forgive with "All", settlement linking that credits each income txn at full amount — no manual amounts), live balance check (FR-7.9 net expense), notes. Submit is gated on full validity (`canSubmit`), builds the atomic `POST /splits` body (omits the null-payee share when my-share is 0), and reports the new id via `onCreated`
+- Already-linked income excluded in the Link panel: derived client-side from existing splits' settlements (settlement income carries no `split_id` flag) + ids staged elsewhere in the form
+- `pages/Splits.tsx`: "Create Split" header button opens the drawer; on create, opens the SplitDrawer for the new split
+- `components/drawers/CreateSplitDrawer.test.tsx` (new): 6 tests (render, submit gating, already-split disabled, atomic payload with my+payee share, forgive-overflow inline error). All pass; Splits page tests still green; `bun run build` shows zero new TS errors in touched files (pre-existing errors elsewhere remain)
+- Feature complete (Task A backend + Task B frontend)
+
 ## Create Split Drawer — Task A (2026-06-06) — Atomic create with inline settlements + forgiveness
 
 - Spec: `docs/specs/create-split-drawer.md`
