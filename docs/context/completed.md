@@ -1,5 +1,13 @@
 # Completed Milestones
 
+## Review fix M6 (2026-06-06) — Remove split creation from TransactionForm
+
+- `components/forms/TransactionForm.tsx`: removed `isSplit` state, `splitShares` state, `createSplit` mutation, share-sum validation, post-submit split API call, and the "Split this expense" toggle + `SplitSharesEditor` render
+- `api/splits.ts`: removed `useCreateSplit` hook, `SplitCreate` interface, `SplitShareCreate` interface
+- `components/SplitSharesEditor.tsx`: deleted (only consumer was TransactionForm)
+- `components/SplitSharesEditor.test.tsx`: deleted
+- Splits are now created exclusively via BundleAsSplitModal from the Transactions page (POST /splits/bundle — already atomic)
+
 ## Review fix M2 (2026-06-06) — SQL query endpoint user_id injection
 
 - `routers/reports.py`: replaced string-scan `has_user_id` guard with `_inject_user_id_filter()` — uses sqlglot AST transform to inject `table.user_id = :user_id` for every user-owned table into every SELECT (including CTEs and subqueries). Existing WHERE wrapped in parens to block OR-bypass. `.sql()` (no dialect) used so named params stay as `:user_id` for SQLAlchemy. Users no longer need to write the user_id filter themselves.

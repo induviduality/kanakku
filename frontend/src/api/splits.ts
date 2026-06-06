@@ -36,18 +36,6 @@ export interface Split {
   deleted_at: string | null
 }
 
-export interface SplitShareCreate {
-  payee_id?: string
-  amount: string
-  notes?: string
-}
-
-export interface SplitCreate {
-  expense_transaction_ids: string[]
-  notes?: string
-  shares: SplitShareCreate[]
-}
-
 export interface ForgivenShareCreate {
   payee_id?: string
   amount: string
@@ -95,14 +83,6 @@ function invalidateSplitsAndTransactions(qc: ReturnType<typeof useQueryClient>, 
   if (splitId) qc.invalidateQueries({ queryKey: ['splits', splitId] })
   qc.invalidateQueries({ queryKey: ['transactions'] })
   qc.invalidateQueries({ queryKey: ['transactions-infinite'] })
-}
-
-export function useCreateSplit() {
-  const qc = useQueryClient()
-  return useMutation({
-    mutationFn: (body: SplitCreate) => apiPost<Split>('/splits', body),
-    onSuccess: () => invalidateSplitsAndTransactions(qc),
-  })
 }
 
 export function useBundleSplit() {

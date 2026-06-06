@@ -5,10 +5,7 @@ import { useCategories } from '../../api/categories'
 import { useTags } from '../../api/tags'
 import { usePayees, useCreatePayee } from '../../api/payees'
 import { useGetBudgets } from '../../api/budgets'
-import { useCreateSplit } from '../../api/splits'
-import type { SplitShareCreate } from '../../api/splits'
 import Autocomplete from '../Autocomplete'
-import SplitSharesEditor from '../SplitSharesEditor'
 
 interface TransactionFormProps {
   initial?: Partial<Transaction>
@@ -53,14 +50,11 @@ export default function TransactionForm({
     initial?.category_ids ?? [],
   )
   const [selectedTags, setSelectedTags] = useState<string[]>(initial?.tag_ids ?? [])
-  const [isSplit, setIsSplit] = useState(false)
-  const [splitShares, setSplitShares] = useState<SplitShareCreate[]>([])
   const [selectedBudgetId, setSelectedBudgetId] = useState<string | null>(
     initial?.budget_ids?.[0] ?? null,
   )
   const [error, setError] = useState('')
 
-  const createSplit = useCreateSplit()
   const { data: paymentMethods = [] } = usePaymentMethods(accountId)
 
   // Sync state with initial data when it becomes available or changes
@@ -82,7 +76,6 @@ export default function TransactionForm({
       setSelectedCategories(initial.category_ids ?? [])
       setSelectedTags(initial.tag_ids ?? [])
       setSelectedBudgetId(initial.budget_ids?.[0] ?? null)
-      setIsSplit(initial.is_split ?? false)
     }
   }, [initial])
 
@@ -142,23 +135,8 @@ export default function TransactionForm({
       ...(selectedBudgetId && { budget_ids: [selectedBudgetId] }),
     }
 
-    if (type === 'expense' && isSplit) {
-      const splitTotal = splitShares.reduce((sum, s) => sum + (Number(s.amount) || 0), 0)
-      const txnAmount = Number(amount)
-      if (Math.abs(splitTotal - txnAmount) >= 0.005) {
-        setError(`Split shares (${splitTotal.toFixed(2)}) must equal transaction amount (${txnAmount.toFixed(2)})`)
-        return
-      }
-    }
-
     try {
-      const txn = await onSubmit(payload)
-      if (type === 'expense' && isSplit && txn && 'id' in txn) {
-        await createSplit.mutateAsync({
-          expense_transaction_ids: [(txn as { id: string }).id],
-          shares: splitShares,
-        })
-      }
+      await onSubmit(payload)
     } catch {
       setError('Failed to save transaction. Please try again.')
     }
@@ -415,34 +393,6 @@ export default function TransactionForm({
               </button>
             ))}
           </div>
-        </div>
-      )}
-
-      {/* Split toggle (expense only) */}
-      {type === 'expense' && (
-        <div>
-          <label className="flex items-center gap-2 cursor-pointer select-none">
-            <input
-              type="checkbox"
-              checked={isSplit}
-              onChange={(e) => {
-                setIsSplit(e.target.checked)
-                if (!e.target.checked) setSplitShares([])
-              }}
-              aria-label="Split this expense"
-              className="rounded"
-            />
-            <span className="text-sm font-medium text-fg-muted">Split this expense</span>
-          </label>
-          {isSplit && (
-            <div className="mt-3">
-              <SplitSharesEditor
-                totalAmount={Number(amount) || 0}
-                shares={splitShares}
-                onChange={setSplitShares}
-              />
-            </div>
-          )}
         </div>
       )}
 
