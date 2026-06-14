@@ -231,7 +231,7 @@ function CustomRangePicker({ current, onSelect }: { current: PeriodSelection; on
     <div>
       <DayPicker
         mode="range"
-        selected={range}
+        selected={range as { from: Date; to?: Date }}
         onSelect={handleSelect as unknown as never}
         numberOfMonths={1}
         classNames={{
