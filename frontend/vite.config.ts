@@ -78,7 +78,6 @@ export default defineConfig({
       // Still emit reports when some tests fail (this suite has known failures),
       // and include untested files so the coverage denominator is honest.
       reportOnFailure: true,
-      all: true,
       include: ['src/**/*.{ts,tsx}'],
       exclude: [
         'src/**/*.test.{ts,tsx}',
