@@ -1,5 +1,12 @@
 # Completed Milestones
 
+## Infra fix (2026-06-06) — entrypoint honors compose command; worker actually runs arq
+
+- `backend/entrypoint.sh`: `exec "$@"` instead of a hardcoded uvicorn line. The Dockerfile ENTRYPOINT was swallowing each service's compose `command:`, so the API ignored `--workers 3`/`--reload` and the worker ran uvicorn instead of `python -m arq …` (background jobs never ran)
+- `infra/docker-compose.yml`: worker now `depends_on api: service_healthy` so the API applies migrations first; the worker's `alembic upgrade head` then runs against an up-to-date schema as a no-op (avoids concurrent migration race + ensures schema is ready)
+- Verified via `docker compose config`: prod api → `--workers 3`, worker → arq, dev api → `--reload`
+- See decision log 2026-06-06
+
 ## Create Split Drawer — Task B (2026-06-06) — Frontend drawer
 
 - Spec: `docs/specs/create-split-drawer.md`

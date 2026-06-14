@@ -78,6 +78,11 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+      # Wait for the API to be healthy so it applies migrations first; the
+      # worker's own `alembic upgrade head` then runs against an up-to-date
+      # schema and is a no-op (avoids two concurrent migration runs racing).
+      api:
+        condition: service_healthy
     command: python -m arq app.workers.settings.WorkerSettings
     deploy:
       resources:

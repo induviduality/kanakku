@@ -1,5 +1,18 @@
 # Decision Log
 
+## 2026-06-06 — entrypoint.sh execs the passed command; worker waits on api to serialize migrations
+
+**Context:** `backend/entrypoint.sh` ran `alembic upgrade head` then `exec uvicorn app.main:app --host 0.0.0.0 --port 8765` with the uvicorn command **hardcoded** — it ignored `"$@"`. Since the Dockerfile sets `ENTRYPOINT ["/app/entrypoint.sh"]` and no `CMD`, each service's compose `command:` is passed as args to the entrypoint and was being discarded. Two consequences: (1) the API ignored `--workers 3` (prod) / `--reload` (dev), always running a single non-reloading worker; (2) the **worker** service — same image, same entrypoint — ran uvicorn instead of `python -m arq …`, so background jobs never ran.
+
+**Decision:** Change the last line to `exec "$@"` so the per-service compose command is honored. Keep `alembic upgrade head` in the entrypoint. Because both `api` and `worker` now run the entrypoint (and thus alembic) and they start concurrently, add `depends_on: api: condition: service_healthy` to the worker so the API applies migrations first; the worker's subsequent `alembic upgrade head` then runs against an up-to-date schema and is a no-op. This both prevents two concurrent migration runs from racing and guarantees the worker starts against a ready schema.
+
+**Alternatives considered:**
+- Guard migrations with a `RUN_MIGRATIONS` env var so only the API runs them — still requires the worker to wait for the schema (so it still needs `depends_on: api`), and adds branching config; the no-op `alembic upgrade head` is simpler and harmless
+- A dedicated one-shot migration service — cleaner separation but more moving parts than this single-user deployment needs
+- Postgres advisory lock around alembic — solves the race but not the "worker starts before schema ready" problem; serialization via depends_on covers both
+
+**Affects:** `backend/entrypoint.sh`, `infra/docker-compose.yml` (worker `depends_on`). No code/schema change; NFR-1.1 preserved (same compose file, behavior differs only via the existing per-service `command:`).
+
 ## 2026-06-06 — Create Split drawer: "already-linked income" derived client-side from existing splits
 
 **Context:** Task B (Create Split drawer frontend). The Link Transaction panel must hide income transactions already used as settlements (the backend rejects them with 409). For expense parents the `Transaction` response exposes `is_split` / `split_id` (computed via the `SplitExpense` join in `transactions.py` `_fetch_split_id`). But settlement **income** transactions carry **no** such flag — `split_id`/`is_split` are only populated for expense parents, so there was no per-transaction signal to exclude already-linked income.
