@@ -4,6 +4,7 @@ import {
   useGetImportBatch,
   useGetImportRecords,
   usePatchRecord,
+  usePatchBatch,
   useConfirmRecords,
   useRejectRecords,
   useReplaceExisting,
@@ -11,6 +12,8 @@ import {
   type RecordStatus,
 } from '../api/imports'
 import { useTransaction } from '../api/transactions'
+import { useAccounts } from '../api/accounts'
+import { useToast } from '../lib/toast'
 
 const TABS: { status: RecordStatus; label: string }[] = [
   { status: 'pending',   label: 'Pending' },
@@ -67,25 +70,35 @@ function DuplicateResolveModal({
   const confirmMutation = useConfirmRecords(batchId)
   const replaceMutation = useReplaceExisting(batchId)
   const duplicateIds = getDuplicateIds(record)
+  const { toast } = useToast()
 
   function handleKeepExisting() {
     patchMutation.mutate(
       { recordId: record.id, patch: { status: 'rejected' } },
-      { onSuccess: onClose },
+      {
+        onSuccess: onClose,
+        onError: () => toast('Failed to reject record. Please try again.', 'error'),
+      },
     )
   }
 
   function handleImportSeparate() {
     confirmMutation.mutate(
       { record_ids: [record.id], force: true },
-      { onSuccess: onClose },
+      {
+        onSuccess: onClose,
+        onError: () => toast('Failed to confirm transaction. Please try again.', 'error'),
+      },
     )
   }
 
   function handleReplace() {
     replaceMutation.mutate(
       { recordId: record.id, body: { transaction_ids: duplicateIds } },
-      { onSuccess: onClose },
+      {
+        onSuccess: onClose,
+        onError: () => toast('Failed to replace transaction. Please try again.', 'error'),
+      },
     )
   }
 
@@ -196,6 +209,7 @@ function RecordRow({
   onResolve?: () => void
 }) {
   const patchMutation = usePatchRecord(batchId)
+  const { toast } = useToast()
   const [editing, setEditing] = useState(false)
   const [description, setDescription] = useState(parsedField(record, 'description'))
   const [amount, setAmount] = useState(parsedField(record, 'amount'))
@@ -204,7 +218,10 @@ function RecordRow({
   function saveEdit() {
     patchMutation.mutate(
       { recordId: record.id, patch: { parsed_json: { ...record.parsed_json, description, amount, type } } },
-      { onSuccess: () => setEditing(false) },
+      {
+        onSuccess: () => setEditing(false),
+        onError: () => toast('Failed to save changes. Please try again.', 'error'),
+      },
     )
   }
 
@@ -320,11 +337,14 @@ export default function ImportReview() {
   const [activeTab, setActiveTab] = useState<RecordStatus>('pending')
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [resolveRecord, setResolveRecord] = useState<RawImportRecord | null>(null)
+  const { toast } = useToast()
 
   const { data: batch, isLoading: batchLoading } = useGetImportBatch(batchId)
-  const { data: records = [] } = useGetImportRecords(batchId, activeTab)
+  const { data: records = [], isLoading: recordsLoading } = useGetImportRecords(batchId, activeTab)
+  const { data: accounts = [] } = useAccounts()
   const confirmMutation = useConfirmRecords(batchId)
   const rejectMutation = useRejectRecords(batchId)
+  const patchBatchMutation = usePatchBatch(batchId)
 
   function toggleSelect(id: string) {
     setSelectedIds(prev => {
@@ -340,12 +360,21 @@ export default function ImportReview() {
 
   function confirmSelected(force = false) {
     const ids = selectedIds.size > 0 ? Array.from(selectedIds) : undefined
-    confirmMutation.mutate({ record_ids: ids, force }, { onSuccess: () => setSelectedIds(new Set()) })
+    confirmMutation.mutate(
+      { record_ids: ids, force },
+      {
+        onSuccess: () => setSelectedIds(new Set()),
+        onError: () => toast('Failed to confirm transactions. Please try again.', 'error'),
+      },
+    )
   }
 
   function rejectSelected() {
     const ids = selectedIds.size > 0 ? Array.from(selectedIds) : undefined
-    rejectMutation.mutate({ record_ids: ids }, { onSuccess: () => setSelectedIds(new Set()) })
+    rejectMutation.mutate(
+      { record_ids: ids },
+      { onError: () => toast('Failed to reject transactions. Please try again.', 'error') },
+    )
   }
 
   if (batchLoading) {
@@ -390,6 +419,32 @@ export default function ImportReview() {
           <span className="kk-mono text-negative-dim">{batch.total_rejected}</span> rejected &nbsp;·&nbsp;
           <span className="kk-mono text-warning-dim">{pendingRemaining}</span> pending
         </p>
+
+        {/* Account selector */}
+        <div className="mt-3 flex items-center gap-2">
+          <label className="text-xs text-fg-faint shrink-0" htmlFor="batch-account">Account</label>
+          <select
+            id="batch-account"
+            value={batch.account_id ?? ''}
+            onChange={e => patchBatchMutation.mutate(
+              { account_id: e.target.value || null },
+              { onError: () => toast('Failed to update account. Please try again.', 'error') },
+            )}
+            disabled={patchBatchMutation.isPending}
+            className="kk-input h-7 text-xs max-w-xs"
+          >
+            <option value="">— select account —</option>
+            {accounts.filter(a => !a.deleted_at).map(a => (
+              <option key={a.id} value={a.id}>{a.name}</option>
+            ))}
+          </select>
+        </div>
+
+        {!batch.account_id && (
+          <p className="mt-2 text-xs text-warning-dim bg-warning/5 border border-warning/20 rounded-lg px-3 py-2">
+            Select an account above before confirming transactions.
+          </p>
+        )}
       </div>
 
       {/* Tabs */}
@@ -416,16 +471,18 @@ export default function ImportReview() {
           </span>
           <button
             onClick={() => confirmSelected(false)}
-            disabled={confirmMutation.isPending}
-            className="kk-btn-primary disabled:opacity-50"
+            disabled={confirmMutation.isPending || !batch.account_id}
+            title={!batch.account_id ? 'Select an account first' : undefined}
+            className="kk-btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
           >
             ✓ Confirm
           </button>
           {hasDuplicates && (
             <button
               onClick={() => confirmSelected(true)}
-              disabled={confirmMutation.isPending}
-              className="kk-btn-ghost disabled:opacity-50"
+              disabled={confirmMutation.isPending || !batch.account_id}
+              title={!batch.account_id ? 'Select an account first' : undefined}
+              className="kk-btn-ghost disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Force confirm all
             </button>
@@ -449,7 +506,13 @@ export default function ImportReview() {
       )}
 
       {/* Records table */}
-      {records.length === 0 ? (
+      {recordsLoading ? (
+        <div className="space-y-2">
+          {[0, 1, 2, 3, 4].map(i => (
+            <div key={i} className="h-10 animate-pulse bg-surface-2 rounded-lg" />
+          ))}
+        </div>
+      ) : records.length === 0 ? (
         <div className="py-16 text-center text-fg-faint text-sm">
           No {activeTab} records.
         </div>

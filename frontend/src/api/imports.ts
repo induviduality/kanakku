@@ -54,6 +54,10 @@ export interface RecordPatch {
   status?: RecordStatus
 }
 
+export interface BatchPatch {
+  account_id?: string | null
+}
+
 // ── Query hooks ───────────────────────────────────────────────────────────────
 
 export function useGetImportBatches() {
@@ -138,6 +142,15 @@ export function useRejectRecords(batchId: string) {
   return useMutation({
     mutationFn: (body: RejectRequest) =>
       apiPost<ImportBatch>(`/imports/${batchId}/reject`, body),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['imports', batchId] }),
+  })
+}
+
+export function usePatchBatch(batchId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (patch: BatchPatch) =>
+      apiPatch<ImportBatch>(`/imports/${batchId}`, patch),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['imports', batchId] }),
   })
 }

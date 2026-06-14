@@ -3,6 +3,7 @@ import MobileNav from './MobileNav'
 import TopNav from './nav/TopNav'
 import SideNav from './nav/SideNav'
 import { PeriodProvider } from '../lib/period-context'
+import { ToastProvider } from '../lib/toast'
 
 const GUEST_PATHS = ['/login', '/setup', '/accept-invite']
 
@@ -23,6 +24,7 @@ export default function AppLayout() {
         </>
       )}
 
+      <ToastProvider>
       <PeriodProvider>
         <div className={`relative z-[2] min-h-svh flex flex-col${isGuest ? '' : ' pb-14 md:pb-0'}`}>
           {!isGuest && <TopNav />}
@@ -37,6 +39,7 @@ export default function AppLayout() {
           {!isGuest && <MobileNav />}
         </div>
       </PeriodProvider>
+      </ToastProvider>
     </>
   )
 }

@@ -159,6 +159,28 @@ class RejectRequest(BaseModel):
     record_ids: list[uuid.UUID] | None = None  # None = reject all pending
 
 
+class BatchPatch(BaseModel):
+    account_id: uuid.UUID | None = None
+
+
+# ── PATCH /imports/{batch_id} ─────────────────────────────────────────────────
+
+@router.patch("/{batch_id}", response_model=ImportBatchResponse)
+async def patch_batch(
+    batch_id: uuid.UUID,
+    body: BatchPatch,
+    current_user: UserDep,
+    session: SessionDep,
+) -> ImportBatch:
+    """Update batch metadata (e.g. set account_id after upload)."""
+    batch = await _get_batch_or_404(session, batch_id, current_user.id)
+    if body.account_id is not None:
+        batch.account_id = body.account_id
+    await session.commit()
+    await session.refresh(batch)
+    return batch
+
+
 @router.post("/{batch_id}/confirm", response_model=ImportBatchResponse)
 async def confirm_records(
     batch_id: uuid.UUID,
