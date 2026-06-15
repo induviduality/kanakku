@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Trash2 } from 'lucide-react'
 import { Drawer, DrawerSection } from '../Drawer'
 import {
   useGetSplit,
@@ -6,6 +7,7 @@ import {
   useForgiveShare,
   useUnsettleShare,
   useUnlinkSettlement,
+  useDeleteSplit,
   type SplitShare,
   type SplitShareSettlement,
   type SplitShareStatus,
@@ -304,9 +306,11 @@ interface Props {
 }
 
 export function SplitDrawer({ splitId, onClose }: Props) {
+  const [deleteOpen, setDeleteOpen] = useState(false)
   const { data: split, isLoading } = useGetSplit(splitId)
   const { data: payeesRaw } = usePayees()
   const { data: txnData } = useTransactions({ type: 'income' })
+  const deleteSplit = useDeleteSplit()
 
   const payeeMap: Record<string, string> = {}
   for (const p of payeesRaw ?? []) payeeMap[p.id] = p.name
@@ -379,10 +383,33 @@ export function SplitDrawer({ splitId, onClose }: Props) {
               <p>Created {new Date(split.created_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}</p>
             </div>
           </DrawerSection>
+
+          {/* Danger zone */}
+          <div className="pt-2 border-t border-border">
+            <button
+              onClick={() => setDeleteOpen(true)}
+              className="flex items-center gap-1.5 text-xs text-negative-dim hover:underline"
+            >
+              <Trash2 className="w-3.5 h-3.5" /> Delete split
+            </button>
+          </div>
         </div>
       ) : (
         <p className="p-5 text-sm text-negative-dim">Split not found.</p>
       )}
+
+      <ConfirmDialog
+        open={deleteOpen}
+        title="Delete split"
+        description="Remove this split? The linked transactions will not be deleted — only the split linkage is removed."
+        confirmLabel="Delete"
+        isDestructive
+        onConfirm={() => {
+          if (!splitId) return
+          deleteSplit.mutate(splitId, { onSuccess: () => { setDeleteOpen(false); onClose() } })
+        }}
+        onCancel={() => setDeleteOpen(false)}
+      />
     </Drawer>
   )
 }

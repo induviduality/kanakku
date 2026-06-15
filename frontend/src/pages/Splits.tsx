@@ -1,7 +1,8 @@
 import { useState } from 'react'
 import { Link } from '@tanstack/react-router'
-import { Plus } from 'lucide-react'
-import { useListSplits, type Split, type SplitShareStatus } from '../api/splits'
+import { Plus, Trash2 } from 'lucide-react'
+import { useListSplits, useDeleteSplit, type Split, type SplitShareStatus } from '../api/splits'
+import ConfirmDialog from '../components/ConfirmDialog'
 import { usePeriod } from '../lib/period-context'
 import { EmptyState } from '../components/EmptyState'
 import { SplitDrawer } from '../components/drawers/SplitDrawer'
@@ -20,7 +21,7 @@ function StatusBadge({ status }: { status: SplitShareStatus }) {
   )
 }
 
-function SplitCard({ split, onSelect }: { split: Split; onSelect: (id: string) => void }) {
+function SplitCard({ split, onSelect, onDelete }: { split: Split; onSelect: (id: string) => void; onDelete: (id: string) => void }) {
   const pending  = split.shares.filter(s => s.status === 'pending')
   const settled  = split.shares.filter(s => s.status === 'settled')
   const forgiven = split.shares.filter(s => s.status === 'forgiven')
@@ -55,6 +56,13 @@ function SplitCard({ split, onSelect }: { split: Split; onSelect: (id: string) =
             ₹{total.toLocaleString('en-IN', { maximumFractionDigits: 0 })}
           </span>
           <StatusBadge status={overallStatus} />
+          <button
+            onClick={e => { e.stopPropagation(); onDelete(split.id) }}
+            className="p-1 rounded text-fg-muted hover:text-negative-dim hover:bg-negative/10 transition-colors"
+            title="Delete split"
+          >
+            <Trash2 className="w-3.5 h-3.5" />
+          </button>
         </div>
       </div>
 
@@ -86,7 +94,9 @@ export default function Splits() {
   const { data, isLoading, isError } = useListSplits()
   const { dashboardParams, shortLabel } = usePeriod()
   const [selectedSplitId, setSelectedSplitId] = useState<string | null>(null)
+  const [deleteTarget, setDeleteTarget] = useState<string | null>(null)
   const [createOpen, setCreateOpen] = useState(false)
+  const deleteSplit = useDeleteSplit()
 
   if (isLoading) {
     return (
@@ -143,7 +153,7 @@ export default function Splits() {
         ) : (
           <>
             <div className="space-y-3">
-              {unsettled.slice(0, 5).map(s => <SplitCard key={s.id} split={s} onSelect={setSelectedSplitId} />)}
+              {unsettled.slice(0, 5).map(s => <SplitCard key={s.id} split={s} onSelect={setSelectedSplitId} onDelete={setDeleteTarget} />)}
             </div>
             {unsettled.length > 5 && (
               <p className="mt-3 text-xs text-fg-faint text-center">
@@ -166,7 +176,7 @@ export default function Splits() {
         ) : (
           <>
             <div className="space-y-3">
-              {periodSplits.slice(0, 5).map(s => <SplitCard key={s.id} split={s} onSelect={setSelectedSplitId} />)}
+              {periodSplits.slice(0, 5).map(s => <SplitCard key={s.id} split={s} onSelect={setSelectedSplitId} onDelete={setDeleteTarget} />)}
             </div>
             {periodSplits.length > 5 && (
               <p className="mt-3 text-xs text-fg-faint text-center">
@@ -184,6 +194,19 @@ export default function Splits() {
       open={createOpen}
       onClose={() => setCreateOpen(false)}
       onCreated={id => setSelectedSplitId(id)}
+    />
+
+    <ConfirmDialog
+      open={!!deleteTarget}
+      title="Delete split"
+      description="Remove this split? The linked transactions will not be deleted — only the split linkage is removed."
+      confirmLabel="Delete"
+      isDestructive
+      onConfirm={() => {
+        if (!deleteTarget) return
+        deleteSplit.mutate(deleteTarget, { onSuccess: () => setDeleteTarget(null) })
+      }}
+      onCancel={() => setDeleteTarget(null)}
     />
     </>
   )

@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react'
 import { Pencil, Trash2 } from 'lucide-react'
-import { useParams, Link } from '@tanstack/react-router'
+import { useParams, Link, useNavigate } from '@tanstack/react-router'
 import {
   useGetPiggyBank,
   useGetContributions,
   useAddContribution,
   useRemoveContribution,
+  useDeletePiggyBank,
   type ContributionType,
   type ContributionCreate,
 } from '../api/piggy_banks'
@@ -150,11 +151,14 @@ function AddContributionForm({
 
 export default function PiggyBankDetail() {
   const { piggyId } = useParams({ strict: false }) as { piggyId: string }
+  const navigate = useNavigate()
   const { data: pig, isLoading: pigLoading } = useGetPiggyBank(piggyId)
   const { data: contributions = [], isLoading: contribLoading } = useGetContributions(piggyId)
   const removeMutation = useRemoveContribution()
+  const deleteMutation = useDeletePiggyBank()
   const [showForm, setShowForm] = useState(false)
   const [removeTarget, setRemoveTarget] = useState<string | null>(null)
+  const [deleteOpen, setDeleteOpen] = useState(false)
 
   if (pigLoading) return <p className="p-8 text-gray-500">Loading piggy bank…</p>
   if (!pig) return <p className="p-8 text-red-500">Piggy bank not found.</p>
@@ -198,6 +202,13 @@ export default function PiggyBankDetail() {
           >
             <Pencil className="w-4 h-4" />
           </Link>
+          <button
+            onClick={() => setDeleteOpen(true)}
+            className="p-1.5 rounded text-fg-muted hover:text-negative-dim hover:bg-negative/10 transition-colors"
+            title="Delete"
+          >
+            <Trash2 className="w-4 h-4" />
+          </button>
         </div>
       </div>
 
@@ -260,6 +271,20 @@ export default function PiggyBankDetail() {
           onCancel={() => setRemoveTarget(null)}
         />
       )}
+
+      <ConfirmDialog
+        open={deleteOpen}
+        title="Delete piggy bank"
+        description={`Delete "${pig.name}"? Contributions will be unlinked but the linked transactions will not be deleted. This can be undone within 30 days.`}
+        confirmLabel="Delete"
+        isDestructive
+        onConfirm={() => {
+          deleteMutation.mutate(pig.id, {
+            onSuccess: () => navigate({ to: '/piggy-banks' }),
+          })
+        }}
+        onCancel={() => setDeleteOpen(false)}
+      />
     </div>
   )
 }

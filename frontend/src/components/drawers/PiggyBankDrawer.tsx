@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Trash2 } from 'lucide-react'
 import { Drawer, DrawerSection, DrawerRow } from '../Drawer'
-import { useGetPiggyBank, useGetContributions, useRemoveContribution } from '../../api/piggy_banks'
+import { useGetPiggyBank, useGetContributions, useRemoveContribution, useDeletePiggyBank } from '../../api/piggy_banks'
 import ConfirmDialog from '../ConfirmDialog'
 
 function ProgressRing({ pct }: { pct: number }) {
@@ -43,7 +43,9 @@ export function PiggyBankDrawer({ piggyId, onClose }: Props) {
   const { data: pig, isLoading } = useGetPiggyBank(piggyId)
   const { data: contributions = [], isLoading: contribLoading } = useGetContributions(piggyId)
   const remove = useRemoveContribution()
+  const deletePiggy = useDeletePiggyBank()
   const [removeTarget, setRemoveTarget] = useState<string | null>(null)
+  const [deleteOpen, setDeleteOpen] = useState(false)
 
   return (
     <Drawer open={!!piggyId} onClose={onClose} title={pig?.name ?? 'Savings goal'}>
@@ -107,7 +109,7 @@ export function PiggyBankDrawer({ piggyId, onClose }: Props) {
                     <button
                       onClick={() => setRemoveTarget(c.id)}
                       className="p-1.5 rounded text-fg-muted hover:text-negative-dim hover:bg-negative/10 transition-colors"
-                      title="Remove"
+                      title="Remove contribution"
                     >
                       <Trash2 className="w-3.5 h-3.5" />
                     </button>
@@ -116,6 +118,16 @@ export function PiggyBankDrawer({ piggyId, onClose }: Props) {
               </div>
             )}
           </DrawerSection>
+
+          {/* Danger zone */}
+          <div className="pt-2 border-t border-border">
+            <button
+              onClick={() => setDeleteOpen(true)}
+              className="flex items-center gap-1.5 text-xs text-negative-dim hover:underline"
+            >
+              <Trash2 className="w-3.5 h-3.5" /> Delete piggy bank
+            </button>
+          </div>
         </div>
       ) : (
         <p className="p-5 text-sm text-negative-dim">Savings goal not found.</p>
@@ -135,6 +147,20 @@ export function PiggyBankDrawer({ piggyId, onClose }: Props) {
             )
           }}
           onCancel={() => setRemoveTarget(null)}
+        />
+      )}
+
+      {pig && (
+        <ConfirmDialog
+          open={deleteOpen}
+          title="Delete piggy bank"
+          description={`Delete "${pig.name}"? Contributions will be unlinked but the linked transactions will not be deleted. This can be undone within 30 days.`}
+          confirmLabel="Delete"
+          isDestructive
+          onConfirm={() => {
+            deletePiggy.mutate(pig.id, { onSuccess: () => { setDeleteOpen(false); onClose() } })
+          }}
+          onCancel={() => setDeleteOpen(false)}
         />
       )}
     </Drawer>

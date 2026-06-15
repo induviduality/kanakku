@@ -153,3 +153,11 @@ export function useUnsettleShare(splitId: string) {
     onSuccess: () => invalidateSplitsAndTransactions(qc, splitId),
   })
 }
+
+export function useDeleteSplit() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (splitId: string) => apiDelete(`/splits/${splitId}`),
+    onSuccess: () => invalidateSplitsAndTransactions(qc),
+  })
+}

@@ -1,4 +1,5 @@
 import uuid
+from datetime import UTC, datetime
 from decimal import Decimal
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -508,6 +509,49 @@ async def get_split(
         )
     ).scalars().all()
     return await _build_response(split, list(shares), session)
+
+
+# ── Delete split ─────────────────────────────────────────────────────────────
+
+
+@router.delete("/{split_id}", status_code=204)
+async def delete_split(
+    split_id: uuid.UUID,
+    user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+) -> None:
+    split = await _get_split_or_404(split_id, user, session)
+
+    # Hard-delete SplitExpense rows so linked expense transactions are no longer
+    # blocked by the RESTRICT FK and can be freely deleted or re-linked.
+    expense_links = (
+        await session.execute(
+            select(SplitExpense).where(SplitExpense.split_id == split.id)
+        )
+    ).scalars().all()
+    for link in expense_links:
+        await session.delete(link)
+
+    # Hard-delete SplitShareSettlement rows so linked income transactions are
+    # also freed.
+    shares = (
+        await session.execute(
+            select(SplitShare).where(SplitShare.split_id == split.id)
+        )
+    ).scalars().all()
+    for share in shares:
+        settlements = (
+            await session.execute(
+                select(SplitShareSettlement).where(
+                    SplitShareSettlement.share_id == share.id
+                )
+            )
+        ).scalars().all()
+        for s in settlements:
+            await session.delete(s)
+
+    split.deleted_at = datetime.now(UTC)
+    await session.commit()
 
 
 # ── Settle: link an income transaction to a share ─────────────────────────────

@@ -126,6 +126,19 @@ async def delete_piggy_bank(
     session: AsyncSession = Depends(get_session),
 ) -> None:
     pig = await _get_piggy_or_404(piggy_id, current_user, session)
+
+    # Hard-delete contribution rows so linked transactions are no longer blocked
+    # by the RESTRICT FK and can be freely deleted or re-linked.
+    contribs = (
+        await session.execute(
+            select(PiggyBankContribution).where(
+                PiggyBankContribution.piggy_bank_id == pig.id
+            )
+        )
+    ).scalars().all()
+    for c in contribs:
+        await session.delete(c)
+
     pig.deleted_at = datetime.now(UTC)
     await session.commit()
 
