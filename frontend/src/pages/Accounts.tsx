@@ -27,19 +27,34 @@ function PaymentMethodsPanel({ account }: { account: Account }) {
   const [addOpen, setAddOpen] = useState(false)
   const [pmName, setPmName] = useState('')
   const [pmType, setPmType] = useState<PaymentMethod['type']>('debit_card')
+  const [pmUpiApp, setPmUpiApp] = useState('')
   const [deleteTarget, setDeleteTarget] = useState<PaymentMethod | null>(null)
 
   async function handleAddPm(e: React.FormEvent) {
     e.preventDefault()
-    await createPm.mutateAsync({ name: pmName, type: pmType })
+    await createPm.mutateAsync({
+      name: pmName,
+      type: pmType,
+      upi_app: pmType === 'upi' && pmUpiApp ? pmUpiApp : undefined,
+    })
     setPmName('')
     setPmType('debit_card')
+    setPmUpiApp('')
     setAddOpen(false)
   }
 
   const cols: Column<PaymentMethod>[] = [
     { key: 'name', header: 'Name', render: (pm) => pm.name },
-    { key: 'type', header: 'Type', render: (pm) => pm.type.replace('_', ' ') },
+    {
+      key: 'type',
+      header: 'Type',
+      render: (pm) => (
+        <span>
+          {pm.type.replace('_', ' ')}
+          {pm.upi_app && <span className="ml-1 text-fg-faint">· {pm.upi_app}</span>}
+        </span>
+      ),
+    },
   ]
 
   return (
@@ -92,7 +107,7 @@ function PaymentMethodsPanel({ account }: { account: Account }) {
             <select
               id="pm-type"
               value={pmType}
-              onChange={(e) => setPmType(e.target.value as PaymentMethod['type'])}
+              onChange={(e) => { setPmType(e.target.value as PaymentMethod['type']); setPmUpiApp('') }}
               className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
             >
               <option value="debit_card">Debit card</option>
@@ -101,6 +116,20 @@ function PaymentMethodsPanel({ account }: { account: Account }) {
               <option value="upi">UPI</option>
             </select>
           </div>
+          {pmType === 'upi' && (
+            <div>
+              <label htmlFor="pm-upi-app" className="block text-sm font-medium text-gray-700">
+                UPI app <span className="text-gray-400 font-normal">(optional)</span>
+              </label>
+              <input
+                id="pm-upi-app"
+                value={pmUpiApp}
+                onChange={(e) => setPmUpiApp(e.target.value)}
+                placeholder="e.g. GPay, PhonePe, Paytm"
+                className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              />
+            </div>
+          )}
           <div className="flex justify-end gap-2">
             <button type="button" onClick={() => setAddOpen(false)} className="text-sm text-gray-500 hover:text-gray-700">
               Cancel
