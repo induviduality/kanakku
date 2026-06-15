@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { apiDelete, apiGet, apiPost } from '../lib/api-client'
+import { apiDelete, apiGet, apiPatch, apiPost } from '../lib/api-client'
 
 export type SplitShareStatus = 'pending' | 'settled' | 'forgiven'
 
@@ -77,6 +77,12 @@ export interface ForgiveRequest {
   amount: string
 }
 
+export interface SplitSharePatch {
+  payee_id?: string | null
+  amount?: string
+  notes?: string
+}
+
 export function useListSplits() {
   return useQuery({
     queryKey: ['splits'],
@@ -150,6 +156,15 @@ export function useUnsettleShare(splitId: string) {
   return useMutation({
     mutationFn: (shareId: string) =>
       apiPost<SplitShare>(`/splits/${splitId}/shares/${shareId}/unsettle`, {}),
+    onSuccess: () => invalidateSplitsAndTransactions(qc, splitId),
+  })
+}
+
+export function usePatchShare(splitId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ shareId, patch }: { shareId: string; patch: SplitSharePatch }) =>
+      apiPatch<SplitShare>(`/splits/${splitId}/shares/${shareId}`, patch),
     onSuccess: () => invalidateSplitsAndTransactions(qc, splitId),
   })
 }

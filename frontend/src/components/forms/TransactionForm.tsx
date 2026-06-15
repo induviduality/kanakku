@@ -2,12 +2,13 @@ import { useEffect, useState } from 'react'
 import type { SpendingClassification, Transaction, TransactionCreate, TransactionPatch, TransactionType } from '../../api/transactions'
 import { SPENDING_CLASSIFICATION_LABELS } from '../../api/transactions'
 import { useAccounts, usePaymentMethods } from '../../api/accounts'
-import { useCategories } from '../../api/categories'
+import { useCategories, useCreateCategory } from '../../api/categories'
 import { useTags, useCreateTag } from '../../api/tags'
 import { usePayees, useCreatePayee } from '../../api/payees'
 import { useGetBudgets } from '../../api/budgets'
 import { useGetPiggyBanks } from '../../api/piggy_banks'
 import Autocomplete from '../Autocomplete'
+import MultiAutocomplete from '../MultiAutocomplete'
 
 interface TransactionFormProps {
   initial?: Partial<Transaction>
@@ -33,6 +34,7 @@ export default function TransactionForm({
   const { data: allBudgets = [] } = useGetBudgets(false)
   const { data: allPiggyBanks = [] } = useGetPiggyBanks()
   const createPayeeMutation = useCreatePayee()
+  const createCategoryMutation = useCreateCategory()
   const createTagMutation = useCreateTag()
 
   const [type, setType] = useState<TransactionType>(initial?.type ?? 'expense')
@@ -57,7 +59,6 @@ export default function TransactionForm({
   const [selectedBudgetId, setSelectedBudgetId] = useState<string | null>(
     initial?.budget_ids?.[0] ?? null,
   )
-  const [newTagInput, setNewTagInput] = useState('')
   const [spendingClassification, setSpendingClassification] = useState<SpendingClassification | null>(
     initial?.spending_classification ?? null,
   )
@@ -110,12 +111,6 @@ export default function TransactionForm({
       setPaymentMethodId(null)
     }
   }, [accountId, initial])
-
-  function toggleTag(id: string) {
-    setSelectedTags((prev) =>
-      prev.includes(id) ? prev.filter((t) => t !== id) : [...prev, id],
-    )
-  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -301,23 +296,25 @@ export default function TransactionForm({
         </div>
       )}
 
-      {/* Category (single-select, not for transfers or opening balance) */}
+      {/* Category (single-select with inline create, not for transfers or opening balance) */}
       {type !== 'transfer' && type !== 'opening_balance' && (
         <div>
           <label htmlFor="txn-category" className="block text-sm font-medium text-fg-muted">Category</label>
-          <select
-            id="txn-category"
-            value={selectedCategoryId ?? ''}
-            onChange={(e) => setSelectedCategoryId(e.target.value || null)}
-            className="mt-1 kk-input"
-          >
-            <option value="">— none —</option>
-            {allCategories.filter((c) => !c.deleted_at).map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.icon ? `${c.icon} ${c.name}` : c.name}
-              </option>
-            ))}
-          </select>
+          <div className="mt-1">
+            <Autocomplete
+              id="txn-category"
+              options={allCategories
+                .filter((c) => !c.deleted_at)
+                .map((c) => ({ id: c.id, label: c.icon ? `${c.icon} ${c.name}` : c.name }))}
+              value={selectedCategoryId}
+              onChange={setSelectedCategoryId}
+              placeholder="Search or create category…"
+              onInlineCreate={async (name) => {
+                const created = await createCategoryMutation.mutateAsync({ name })
+                return { id: created.id, label: created.name }
+              }}
+            />
+          </div>
         </div>
       )}
 
@@ -362,44 +359,18 @@ export default function TransactionForm({
       {/* Tags — multi-select with inline create (not for opening balance) */}
       {type !== 'opening_balance' && (
         <div>
-          <label className="block text-sm font-medium text-fg-muted">Tags</label>
-          <div className="mt-1 flex flex-wrap gap-1">
-            {allTags.filter((t) => !t.deleted_at).map((t) => (
-              <button
-                key={t.id}
-                type="button"
-                onClick={() => toggleTag(t.id)}
-                className={`rounded-full px-3 py-1 text-xs font-medium border transition-colors
-                  ${selectedTags.includes(t.id)
-                    ? 'bg-accent-dim text-white border-accent-dim'
-                    : 'bg-surface-2 text-fg-muted border-border-strong hover:border-accent'}`}
-              >
-                {t.name}
-              </button>
-            ))}
-          </div>
-          <div className="mt-1.5 flex gap-1.5">
-            <input
-              type="text"
-              value={newTagInput}
-              onChange={(e) => setNewTagInput(e.target.value)}
-              onKeyDown={async (e) => {
-                if (e.key === 'Enter' && newTagInput.trim()) {
-                  e.preventDefault()
-                  const existing = allTags.find(
-                    (t) => t.name.toLowerCase() === newTagInput.trim().toLowerCase()
-                  )
-                  if (existing) {
-                    if (!selectedTags.includes(existing.id)) toggleTag(existing.id)
-                  } else {
-                    const created = await createTagMutation.mutateAsync({ name: newTagInput.trim() })
-                    setSelectedTags((prev) => [...prev, created.id])
-                  }
-                  setNewTagInput('')
-                }
+          <label htmlFor="txn-tags" className="block text-sm font-medium text-fg-muted">Tags</label>
+          <div className="mt-1">
+            <MultiAutocomplete
+              id="txn-tags"
+              options={allTags.filter((t) => !t.deleted_at).map((t) => ({ id: t.id, label: t.name }))}
+              value={selectedTags}
+              onChange={setSelectedTags}
+              placeholder="Search or create tags…"
+              onInlineCreate={async (name) => {
+                const created = await createTagMutation.mutateAsync({ name })
+                return { id: created.id, label: created.name }
               }}
-              placeholder="Type & press Enter to create"
-              className="kk-input h-7 text-xs flex-1"
             />
           </div>
         </div>

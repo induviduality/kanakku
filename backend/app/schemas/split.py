@@ -109,6 +109,20 @@ class SplitCreate(BaseModel):
         return self
 
 
+class SplitSharePatch(BaseModel):
+    """Fields that may be updated on an existing share. Omit a field to leave it unchanged."""
+    payee_id: uuid.UUID | None = None
+    amount: Decimal | None = None
+    notes: str | None = None
+
+    @field_validator("amount")
+    @classmethod
+    def amount_positive(cls, v: Decimal | None) -> Decimal | None:
+        if v is not None and v <= 0:
+            raise ValueError("amount must be positive")
+        return v
+
+
 class SettleRequest(BaseModel):
     """Link an income transaction to a share. amount defaults to the full transaction amount."""
     transaction_id: uuid.UUID

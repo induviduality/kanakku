@@ -17,6 +17,7 @@ from app.schemas.split import (
     SettleRequest,
     SplitCreate,
     SplitResponse,
+    SplitSharePatch,
     SplitShareResponse,
     SplitShareSettlementResponse,
 )
@@ -552,6 +553,64 @@ async def delete_split(
 
     split.deleted_at = datetime.now(UTC)
     await session.commit()
+
+
+# ── Patch share ───────────────────────────────────────────────────────────────
+
+
+@router.patch(
+    "/{split_id}/shares/{share_id}",
+    response_model=SplitShareResponse,
+)
+async def patch_share(
+    split_id: uuid.UUID,
+    share_id: uuid.UUID,
+    body: SplitSharePatch,
+    user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+) -> SplitShareResponse:
+    split, share = await _get_share_or_404(split_id, share_id, user, session)
+
+    if "amount" in body.model_fields_set and body.amount is not None:
+        paid = await _paid_total(session, share.id)
+        if body.amount < paid + share.forgiven_amount:
+            raise HTTPException(
+                status_code=422,
+                detail="New amount cannot be less than already paid + forgiven amount",
+            )
+        share.amount = body.amount
+
+    if "payee_id" in body.model_fields_set:
+        if body.payee_id is not None:
+            # Ensure no other share in this split already claims this payee
+            conflict = (
+                await session.execute(
+                    select(SplitShare).where(
+                        SplitShare.split_id == split.id,
+                        SplitShare.payee_id == body.payee_id,
+                        SplitShare.id != share.id,
+                    )
+                )
+            ).scalar_one_or_none()
+            if conflict is not None:
+                raise HTTPException(
+                    status_code=409, detail="Another share already uses that payee"
+                )
+        share.payee_id = body.payee_id
+
+    if "notes" in body.model_fields_set:
+        share.notes = body.notes
+
+    share.updated_at = datetime.now(UTC)
+    await session.commit()
+    await session.refresh(share)
+
+    settlements = (
+        await session.execute(
+            select(SplitShareSettlement).where(SplitShareSettlement.share_id == share.id)
+        )
+    ).scalars().all()
+    return _share_response(share, list(settlements))
 
 
 # ── Settle: link an income transaction to a share ─────────────────────────────
