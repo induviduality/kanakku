@@ -52,6 +52,7 @@ export interface Transaction {
 export interface TransactionListResponse {
   items: Transaction[]
   next_cursor: string | null
+  total: number
 }
 
 export interface TransactionCreate {
@@ -122,11 +123,11 @@ function buildParams(filters: TransactionFilters, limit = 50, cursor?: string): 
   return p
 }
 
-export function useTransactions(filters: TransactionFilters = {}, limit = 50) {
+export function useTransactions(filters: TransactionFilters = {}, limit = 50, cursor?: string) {
   return useQuery({
-    queryKey: ['transactions', filters, limit],
+    queryKey: ['transactions', filters, limit, cursor],
     queryFn: () =>
-      apiGet<TransactionListResponse>(`/transactions?${buildParams(filters, limit)}`),
+      apiGet<TransactionListResponse>(`/transactions?${buildParams(filters, limit, cursor)}`),
   })
 }
 

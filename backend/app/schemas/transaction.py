@@ -101,3 +101,4 @@ class TransactionResponse(BaseModel):
 class TransactionListResponse(BaseModel):
     items: list[TransactionResponse]
     next_cursor: str | None
+    total: int

@@ -3,7 +3,7 @@ import uuid
 from datetime import UTC, datetime, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import delete, select
+from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.session import get_session
@@ -358,24 +358,22 @@ async def list_transactions(
     current_user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ) -> TransactionListResponse:
-    stmt = select(Transaction).where(Transaction.user_id == current_user.id)
+    base_where = [Transaction.user_id == current_user.id]
 
     if not include_deleted:
-        stmt = stmt.where(Transaction.deleted_at.is_(None))
+        base_where.append(Transaction.deleted_at.is_(None))
     if type is not None:
-        stmt = stmt.where(Transaction.type == type)
+        base_where.append(Transaction.type == type)
     if account_id is not None:
-        stmt = stmt.where(Transaction.account_id == account_id)
+        base_where.append(Transaction.account_id == account_id)
     if payee_id is not None:
-        stmt = stmt.where(Transaction.payee_id == payee_id)
+        base_where.append(Transaction.payee_id == payee_id)
     if from_date is not None:
-        stmt = stmt.where(Transaction.transacted_at >= from_date)
+        base_where.append(Transaction.transacted_at >= from_date)
     if to_date is not None:
-        stmt = stmt.where(Transaction.transacted_at <= to_date)
-
-    # Join filters
+        base_where.append(Transaction.transacted_at <= to_date)
     if category_id is not None:
-        stmt = stmt.where(
+        base_where.append(
             Transaction.id.in_(
                 select(transaction_categories.c.transaction_id).where(
                     transaction_categories.c.category_id == category_id
@@ -383,7 +381,7 @@ async def list_transactions(
             )
         )
     if tag_id is not None:
-        stmt = stmt.where(
+        base_where.append(
             Transaction.id.in_(
                 select(transaction_tags.c.transaction_id).where(
                     transaction_tags.c.tag_id == tag_id
@@ -391,13 +389,19 @@ async def list_transactions(
             )
         )
     if budget_id is not None:
-        stmt = stmt.where(
+        base_where.append(
             Transaction.id.in_(
                 select(transaction_budgets.c.transaction_id).where(
                     transaction_budgets.c.budget_id == budget_id
                 )
             )
         )
+
+    # Total count (no cursor, no limit)
+    count_stmt = select(func.count()).select_from(Transaction).where(*base_where)
+    total: int = (await session.execute(count_stmt)).scalar_one()
+
+    stmt = select(Transaction).where(*base_where)
 
     # Cursor (transacted_at DESC, id DESC)
     if cursor is not None:
@@ -424,7 +428,7 @@ async def list_transactions(
         next_cursor = _encode_cursor(last.transacted_at, last.id)
 
     responses = [await _to_response(t, session) for t in items]
-    return TransactionListResponse(items=responses, next_cursor=next_cursor)
+    return TransactionListResponse(items=responses, next_cursor=next_cursor, total=total)
 
 
 @router.get("/{txn_id}", response_model=TransactionResponse)

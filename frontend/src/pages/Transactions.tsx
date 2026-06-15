@@ -1,9 +1,10 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from '@tanstack/react-router'
-import { Pencil, Trash2 } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Pencil, Trash2 } from 'lucide-react'
 import {
-  useInfiniteTransactions,
+  useTransactions,
   useDeleteTransaction,
+  usePatchTransaction,
   type Transaction,
   type TransactionFilters,
   type TransactionType,
@@ -57,6 +58,10 @@ function filtersToQuery(f: FiltersState): TransactionFilters {
   return q
 }
 
+const PAGE_SIZE_OPTIONS = [10, 20, 30, 50, 100]
+const DEFAULT_PAGE_SIZE = 30
+const PAGINATION_THRESHOLD = 40
+
 export default function Transactions() {
   const navigate = useNavigate()
   const { dashboardParams } = usePeriod()
@@ -69,6 +74,10 @@ export default function Transactions() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [showFilters, setShowFilters] = useState(false)
   const [bundleTarget, setBundleTarget] = useState<Transaction[] | null>(null)
+  const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE)
+  // cursor stack: index 0 = page 1 (no cursor), index N = cursor for page N+1
+  const [cursorStack, setCursorStack] = useState<(string | undefined)[]>([undefined])
+  const [pageIndex, setPageIndex] = useState(0)
 
   // Merge user-applied filters with the global period from the navbar calendar
   const activeFilters = useMemo<TransactionFilters>(() => ({
@@ -77,12 +86,41 @@ export default function Transactions() {
     ...(dashboardParams.end_date && { to: dashboardParams.end_date + 'T23:59:59.999Z' }),
   }), [appliedFilters, dashboardParams])
 
+  // Reset to page 1 whenever filters or page size change
+  useEffect(() => {
+    setCursorStack([undefined])
+    setPageIndex(0)
+  }, [activeFilters, pageSize])
+
+  const [editingDescId, setEditingDescId] = useState<string | null>(null)
+  const [editingDescValue, setEditingDescValue] = useState('')
+
   const { data: accounts = [] } = useAccounts()
   const { data: payees = [] } = usePayees()
   const { data: categories = [] } = useCategories()
   const { data: tags = [] } = useTags()
   const { data: splitsData } = useListSplits()
   const deleteTxn = useDeleteTransaction()
+  const patchTxn = usePatchTransaction()
+  const { data: txnData, isLoading } = useTransactions(activeFilters, pageSize, cursorStack[pageIndex])
+
+  function startEditDesc(t: Transaction, e: React.MouseEvent) {
+    e.stopPropagation()
+    setEditingDescId(t.id)
+    setEditingDescValue(t.description ?? '')
+  }
+
+  async function saveEditDesc(t: Transaction) {
+    const trimmed = editingDescValue.trim()
+    if (trimmed !== (t.description ?? '')) {
+      await patchTxn.mutateAsync({ id: t.id, patch: { description: trimmed } })
+    }
+    setEditingDescId(null)
+  }
+
+  function cancelEditDesc() {
+    setEditingDescId(null)
+  }
 
   const splitsBySettlementTxnId = useMemo(() => {
     const map = new Map<string, Split>()
@@ -97,28 +135,27 @@ export default function Transactions() {
     return map
   }, [splitsData])
 
-  const { data, isLoading, isFetchingNextPage, hasNextPage, fetchNextPage } =
-    useInfiniteTransactions(activeFilters)
+  const allItems = txnData?.items ?? []
+  const total = txnData?.total ?? 0
+  const nextCursor = txnData?.next_cursor ?? null
+  const showPagination = total > PAGINATION_THRESHOLD
+  const totalPages = showPagination ? Math.ceil(total / pageSize) : 1
+  const currentPage = pageIndex + 1
 
-  const allItems = data?.pages.flatMap((p) => p.items) ?? []
+  function goNext() {
+    if (!nextCursor) return
+    setCursorStack((prev) => {
+      const next = [...prev]
+      next[pageIndex + 1] = nextCursor
+      return next
+    })
+    setPageIndex((i) => i + 1)
+  }
 
-  // Infinite scroll sentinel
-  const sentinelRef = useRef<HTMLDivElement>(null)
-  const onIntersect = useCallback(
-    (entries: IntersectionObserverEntry[]) => {
-      if (entries[0].isIntersecting && hasNextPage && !isFetchingNextPage) {
-        fetchNextPage()
-      }
-    },
-    [hasNextPage, isFetchingNextPage, fetchNextPage],
-  )
-  useEffect(() => {
-    const el = sentinelRef.current
-    if (!el) return
-    const obs = new IntersectionObserver(onIntersect, { threshold: 0.1 })
-    obs.observe(el)
-    return () => obs.disconnect()
-  }, [onIntersect])
+  function goPrev() {
+    if (pageIndex === 0) return
+    setPageIndex((i) => i - 1)
+  }
 
   function applyFilters() {
     setAppliedFilters(filtersToQuery(filters))
@@ -129,6 +166,8 @@ export default function Transactions() {
     setFilters(EMPTY_FILTERS)
     setAppliedFilters({})
   }
+
+  const topRef = useRef<HTMLElement>(null)
 
   function toggleSelect(id: string) {
     setSelectedIds((prev) => {
@@ -156,7 +195,7 @@ export default function Transactions() {
   const hasActiveFilters = Object.keys(appliedFilters).length > 0
 
   return (
-    <main className={`p-4 md:p-6 max-w-5xl mx-auto ${selectedIds.size > 0 ? 'pb-20' : ''}`}>
+    <main ref={topRef} className={`p-4 md:p-6 max-w-5xl mx-auto ${selectedIds.size > 0 ? 'pb-20' : ''}`}>
       {/* Header */}
       <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
         <h1 className="text-2xl font-bold text-gray-900">Transactions</h1>
@@ -354,21 +393,43 @@ export default function Transactions() {
                         />
                       </td>
                       <td className="px-3 py-2 text-gray-500 whitespace-nowrap">{formatDate(t.transacted_at)}</td>
-                      <td className="px-3 py-2">
-                        <div className="flex items-center gap-1.5 flex-wrap">
-                          <span className="font-medium text-gray-900">{t.description ?? '—'}</span>
-                          {t.is_split && (
-                            <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-accent/15 text-accent shrink-0">
-                              Split
-                            </span>
-                          )}
-                          {isSplitShare && (
-                            <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-positive/10 text-positive-dim shrink-0">
-                              Split Share
-                            </span>
-                          )}
-                        </div>
-                        {payee && <p className="text-xs text-fg-faint">{payee.name}</p>}
+                      <td className="px-3 py-2" onClick={(e) => e.stopPropagation()}>
+                        {editingDescId === t.id ? (
+                          <input
+                            autoFocus
+                            value={editingDescValue}
+                            onChange={(e) => setEditingDescValue(e.target.value)}
+                            onBlur={() => saveEditDesc(t)}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') { e.preventDefault(); saveEditDesc(t) }
+                              if (e.key === 'Escape') cancelEditDesc()
+                            }}
+                            className="w-full rounded border border-indigo-400 px-2 py-0.5 text-sm font-medium focus:outline-none focus:ring-1 focus:ring-indigo-400"
+                          />
+                        ) : (
+                          <>
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              <span
+                                className="font-medium text-gray-900 cursor-text"
+                                onDoubleClick={(e) => startEditDesc(t, e)}
+                                title="Double-click to edit"
+                              >
+                                {t.description ?? '—'}
+                              </span>
+                              {t.is_split && (
+                                <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-accent/15 text-accent shrink-0">
+                                  Split
+                                </span>
+                              )}
+                              {isSplitShare && (
+                                <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-positive/10 text-positive-dim shrink-0">
+                                  Split Share
+                                </span>
+                              )}
+                            </div>
+                            {payee && <p className="text-xs text-fg-faint">{payee.name}</p>}
+                          </>
+                        )}
                       </td>
                       <td className={`px-3 py-2 text-right font-medium whitespace-nowrap ${TYPE_COLORS[t.type]}`}>
                         {formatAmount(t)}
@@ -438,19 +499,40 @@ export default function Transactions() {
                     <div className="flex-1 min-w-0">
                       <div className="flex justify-between items-start">
                         <div className="min-w-0 flex-1">
-                          <div className="flex items-center gap-1.5 flex-wrap">
-                            <span className="font-medium text-gray-900 truncate">{t.description ?? '—'}</span>
-                            {t.is_split && (
-                              <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-accent/15 text-accent shrink-0">
-                                Split
+                          {editingDescId === t.id ? (
+                            <input
+                              autoFocus
+                              value={editingDescValue}
+                              onChange={(e) => setEditingDescValue(e.target.value)}
+                              onBlur={() => saveEditDesc(t)}
+                              onClick={(e) => e.stopPropagation()}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter') { e.preventDefault(); saveEditDesc(t) }
+                                if (e.key === 'Escape') cancelEditDesc()
+                              }}
+                              className="w-full rounded border border-indigo-400 px-2 py-0.5 text-sm font-medium focus:outline-none focus:ring-1 focus:ring-indigo-400"
+                            />
+                          ) : (
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              <span
+                                className="font-medium text-gray-900 truncate cursor-text"
+                                onDoubleClick={(e) => startEditDesc(t, e)}
+                                title="Double-click to edit"
+                              >
+                                {t.description ?? '—'}
                               </span>
-                            )}
-                            {isSplitShare && (
-                              <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-positive/10 text-positive-dim shrink-0">
-                                Split Share
-                              </span>
-                            )}
-                          </div>
+                              {t.is_split && (
+                                <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-accent/15 text-accent shrink-0">
+                                  Split
+                                </span>
+                              )}
+                              {isSplitShare && (
+                                <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-positive/10 text-positive-dim shrink-0">
+                                  Split Share
+                                </span>
+                              )}
+                            </div>
+                          )}
                           {payee && <p className="text-xs text-fg-faint">{payee.name}</p>}
                           <p className="text-xs text-fg-faint">
                             {t.type === 'transfer'
@@ -486,13 +568,41 @@ export default function Transactions() {
             })}
           </div>
 
-          {/* Infinite scroll sentinel */}
-          <div ref={sentinelRef} className="py-4 text-center">
-            {isFetchingNextPage && <span className="text-gray-400 text-sm">Loading more…</span>}
-            {!hasNextPage && allItems.length > 0 && (
-              <span className="text-gray-300 text-xs">End of results</span>
-            )}
-          </div>
+          {/* Pagination */}
+          {showPagination && (
+            <div className="mt-4 flex items-center justify-center gap-2 text-sm flex-wrap">
+              <button
+                onClick={() => { goPrev(); topRef.current?.scrollIntoView({ behavior: 'smooth' }) }}
+                disabled={pageIndex === 0}
+                className="flex items-center gap-1 rounded-md border border-gray-300 px-3 py-1.5 text-gray-700 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                <ChevronLeft className="w-4 h-4" /> Prev
+              </button>
+
+              <span className="text-gray-500 px-1">
+                Page {currentPage} of {totalPages}
+              </span>
+
+              <select
+                value={pageSize}
+                onChange={(e) => setPageSize(Number(e.target.value))}
+                className="rounded border border-gray-300 px-2 py-1.5 text-sm text-gray-700 bg-white"
+                aria-label="Rows per page"
+              >
+                {PAGE_SIZE_OPTIONS.map((n) => (
+                  <option key={n} value={n}>{n} per page</option>
+                ))}
+              </select>
+
+              <button
+                onClick={() => { goNext(); topRef.current?.scrollIntoView({ behavior: 'smooth' }) }}
+                disabled={!nextCursor}
+                className="flex items-center gap-1 rounded-md border border-gray-300 px-3 py-1.5 text-gray-700 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                Next <ChevronRight className="w-4 h-4" />
+              </button>
+            </div>
+          )}
         </>
       )}
 
