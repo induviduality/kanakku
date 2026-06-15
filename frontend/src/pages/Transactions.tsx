@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from '@tanstack/react-router'
+import { Pencil, Trash2 } from 'lucide-react'
 import {
   useInfiniteTransactions,
   useDeleteTransaction,
@@ -12,6 +13,7 @@ import { useAccounts } from '../api/accounts'
 import { usePayees } from '../api/payees'
 import { useCategories } from '../api/categories'
 import { useTags } from '../api/tags'
+import { usePeriod } from '../lib/period-context'
 import ConfirmDialog from '../components/ConfirmDialog'
 import BundleAsSplitModal from '../components/BundleAsSplitModal'
 import { EmptyState } from '../components/EmptyState'
@@ -39,12 +41,10 @@ interface FiltersState {
   payee_id: string
   category_id: string
   tag_id: string
-  from: string
-  to: string
 }
 
 const EMPTY_FILTERS: FiltersState = {
-  type: '', account_id: '', payee_id: '', category_id: '', tag_id: '', from: '', to: '',
+  type: '', account_id: '', payee_id: '', category_id: '', tag_id: '',
 }
 
 function filtersToQuery(f: FiltersState): TransactionFilters {
@@ -54,15 +54,14 @@ function filtersToQuery(f: FiltersState): TransactionFilters {
   if (f.payee_id) q.payee_id = f.payee_id
   if (f.category_id) q.category_id = f.category_id
   if (f.tag_id) q.tag_id = f.tag_id
-  if (f.from) q.from = new Date(f.from).toISOString()
-  if (f.to) q.to = new Date(f.to).toISOString()
   return q
 }
 
 export default function Transactions() {
   const navigate = useNavigate()
+  const { dashboardParams } = usePeriod()
   const [filters, setFilters] = useState<FiltersState>(EMPTY_FILTERS)
-  const [activeFilters, setActiveFilters] = useState<TransactionFilters>({})
+  const [appliedFilters, setAppliedFilters] = useState<TransactionFilters>({})
   const [deleteTarget, setDeleteTarget] = useState<Transaction | null>(null)
   const [drawerTransaction, setDrawerTransaction] = useState<Transaction | null>(null)
   const [drawerSplitId, setDrawerSplitId] = useState<string | null>(null)
@@ -70,6 +69,13 @@ export default function Transactions() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [showFilters, setShowFilters] = useState(false)
   const [bundleTarget, setBundleTarget] = useState<Transaction[] | null>(null)
+
+  // Merge user-applied filters with the global period from the navbar calendar
+  const activeFilters = useMemo<TransactionFilters>(() => ({
+    ...appliedFilters,
+    ...(dashboardParams.start_date && { from: dashboardParams.start_date + 'T00:00:00.000Z' }),
+    ...(dashboardParams.end_date && { to: dashboardParams.end_date + 'T23:59:59.999Z' }),
+  }), [appliedFilters, dashboardParams])
 
   const { data: accounts = [] } = useAccounts()
   const { data: payees = [] } = usePayees()
@@ -115,13 +121,13 @@ export default function Transactions() {
   }, [onIntersect])
 
   function applyFilters() {
-    setActiveFilters(filtersToQuery(filters))
+    setAppliedFilters(filtersToQuery(filters))
     setShowFilters(false)
   }
 
   function clearFilters() {
     setFilters(EMPTY_FILTERS)
-    setActiveFilters({})
+    setAppliedFilters({})
   }
 
   function toggleSelect(id: string) {
@@ -147,7 +153,7 @@ export default function Transactions() {
     }
   }
 
-  const hasActiveFilters = Object.keys(activeFilters).length > 0
+  const hasActiveFilters = Object.keys(appliedFilters).length > 0
 
   return (
     <main className={`p-4 md:p-6 max-w-5xl mx-auto ${selectedIds.size > 0 ? 'pb-20' : ''}`}>
@@ -248,28 +254,6 @@ export default function Transactions() {
                   <option key={t.id} value={t.id}>{t.name}</option>
                 ))}
               </select>
-            </div>
-
-            <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">From</label>
-              <input
-                type="date"
-                value={filters.from}
-                onChange={(e) => setFilters((f) => ({ ...f, from: e.target.value }))}
-                className="w-full rounded border border-gray-300 px-2 py-1.5 text-sm"
-                aria-label="Filter from date"
-              />
-            </div>
-
-            <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">To</label>
-              <input
-                type="date"
-                value={filters.to}
-                onChange={(e) => setFilters((f) => ({ ...f, to: e.target.value }))}
-                className="w-full rounded border border-gray-300 px-2 py-1.5 text-sm"
-                aria-label="Filter to date"
-              />
             </div>
           </div>
 
@@ -384,7 +368,7 @@ export default function Transactions() {
                             </span>
                           )}
                         </div>
-                        {payee && <p className="text-xs text-gray-400">{payee.name}</p>}
+                        {payee && <p className="text-xs text-fg-faint">{payee.name}</p>}
                       </td>
                       <td className={`px-3 py-2 text-right font-medium whitespace-nowrap ${TYPE_COLORS[t.type]}`}>
                         {formatAmount(t)}
@@ -394,20 +378,32 @@ export default function Transactions() {
                           {t.type === 'opening_balance' ? 'Opening Balance' : t.type.charAt(0).toUpperCase() + t.type.slice(1)}
                         </span>
                       </td>
-                      <td className="px-3 py-2 text-gray-500">{acc?.name ?? '—'}</td>
+                      <td className="px-3 py-2 text-sm text-fg-muted">
+                        {t.type === 'transfer' ? (
+                          <span>
+                            {acc?.name ?? '—'}
+                            <span className="text-fg-faint mx-1">→</span>
+                            {accounts.find(a => a.id === t.to_account_id)?.name ?? '—'}
+                          </span>
+                        ) : (
+                          acc?.name ?? '—'
+                        )}
+                      </td>
                       <td className="px-3 py-2" onClick={(e) => e.stopPropagation()}>
-                        <div className="flex gap-2">
+                        <div className="flex gap-1.5">
                           <button
                             onClick={() => navigate({ to: '/transactions/new', search: { editId: t.id } })}
-                            className="text-xs text-gray-500 hover:text-gray-700"
+                            className="p-1.5 rounded text-fg-faint hover:text-accent hover:bg-accent/10 transition-colors"
+                            title="Edit"
                           >
-                            Edit
+                            <Pencil className="w-3.5 h-3.5" />
                           </button>
                           <button
                             onClick={() => setDeleteTarget(t)}
-                            className="text-xs text-red-500 hover:text-red-700"
+                            className="p-1.5 rounded text-fg-faint hover:text-negative-dim hover:bg-negative/10 transition-colors"
+                            title="Delete"
                           >
-                            Delete
+                            <Trash2 className="w-3.5 h-3.5" />
                           </button>
                         </div>
                       </td>
@@ -455,25 +451,32 @@ export default function Transactions() {
                               </span>
                             )}
                           </div>
-                          {payee && <p className="text-xs text-gray-400">{payee.name}</p>}
-                          <p className="text-xs text-gray-400">{acc?.name ?? '—'} · {formatDate(t.transacted_at)}</p>
+                          {payee && <p className="text-xs text-fg-faint">{payee.name}</p>}
+                          <p className="text-xs text-fg-faint">
+                            {t.type === 'transfer'
+                              ? `${acc?.name ?? '—'} → ${accounts.find(a => a.id === t.to_account_id)?.name ?? '—'}`
+                              : acc?.name ?? '—'
+                            } · {formatDate(t.transacted_at)}
+                          </p>
                         </div>
                         <p className={`font-semibold whitespace-nowrap ml-2 ${TYPE_COLORS[t.type]}`}>
                           {formatAmount(t)}
                         </p>
                       </div>
-                      <div className="mt-2 flex gap-3" onClick={e => e.stopPropagation()}>
+                      <div className="mt-2 flex gap-1.5" onClick={e => e.stopPropagation()}>
                         <button
                           onClick={() => navigate({ to: '/transactions/new', search: { editId: t.id } })}
-                          className="text-xs text-gray-500 hover:text-gray-700"
+                          className="p-1.5 rounded text-fg-faint hover:text-accent hover:bg-accent/10 transition-colors"
+                          title="Edit"
                         >
-                          Edit
+                          <Pencil className="w-3.5 h-3.5" />
                         </button>
                         <button
                           onClick={() => setDeleteTarget(t)}
-                          className="text-xs text-red-500 hover:text-red-700"
+                          className="p-1.5 rounded text-fg-faint hover:text-negative-dim hover:bg-negative/10 transition-colors"
+                          title="Delete"
                         >
-                          Delete
+                          <Trash2 className="w-3.5 h-3.5" />
                         </button>
                       </div>
                     </div>
