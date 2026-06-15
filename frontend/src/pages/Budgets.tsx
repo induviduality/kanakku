@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
 import { rruleLabel } from '../lib/rrule'
 import { usePeriod } from '../lib/period-context'
 import { Pencil, Trash2 } from 'lucide-react'
@@ -147,6 +148,17 @@ function SegmentedControl<T extends string>({
   )
 }
 
+// Returns false only when the period filter is active AND the budget's dates
+// are entirely outside it, so newly created budgets appear immediately.
+function budgetMatchesPeriod(budget: Budget, fromDate?: string, toDate?: string): boolean {
+  if (!fromDate && !toDate) return true
+  const s = budget.start_date
+  const e = budget.end_date
+  if (toDate && s && s > toDate) return false
+  if (fromDate && e && e < fromDate) return false
+  return true
+}
+
 // ── Main page ─────────────────────────────────────────────────────────────────
 
 export default function Budgets() {
@@ -156,6 +168,7 @@ export default function Budgets() {
   const toDate   = dashboardParams.end_date
 
   // ── Data hooks ───────────────────────────────────────────────────────────
+  const qc = useQueryClient()
   const { data: budgets = [], isLoading } = useGetBudgets(true, fromDate, toDate)
   const createBudget  = useCreateBudget()
   const deleteBudget  = useDeleteBudget()
@@ -206,9 +219,15 @@ export default function Budgets() {
     if (endDate)         body.end_date         = endDate
     if (rrule)           body.recurrence_rule  = rrule
     try {
-      await createBudget.mutateAsync(body)
+      const newBudget = await createBudget.mutateAsync(body)
       resetForm()
       setCreateOpen(false)
+      if (budgetMatchesPeriod(newBudget, fromDate, toDate)) {
+        qc.setQueryData(
+          ['budgets', { includeInactive: true, fromDate, toDate }],
+          (old: Budget[] | undefined) => (old ? [...old, newBudget] : [newBudget]),
+        )
+      }
     } catch {
       setCreateError('Failed to create budget.')
     }
