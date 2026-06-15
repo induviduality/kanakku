@@ -4,7 +4,7 @@ from decimal import Decimal
 
 from pydantic import BaseModel, field_validator
 
-from app.models.transaction import TransactionType
+from app.models.transaction import SpendingClassification, TransactionType
 
 
 class TransactionCreate(BaseModel):
@@ -25,6 +25,8 @@ class TransactionCreate(BaseModel):
     tag_ids: list[uuid.UUID] = []
     budget_ids: list[uuid.UUID] = []
     subscription_id: uuid.UUID | None = None
+    spending_classification: SpendingClassification | None = None
+    piggy_bank_id: uuid.UUID | None = None
 
     @field_validator("amount")
     @classmethod
@@ -52,6 +54,8 @@ class TransactionPatch(BaseModel):
     tag_ids: list[uuid.UUID] | None = None
     budget_ids: list[uuid.UUID] | None = None
     subscription_id: uuid.UUID | None = None
+    spending_classification: SpendingClassification | None = None
+    piggy_bank_id: uuid.UUID | None = None
 
     @field_validator("amount")
     @classmethod
@@ -82,6 +86,8 @@ class TransactionResponse(BaseModel):
     import_record_id: uuid.UUID | None
     split_id: uuid.UUID | None  # set if this transaction is a split parent
     is_split: bool  # True if this transaction has an associated split
+    spending_classification: SpendingClassification | None
+    piggy_bank_id: uuid.UUID | None
     category_ids: list[uuid.UUID]
     tag_ids: list[uuid.UUID]
     budget_ids: list[uuid.UUID]

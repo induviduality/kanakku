@@ -1,5 +1,33 @@
 # Completed Milestones
 
+## Transaction form enrichment + Category/Tag management pages (2026-06-15)
+
+**Spending Classification**
+- New `SpendingClassification` StrEnum on `Transaction` model (5 values: `routine`, `planned_essential`, `planned_discretionary`, `unplanned_essential`, `unplanned_discretionary`). Nullable — historical transactions are unclassified by default.
+- Migration `0028_spending_classification.py` adds the column + PG enum type.
+- `TransactionCreate`, `TransactionPatch`, `TransactionResponse` updated.
+- `TransactionForm` shows a `<select>` dropdown for expense/income types; hidden for transfer/opening_balance.
+
+**Piggy Bank Linking**
+- `piggy_bank_id` added to `TransactionCreate`/`TransactionPatch`/`TransactionResponse` as a virtual field backed by `piggy_bank_contributions`.
+- `_sync_piggy_bank()` helper in transactions router: delete-then-insert contribution atomically when `piggy_bank_id` is set in create or patch.
+- `TransactionForm` shows active (non-completed, non-deleted) piggy banks as chip buttons for expense/income types.
+
+**Budget Tagging** — already present; no changes needed.
+
+**Categories → single-select**
+- `TransactionForm` categories changed from multi-select chips to a `<select>` dropdown. API still accepts `category_ids[]`; form wraps/unwraps the single id.
+- Payee default-category auto-populates `selectedCategoryId` (first id) when no category is selected.
+
+**Tags → multi-select with inline create**
+- Tags in `TransactionForm` retain chip multi-select. Added a text input below the chips: typing a name and pressing Enter either selects an existing tag (case-insensitive match) or calls `POST /tags` and immediately selects the new tag.
+
+**Categories page** — restyled `Categories.tsx` to use design-system `kk-*` classes; card grid layout with color swatch, icon, applicability label; inline create/edit modals. Added to `SideNav` (after Payees, tag icon).
+
+**Tags page** — restyled `Tags.tsx` to use design-system `kk-*` classes; pill-card layout with color dot; inline create/edit modals. Added to `SideNav` (after Categories, hash-lines icon).
+
+- See decision log 2026-06-15 for SpendingClassification enum design, piggy bank FK choice, and category/tag select rationale.
+
 ## Infra fix (2026-06-06) — entrypoint honors compose command; worker actually runs arq
 
 - `backend/entrypoint.sh`: `exec "$@"` instead of a hardcoded uvicorn line. The Dockerfile ENTRYPOINT was swallowing each service's compose `command:`, so the API ignored `--workers 3`/`--reload` and the worker ran uvicorn instead of `python -m arq …` (background jobs never ran)

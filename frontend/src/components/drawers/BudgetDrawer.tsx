@@ -72,6 +72,8 @@ function toTransaction(item: BudgetTransactionItem): Transaction {
     import_record_id: null,
     split_id: null,
     is_split: false,
+    spending_classification: null,
+    piggy_bank_id: null,
     tag_ids: [],
     budget_ids: [],
     created_at: item.transacted_at,

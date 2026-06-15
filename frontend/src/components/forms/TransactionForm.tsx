@@ -1,10 +1,12 @@
 import { useEffect, useState } from 'react'
-import type { Transaction, TransactionCreate, TransactionPatch, TransactionType } from '../../api/transactions'
+import type { SpendingClassification, Transaction, TransactionCreate, TransactionPatch, TransactionType } from '../../api/transactions'
+import { SPENDING_CLASSIFICATION_LABELS } from '../../api/transactions'
 import { useAccounts, usePaymentMethods } from '../../api/accounts'
 import { useCategories } from '../../api/categories'
-import { useTags } from '../../api/tags'
+import { useTags, useCreateTag } from '../../api/tags'
 import { usePayees, useCreatePayee } from '../../api/payees'
 import { useGetBudgets } from '../../api/budgets'
+import { useGetPiggyBanks } from '../../api/piggy_banks'
 import Autocomplete from '../Autocomplete'
 
 interface TransactionFormProps {
@@ -29,7 +31,9 @@ export default function TransactionForm({
   const { data: allTags = [] } = useTags()
   const { data: payees = [] } = usePayees()
   const { data: allBudgets = [] } = useGetBudgets(false)
+  const { data: allPiggyBanks = [] } = useGetPiggyBanks()
   const createPayeeMutation = useCreatePayee()
+  const createTagMutation = useCreateTag()
 
   const [type, setType] = useState<TransactionType>(initial?.type ?? 'expense')
   const [transactedAt, setTransactedAt] = useState(
@@ -46,12 +50,19 @@ export default function TransactionForm({
   const [description, setDescription] = useState(initial?.description ?? '')
   const [notes, setNotes] = useState(initial?.notes ?? '')
   const [externalRef, setExternalRef] = useState(initial?.external_ref ?? '')
-  const [selectedCategories, setSelectedCategories] = useState<string[]>(
-    initial?.category_ids ?? [],
+  const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(
+    initial?.category_ids?.[0] ?? null,
   )
   const [selectedTags, setSelectedTags] = useState<string[]>(initial?.tag_ids ?? [])
   const [selectedBudgetId, setSelectedBudgetId] = useState<string | null>(
     initial?.budget_ids?.[0] ?? null,
+  )
+  const [newTagInput, setNewTagInput] = useState('')
+  const [spendingClassification, setSpendingClassification] = useState<SpendingClassification | null>(
+    initial?.spending_classification ?? null,
+  )
+  const [selectedPiggyBankId, setSelectedPiggyBankId] = useState<string | null>(
+    initial?.piggy_bank_id ?? null,
   )
   const [error, setError] = useState('')
 
@@ -73,19 +84,21 @@ export default function TransactionForm({
       setDescription(initial.description ?? '')
       setNotes(initial.notes ?? '')
       setExternalRef(initial.external_ref ?? '')
-      setSelectedCategories(initial.category_ids ?? [])
+      setSelectedCategoryId(initial.category_ids?.[0] ?? null)
       setSelectedTags(initial.tag_ids ?? [])
       setSelectedBudgetId(initial.budget_ids?.[0] ?? null)
+      setSpendingClassification(initial.spending_classification ?? null)
+      setSelectedPiggyBankId(initial.piggy_bank_id ?? null)
     }
   }, [initial])
 
-  // When payee changes, auto-populate categories from payee defaults — only when
-  // the user hasn't already chosen any, to avoid clobbering a manual selection.
+  // When payee changes, auto-populate category from payee defaults — only when
+  // the user hasn't already chosen one, to avoid clobbering a manual selection.
   useEffect(() => {
     if (!payeeId) return
     const payee = payees.find((p) => p.id === payeeId)
-    if (payee?.default_category_ids?.length && selectedCategories.length === 0) {
-      setSelectedCategories(payee.default_category_ids)
+    if (payee?.default_category_ids?.length && !selectedCategoryId) {
+      setSelectedCategoryId(payee.default_category_ids[0])
     }
   }, [payeeId, payees])
 
@@ -97,12 +110,6 @@ export default function TransactionForm({
       setPaymentMethodId(null)
     }
   }, [accountId, initial])
-
-  function toggleCategory(id: string) {
-    setSelectedCategories((prev) =>
-      prev.includes(id) ? prev.filter((c) => c !== id) : [...prev, id],
-    )
-  }
 
   function toggleTag(id: string) {
     setSelectedTags((prev) =>
@@ -130,9 +137,11 @@ export default function TransactionForm({
       ...(paymentMethodId && { payment_method_id: paymentMethodId }),
       ...(payeeId && { payee_id: payeeId }),
       ...(type === 'transfer' && toAccountId && { to_account_id: toAccountId }),
-      category_ids: selectedCategories,
+      category_ids: selectedCategoryId ? [selectedCategoryId] : [],
       tag_ids: selectedTags,
       ...(selectedBudgetId && { budget_ids: [selectedBudgetId] }),
+      spending_classification: spendingClassification,
+      ...(selectedPiggyBankId && { piggy_bank_id: selectedPiggyBankId }),
     }
 
     try {
@@ -292,25 +301,23 @@ export default function TransactionForm({
         </div>
       )}
 
-      {/* Categories (not for transfers or opening balance) */}
+      {/* Category (single-select, not for transfers or opening balance) */}
       {type !== 'transfer' && type !== 'opening_balance' && (
         <div>
-          <label className="block text-sm font-medium text-fg-muted">Categories</label>
-          <div className="mt-1 flex flex-wrap gap-1">
+          <label htmlFor="txn-category" className="block text-sm font-medium text-fg-muted">Category</label>
+          <select
+            id="txn-category"
+            value={selectedCategoryId ?? ''}
+            onChange={(e) => setSelectedCategoryId(e.target.value || null)}
+            className="mt-1 kk-input"
+          >
+            <option value="">— none —</option>
             {allCategories.filter((c) => !c.deleted_at).map((c) => (
-              <button
-                key={c.id}
-                type="button"
-                onClick={() => toggleCategory(c.id)}
-                className={`rounded-full px-3 py-1 text-xs font-medium border transition-colors
-                  ${selectedCategories.includes(c.id)
-                    ? 'bg-accent-dim text-white border-accent-dim'
-                    : 'bg-surface-2 text-fg-muted border-border-strong hover:border-accent'}`}
-              >
-                {c.name}
-              </button>
+              <option key={c.id} value={c.id}>
+                {c.icon ? `${c.icon} ${c.name}` : c.name}
+              </option>
             ))}
-          </div>
+          </select>
         </div>
       )}
 
@@ -352,7 +359,7 @@ export default function TransactionForm({
         />
       </div>
 
-      {/* Tags (not for opening balance) */}
+      {/* Tags — multi-select with inline create (not for opening balance) */}
       {type !== 'opening_balance' && (
         <div>
           <label className="block text-sm font-medium text-fg-muted">Tags</label>
@@ -370,6 +377,30 @@ export default function TransactionForm({
                 {t.name}
               </button>
             ))}
+          </div>
+          <div className="mt-1.5 flex gap-1.5">
+            <input
+              type="text"
+              value={newTagInput}
+              onChange={(e) => setNewTagInput(e.target.value)}
+              onKeyDown={async (e) => {
+                if (e.key === 'Enter' && newTagInput.trim()) {
+                  e.preventDefault()
+                  const existing = allTags.find(
+                    (t) => t.name.toLowerCase() === newTagInput.trim().toLowerCase()
+                  )
+                  if (existing) {
+                    if (!selectedTags.includes(existing.id)) toggleTag(existing.id)
+                  } else {
+                    const created = await createTagMutation.mutateAsync({ name: newTagInput.trim() })
+                    setSelectedTags((prev) => [...prev, created.id])
+                  }
+                  setNewTagInput('')
+                }
+              }}
+              placeholder="Type & press Enter to create"
+              className="kk-input h-7 text-xs flex-1"
+            />
           </div>
         </div>
       )}
@@ -393,6 +424,52 @@ export default function TransactionForm({
               </button>
             ))}
           </div>
+        </div>
+      )}
+
+      {/* Piggy bank (expense + income only) */}
+      {type !== 'transfer' && type !== 'opening_balance' && allPiggyBanks.filter(p => !p.deleted_at && !p.is_completed).length > 0 && (
+        <div>
+          <label className="block text-sm font-medium text-fg-muted">Savings Goal</label>
+          <div className="mt-1 flex flex-wrap gap-1">
+            {allPiggyBanks.filter(p => !p.deleted_at && !p.is_completed).map((p) => (
+              <button
+                key={p.id}
+                type="button"
+                onClick={() => setSelectedPiggyBankId(selectedPiggyBankId === p.id ? null : p.id)}
+                className={`rounded-full px-3 py-1 text-xs font-medium border transition-colors
+                  ${selectedPiggyBankId === p.id
+                    ? 'bg-accent-dim text-white border-accent-dim'
+                    : 'bg-surface-2 text-fg-muted border-border-strong hover:border-accent'}`}
+              >
+                {p.name}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Spending classification (expense + income only) */}
+      {type !== 'transfer' && type !== 'opening_balance' && (
+        <div>
+          <label htmlFor="txn-classification" className="block text-sm font-medium text-fg-muted">
+            Spending Classification
+          </label>
+          <select
+            id="txn-classification"
+            value={spendingClassification ?? ''}
+            onChange={(e) =>
+              setSpendingClassification((e.target.value as SpendingClassification) || null)
+            }
+            className="mt-1 kk-input"
+          >
+            <option value="">— unclassified —</option>
+            {(Object.entries(SPENDING_CLASSIFICATION_LABELS) as [SpendingClassification, string][]).map(
+              ([value, label]) => (
+                <option key={value} value={value}>{label}</option>
+              )
+            )}
+          </select>
         </div>
       )}
 

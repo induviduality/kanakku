@@ -3,6 +3,21 @@ import { apiDelete, apiGet, apiPatch, apiPost } from '../lib/api-client'
 
 export type TransactionType = 'expense' | 'income' | 'transfer' | 'opening_balance'
 
+export type SpendingClassification =
+  | 'routine'
+  | 'planned_essential'
+  | 'planned_discretionary'
+  | 'unplanned_essential'
+  | 'unplanned_discretionary'
+
+export const SPENDING_CLASSIFICATION_LABELS: Record<SpendingClassification, string> = {
+  routine:                 'Routine',
+  planned_essential:       'Planned · Essential',
+  planned_discretionary:   'Planned · Discretionary',
+  unplanned_essential:     'Unplanned · Essential',
+  unplanned_discretionary: 'Unplanned · Discretionary',
+}
+
 export interface Transaction {
   id: string
   user_id: string
@@ -24,6 +39,8 @@ export interface Transaction {
   import_record_id: string | null
   split_id: string | null
   is_split: boolean
+  spending_classification: SpendingClassification | null
+  piggy_bank_id: string | null
   category_ids: string[]
   tag_ids: string[]
   budget_ids: string[]
@@ -54,6 +71,8 @@ export interface TransactionCreate {
   category_ids?: string[]
   tag_ids?: string[]
   budget_ids?: string[]
+  spending_classification?: SpendingClassification | null
+  piggy_bank_id?: string | null
 }
 
 export interface TransactionPatch {
@@ -73,6 +92,8 @@ export interface TransactionPatch {
   category_ids?: string[]
   tag_ids?: string[]
   budget_ids?: string[]
+  spending_classification?: SpendingClassification | null
+  piggy_bank_id?: string | null
 }
 
 export interface TransactionFilters {

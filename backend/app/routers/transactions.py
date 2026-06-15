@@ -11,6 +11,7 @@ from app.dependencies import get_current_user
 from app.models.account import Account, AccountType
 from app.models.payment_method import PaymentMethod
 from app.models.split import Split, SplitExpense
+from app.models.piggy_bank import ContributionType, PiggyBankContribution
 from app.models.transaction import (
     Transaction,
     TransactionType,
@@ -100,6 +101,17 @@ async def _fetch_budget_ids(txn_id: uuid.UUID, session: AsyncSession) -> list[uu
     return [r.budget_id for r in rows]
 
 
+async def _fetch_piggy_bank_id(txn_id: uuid.UUID, session: AsyncSession) -> uuid.UUID | None:
+    row = (
+        await session.execute(
+            select(PiggyBankContribution.piggy_bank_id).where(
+                PiggyBankContribution.transaction_id == txn_id
+            )
+        )
+    ).scalar_one_or_none()
+    return row
+
+
 async def _fetch_payment_method_name(
     pm_id: uuid.UUID | None, session: AsyncSession
 ) -> str | None:
@@ -131,12 +143,14 @@ async def _to_response(txn: Transaction, session: AsyncSession) -> TransactionRe
     category_ids = await _fetch_category_ids(txn.id, session)
     tag_ids = await _fetch_tag_ids(txn.id, session)
     budget_ids = await _fetch_budget_ids(txn.id, session)
+    piggy_bank_id = await _fetch_piggy_bank_id(txn.id, session)
     payment_method_name = await _fetch_payment_method_name(txn.payment_method_id, session)
     split_id = await _fetch_split_id(txn.id, session)
     data = {c.key: getattr(txn, c.key) for c in txn.__table__.columns}
     data["category_ids"] = category_ids
     data["tag_ids"] = tag_ids
     data["budget_ids"] = budget_ids
+    data["piggy_bank_id"] = piggy_bank_id
     data["payment_method_name"] = payment_method_name
     data["split_id"] = split_id
     data["is_split"] = split_id is not None
@@ -211,6 +225,33 @@ async def _set_joins(
             transaction_budgets.insert(),
             [{"transaction_id": txn_id, "budget_id": bid} for bid in budget_ids],
         )
+
+
+async def _sync_piggy_bank(
+    txn: Transaction,
+    piggy_bank_id: uuid.UUID | None,
+    session: AsyncSession,
+) -> None:
+    """Reconcile the piggy bank contribution for a transaction.
+
+    Removes any existing contribution then creates a new one if piggy_bank_id is set.
+    """
+    await session.execute(
+        delete(PiggyBankContribution).where(PiggyBankContribution.transaction_id == txn.id)
+    )
+    if piggy_bank_id is not None:
+        ctype = (
+            ContributionType.transfer
+            if txn.type == TransactionType.income
+            else ContributionType.expense
+        )
+        session.add(PiggyBankContribution(
+            piggy_bank_id=piggy_bank_id,
+            transaction_id=txn.id,
+            contribution_type=ctype,
+            amount=txn.amount,
+            date=txn.transacted_at.date(),
+        ))
 
 
 def _encode_cursor(transacted_at: datetime, txn_id: uuid.UUID) -> str:
@@ -288,12 +329,14 @@ async def create_transaction(
         to_amount=body.to_amount,
         to_currency=body.to_currency,
         subscription_id=body.subscription_id,
+        spending_classification=body.spending_classification,
     )
     session.add(txn)
     await session.flush()
 
     await _apply_balance(txn, session, current_user.id, sign=+1)
     await _set_joins(txn.id, body.category_ids, body.tag_ids, body.budget_ids, session)
+    await _sync_piggy_bank(txn, body.piggy_bank_id, session)
     await session.commit()
     await session.refresh(txn)
     return await _to_response(txn, session)
@@ -413,10 +456,10 @@ async def patch_transaction(
         "type", "transacted_at", "amount", "currency", "description", "notes",
         "external_ref",
         "account_id", "payment_method_id", "payee_id", "to_account_id", "to_amount",
-        "to_currency", "subscription_id",
+        "to_currency", "subscription_id", "spending_classification",
     }
     patch_data = body.model_dump(
-        exclude_unset=True, exclude={"category_ids", "tag_ids", "budget_ids"}
+        exclude_unset=True, exclude={"category_ids", "tag_ids", "budget_ids", "piggy_bank_id"}
     )
 
     # Validate transfer constraint after patching
@@ -458,6 +501,11 @@ async def patch_transaction(
             body.budget_ids if body.budget_ids is not None else existing_budgets,
             session,
         )
+
+    # piggy_bank_id=None in the patch means "leave alone"; explicit null not supported
+    # (users unlink via the piggy bank detail page). Only sync when explicitly provided.
+    if "piggy_bank_id" in body.model_fields_set:
+        await _sync_piggy_bank(txn, body.piggy_bank_id, session)
 
     await session.commit()
     await session.refresh(txn)

@@ -50,6 +50,20 @@
 
 ## Milestone 13: PWA & Polish — COMPLETE
 
+# Ad-hoc Feature Sprint (2026-06-15)
+
+## Completed Tasks
+- Transaction form enrichment: SpendingClassification dropdown, Piggy Bank selector, Category→single-select with dropdown, Tags inline-create — DONE (2026-06-15)
+- Categories management page restyled (kk-* design system) + added to SideNav — DONE (2026-06-15)
+- Tags management page restyled (kk-* design system) + added to SideNav — DONE (2026-06-15)
+- Import review: opening_balance in type dropdown + chip display — DONE (2026-06-15)
+- PDF parser: emit synthetic opening_balance ParsedRecord from StatementHeader — DONE (2026-06-15)
+- Import router: map "opening_balance" type correctly in _record_to_transaction — DONE (2026-06-15)
+- Dedup: changed matching criteria to exact date + exact amount (removed fuzzy description + date window) — DONE (2026-06-15)
+
+## Pending
+- Split bug: blank payee → label "Unknown Payee"; allow editing OG transaction from split drawer; link/delink transactions inside split details
+
 # Milestone 14: Production Deployment — In Progress
 
 ## Completed Tasks

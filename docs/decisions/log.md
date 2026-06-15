@@ -1,5 +1,37 @@
 # Decision Log
 
+## 2026-06-15 — SpendingClassification: 5-value enum covering intent × necessity + routine
+
+**Context:** User requested tracking "necessary vs unnecessary" expenses. The raw requirement was a 2×2 matrix (wanted/didn't want × necessary/unnecessary) plus a separate "routine" bucket.
+
+**Decision:** Introduced a `SpendingClassification` StrEnum with 5 values: `routine`, `planned_essential`, `planned_discretionary`, `unplanned_essential`, `unplanned_discretionary`. `routine` is its own top-level value (not folded into planned_essential) because recurring predictable spend (rent, EMIs, subscriptions) is a distinct spending pattern from a deliberate one-off essential purchase. Column is nullable — omitting it means "unclassified", which is the correct default for historical/imported transactions.
+
+**Alternatives considered:**
+- Boolean `is_necessary` + boolean `is_planned` pair — normalised but harder to display/filter; enum collapses them into a single queryable column
+- 4-value (drop `routine`) — loses the recurring-vs-deliberate distinction that users care about for budgeting insight
+
+**Affects:** `backend/app/models/transaction.py`, `backend/app/schemas/transaction.py`, `backend/alembic/versions/0028_spending_classification.py`, `frontend/src/api/transactions.ts`, `frontend/src/components/forms/TransactionForm.tsx`
+
+## 2026-06-15 — Piggy bank linking via existing PiggyBankContribution; no new FK on Transaction
+
+**Context:** Adding piggy bank selection to the transaction form. Two options: add a `piggy_bank_id` FK column to `transactions`, or reuse the existing `piggy_bank_contributions` join table.
+
+**Decision:** Reuse `piggy_bank_contributions`. Adding a direct FK would duplicate the relationship (the join table already models it), and the join table carries richer metadata (`contribution_type`, `amount`, `date`). A helper `_sync_piggy_bank()` in the router deletes any existing contribution for the transaction and inserts a new one atomically. `piggy_bank_id` is exposed as a virtual field on `TransactionResponse` (queried from the join table) and on `TransactionCreate`/`TransactionPatch`.
+
+**Affects:** `backend/app/routers/transactions.py`, `backend/app/schemas/transaction.py`, `frontend/src/api/transactions.ts`, `frontend/src/components/forms/TransactionForm.tsx`
+
+## 2026-06-15 — Categories: single-select in TransactionForm; Tags: multi-select with inline create
+
+**Context:** User clarified that a transaction should belong to one category (mutually exclusive) but can carry multiple tags (dimensions/labels).
+
+**Decision:** Changed the category field in TransactionForm from multi-select chips to a `<select>` dropdown (single-select). `category_ids` array is preserved on the API for backwards compatibility — the form wraps the single id in `[id]` on submit and unwraps `category_ids[0]` on load. Tags remain multi-select chips. Added an inline "Type & press Enter to create" input in the tags section so new tags can be created on the fly without leaving the form (calls `POST /tags` and immediately selects the new tag).
+
+**Alternatives considered:**
+- Keep multi-select chips for categories — harder to enforce single-select UX; a dropdown communicates mutual exclusivity more clearly
+- Autocomplete for tags — would hide existing tags; chips let users see all options at a glance while still supporting inline creation
+
+**Affects:** `frontend/src/components/forms/TransactionForm.tsx`
+
 ## 2026-06-06 — entrypoint.sh execs the passed command; worker waits on api to serialize migrations
 
 **Context:** `backend/entrypoint.sh` ran `alembic upgrade head` then `exec uvicorn app.main:app --host 0.0.0.0 --port 8765` with the uvicorn command **hardcoded** — it ignored `"$@"`. Since the Dockerfile sets `ENTRYPOINT ["/app/entrypoint.sh"]` and no `CMD`, each service's compose `command:` is passed as args to the entrypoint and was being discarded. Two consequences: (1) the API ignored `--workers 3` (prod) / `--reload` (dev), always running a single non-reloading worker; (2) the **worker** service — same image, same entrypoint — ran uvicorn instead of `python -m arq …`, so background jobs never ran.

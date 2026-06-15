@@ -16,6 +16,19 @@ class TransactionType(StrEnum):
     opening_balance = "opening_balance"
 
 
+class SpendingClassification(StrEnum):
+    # Regular, predictable recurring spend (rent, EMIs, subscriptions, utility bills).
+    routine = "routine"
+    # Intentional spend you chose and needed (planned grocery run, scheduled medical visit).
+    planned_essential = "planned_essential"
+    # Intentional spend you chose but didn't strictly need (dining out, new gadget you wanted).
+    planned_discretionary = "planned_discretionary"
+    # Forced spend you didn't anticipate but couldn't avoid (emergency repair, surprise medical bill).
+    unplanned_essential = "unplanned_essential"
+    # Impulse spend you neither planned nor needed (random purchase, moment of weakness).
+    unplanned_discretionary = "unplanned_discretionary"
+
+
 # Association tables (no ORM class needed — accessed via raw SQL or joined loads)
 transaction_categories = sa.Table(
     "transaction_categories",
@@ -134,6 +147,9 @@ class Transaction(Base):
     )
     # external reference from the payment provider (UPI ref, UTR, cheque no., etc.)
     external_ref: Mapped[str | None] = mapped_column(sa.Text, nullable=True)
+    spending_classification: Mapped[SpendingClassification | None] = mapped_column(
+        sa.Enum(SpendingClassification, name="spendingclassification"), nullable=True
+    )
     created_at: Mapped[datetime] = mapped_column(
         sa.TIMESTAMP(timezone=True), server_default=sa.func.now(), nullable=False
     )
