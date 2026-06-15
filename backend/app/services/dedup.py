@@ -1,26 +1,25 @@
-"""Transaction deduplication using fuzzy description matching (rapidfuzz)."""
+"""Transaction deduplication: exact date + exact amount match within the same account.
+
+Account-level isolation is enforced upstream (the worker pre-filters `existing` to
+the batch's account), so this function does not re-check account_id.
+"""
 
 import datetime as dt
 from decimal import Decimal
-
-from rapidfuzz import fuzz
-
-# Match window: ±3 days around the parsed transaction date
-DATE_WINDOW_DAYS = 3
-# Description similarity threshold (0-100) for fuzzy match
-DESCRIPTION_SIMILARITY_THRESHOLD = 85
 
 
 def find_duplicates(
     candidate: dict[str, object],
     existing: list[dict[str, object]],
 ) -> list[dict[str, object]]:
-    """Return existing transactions that look like duplicates of the candidate.
+    """Return existing transactions that are duplicates of the candidate.
 
     A duplicate is an existing transaction where:
     - The amount matches exactly, AND
-    - The date is within DATE_WINDOW_DAYS, AND
-    - The description similarity is >= DESCRIPTION_SIMILARITY_THRESHOLD
+    - The date matches exactly (same calendar day)
+
+    No description similarity is required — same date + same amount in the same
+    account is sufficient signal to flag for user review.
     """
     try:
         cand_date = _parse_date(str(candidate.get("date", "")))
@@ -28,7 +27,6 @@ def find_duplicates(
         return []
 
     cand_amount = Decimal(str(candidate.get("amount", "0")))
-    cand_desc = str(candidate.get("description", "")).lower().strip()
 
     matches: list[dict[str, object]] = []
     for txn in existing:
@@ -50,13 +48,10 @@ def find_duplicates(
         else:
             continue
 
-        if abs((cand_date - txn_date).days) > DATE_WINDOW_DAYS:
+        if cand_date != txn_date:
             continue
 
-        txn_desc = str(txn.get("description", "")).lower().strip()
-        score = fuzz.token_set_ratio(cand_desc, txn_desc)
-        if score >= DESCRIPTION_SIMILARITY_THRESHOLD:
-            matches.append(txn)
+        matches.append(txn)
 
     return matches
 
