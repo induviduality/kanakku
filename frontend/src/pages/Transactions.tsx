@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
-import { useNavigate } from '@tanstack/react-router'
+import { useMemo, useRef, useState } from 'react'
+import { useNavigate, useSearch } from '@tanstack/react-router'
 import { ChevronLeft, ChevronRight, Pencil, Trash2 } from 'lucide-react'
 import {
   useTransactions,
@@ -48,15 +48,6 @@ const EMPTY_FILTERS: FiltersState = {
   type: '', account_id: '', payee_id: '', category_id: '', tag_id: '',
 }
 
-function filtersToQuery(f: FiltersState): TransactionFilters {
-  const q: TransactionFilters = {}
-  if (f.type) q.type = f.type as TransactionType
-  if (f.account_id) q.account_id = f.account_id
-  if (f.payee_id) q.payee_id = f.payee_id
-  if (f.category_id) q.category_id = f.category_id
-  if (f.tag_id) q.tag_id = f.tag_id
-  return q
-}
 
 const PAGE_SIZE_OPTIONS = [10, 20, 30, 50, 100]
 const DEFAULT_PAGE_SIZE = 30
@@ -65,8 +56,34 @@ const PAGINATION_THRESHOLD = 40
 export default function Transactions() {
   const navigate = useNavigate()
   const { dashboardParams } = usePeriod()
-  const [filters, setFilters] = useState<FiltersState>(EMPTY_FILTERS)
-  const [appliedFilters, setAppliedFilters] = useState<TransactionFilters>({})
+
+  // URL is the source of truth for filters and pagination so state survives navigation.
+  const rawSearch = useSearch({ strict: false }) as Record<string, string>
+  const urlType       = (rawSearch.txn_type ?? '') as TransactionType | ''
+  const urlAccountId  = rawSearch.account_id ?? ''
+  const urlPayeeId    = rawSearch.payee_id ?? ''
+  const urlCategoryId = rawSearch.category_id ?? ''
+  const urlTagId      = rawSearch.tag_id ?? ''
+  const urlPageSize   = Number(rawSearch.page_size) || DEFAULT_PAGE_SIZE
+  const urlPage       = Math.max(1, Number(rawSearch.page) || 1)
+  const urlCursor     = rawSearch.cursor || undefined
+
+  // pendingFilters: what's shown in the filter form before the user clicks Apply
+  const [pendingFilters, setPendingFilters] = useState<FiltersState>(() => ({
+    type: urlType, account_id: urlAccountId, payee_id: urlPayeeId,
+    category_id: urlCategoryId, tag_id: urlTagId,
+  }))
+
+  // In-session cursor map: page number → cursor needed to load that page.
+  // Grows as the user navigates forward. Falls back to urlCursor on restore.
+  const [cursorMap, setCursorMap] = useState<Map<number, string | undefined>>(() => {
+    const m = new Map<number, string | undefined>()
+    m.set(1, undefined)
+    if (urlPage > 1 && urlCursor) m.set(urlPage, urlCursor)
+    return m
+  })
+
+  // UI-only state
   const [deleteTarget, setDeleteTarget] = useState<Transaction | null>(null)
   const [drawerTransaction, setDrawerTransaction] = useState<Transaction | null>(null)
   const [drawerSplitId, setDrawerSplitId] = useState<string | null>(null)
@@ -74,26 +91,38 @@ export default function Transactions() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [showFilters, setShowFilters] = useState(false)
   const [bundleTarget, setBundleTarget] = useState<Transaction[] | null>(null)
-  const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE)
-  // cursor stack: index 0 = page 1 (no cursor), index N = cursor for page N+1
-  const [cursorStack, setCursorStack] = useState<(string | undefined)[]>([undefined])
-  const [pageIndex, setPageIndex] = useState(0)
+  const [editingDescId, setEditingDescId] = useState<string | null>(null)
+  const [editingDescValue, setEditingDescValue] = useState('')
 
-  // Merge user-applied filters with the global period from the navbar calendar
+  // The cursor we actually fetch with: prefer in-session map (accurate Prev),
+  // fall back to URL cursor (fresh restore from a bookmarked/back-navigated URL).
+  const fetchCursor = cursorMap.get(urlPage) ?? urlCursor
+
+  // Write filter + pagination state into the URL
+  function pushSearch(updates: Record<string, string | number | undefined>) {
+    navigate({
+      to: '/transactions',
+      search: { ...rawSearch, ...updates } as Record<string, string>,
+    })
+  }
+
+  // Applied filters = what's in the URL right now
+  const appliedFilters = useMemo<TransactionFilters>(() => {
+    const q: TransactionFilters = {}
+    if (urlType)       q.type = urlType as TransactionType
+    if (urlAccountId)  q.account_id = urlAccountId
+    if (urlPayeeId)    q.payee_id = urlPayeeId
+    if (urlCategoryId) q.category_id = urlCategoryId
+    if (urlTagId)      q.tag_id = urlTagId
+    return q
+  }, [urlType, urlAccountId, urlPayeeId, urlCategoryId, urlTagId])
+
+  // Merge URL filters with the global period from the navbar calendar
   const activeFilters = useMemo<TransactionFilters>(() => ({
     ...appliedFilters,
     ...(dashboardParams.start_date && { from: dashboardParams.start_date + 'T00:00:00.000Z' }),
     ...(dashboardParams.end_date && { to: dashboardParams.end_date + 'T23:59:59.999Z' }),
   }), [appliedFilters, dashboardParams])
-
-  // Reset to page 1 whenever filters or page size change
-  useEffect(() => {
-    setCursorStack([undefined])
-    setPageIndex(0)
-  }, [activeFilters, pageSize])
-
-  const [editingDescId, setEditingDescId] = useState<string | null>(null)
-  const [editingDescValue, setEditingDescValue] = useState('')
 
   const { data: accounts = [] } = useAccounts()
   const { data: payees = [] } = usePayees()
@@ -102,7 +131,7 @@ export default function Transactions() {
   const { data: splitsData } = useListSplits()
   const deleteTxn = useDeleteTransaction()
   const patchTxn = usePatchTransaction()
-  const { data: txnData, isLoading } = useTransactions(activeFilters, pageSize, cursorStack[pageIndex])
+  const { data: txnData, isLoading } = useTransactions(activeFilters, urlPageSize, fetchCursor)
 
   function startEditDesc(t: Transaction, e: React.MouseEvent) {
     e.stopPropagation()
@@ -139,35 +168,55 @@ export default function Transactions() {
   const total = txnData?.total ?? 0
   const nextCursor = txnData?.next_cursor ?? null
   const showPagination = total > PAGINATION_THRESHOLD
-  const totalPages = showPagination ? Math.ceil(total / pageSize) : 1
-  const currentPage = pageIndex + 1
+  const totalPages = showPagination ? Math.ceil(total / urlPageSize) : 1
+
+  const topRef = useRef<HTMLElement>(null)
 
   function goNext() {
     if (!nextCursor) return
-    setCursorStack((prev) => {
-      const next = [...prev]
-      next[pageIndex + 1] = nextCursor
-      return next
-    })
-    setPageIndex((i) => i + 1)
+    const newPage = urlPage + 1
+    setCursorMap((prev) => new Map(prev).set(newPage, nextCursor))
+    pushSearch({ page: newPage, cursor: nextCursor })
+    topRef.current?.scrollIntoView({ behavior: 'smooth' })
   }
 
   function goPrev() {
-    if (pageIndex === 0) return
-    setPageIndex((i) => i - 1)
+    if (urlPage <= 1) return
+    const prevPage = urlPage - 1
+    // If we have the cursor in-session, use it; otherwise jump to page 1
+    const hasPrevCursor = cursorMap.has(prevPage)
+    const targetPage   = (prevPage > 1 && !hasPrevCursor) ? 1 : prevPage
+    const targetCursor = cursorMap.get(targetPage)
+    pushSearch({ page: targetPage, cursor: targetCursor })
+    topRef.current?.scrollIntoView({ behavior: 'smooth' })
   }
 
   function applyFilters() {
-    setAppliedFilters(filtersToQuery(filters))
+    setCursorMap(new Map([[1, undefined]]))
+    pushSearch({
+      txn_type: pendingFilters.type || undefined,
+      account_id: pendingFilters.account_id || undefined,
+      payee_id: pendingFilters.payee_id || undefined,
+      category_id: pendingFilters.category_id || undefined,
+      tag_id: pendingFilters.tag_id || undefined,
+      page: 1, cursor: undefined,
+    })
     setShowFilters(false)
   }
 
   function clearFilters() {
-    setFilters(EMPTY_FILTERS)
-    setAppliedFilters({})
+    setPendingFilters(EMPTY_FILTERS)
+    setCursorMap(new Map([[1, undefined]]))
+    pushSearch({
+      txn_type: undefined, account_id: undefined, payee_id: undefined,
+      category_id: undefined, tag_id: undefined, page: 1, cursor: undefined,
+    })
   }
 
-  const topRef = useRef<HTMLElement>(null)
+  function changePageSize(size: number) {
+    setCursorMap(new Map([[1, undefined]]))
+    pushSearch({ page_size: size, page: 1, cursor: undefined })
+  }
 
   function toggleSelect(id: string) {
     setSelectedIds((prev) => {
@@ -192,7 +241,7 @@ export default function Transactions() {
     }
   }
 
-  const hasActiveFilters = Object.keys(appliedFilters).length > 0
+  const hasActiveFilters = !!(urlType || urlAccountId || urlPayeeId || urlCategoryId || urlTagId)
 
   return (
     <main ref={topRef} className={`p-4 md:p-6 max-w-5xl mx-auto ${selectedIds.size > 0 ? 'pb-20' : ''}`}>
@@ -223,8 +272,8 @@ export default function Transactions() {
             <div>
               <label className="block text-xs font-medium text-gray-600 mb-1">Type</label>
               <select
-                value={filters.type}
-                onChange={(e) => setFilters((f) => ({ ...f, type: e.target.value as TransactionType | '' }))}
+                value={pendingFilters.type}
+                onChange={(e) => setPendingFilters((f) => ({ ...f, type: e.target.value as TransactionType | '' }))}
                 className="w-full rounded border border-gray-300 px-2 py-1.5 text-sm"
                 aria-label="Filter by type"
               >
@@ -238,8 +287,8 @@ export default function Transactions() {
             <div>
               <label className="block text-xs font-medium text-gray-600 mb-1">Account</label>
               <select
-                value={filters.account_id}
-                onChange={(e) => setFilters((f) => ({ ...f, account_id: e.target.value }))}
+                value={pendingFilters.account_id}
+                onChange={(e) => setPendingFilters((f) => ({ ...f, account_id: e.target.value }))}
                 className="w-full rounded border border-gray-300 px-2 py-1.5 text-sm"
                 aria-label="Filter by account"
               >
@@ -253,8 +302,8 @@ export default function Transactions() {
             <div>
               <label className="block text-xs font-medium text-gray-600 mb-1">Payee</label>
               <select
-                value={filters.payee_id}
-                onChange={(e) => setFilters((f) => ({ ...f, payee_id: e.target.value }))}
+                value={pendingFilters.payee_id}
+                onChange={(e) => setPendingFilters((f) => ({ ...f, payee_id: e.target.value }))}
                 className="w-full rounded border border-gray-300 px-2 py-1.5 text-sm"
                 aria-label="Filter by payee"
               >
@@ -268,8 +317,8 @@ export default function Transactions() {
             <div>
               <label className="block text-xs font-medium text-gray-600 mb-1">Category</label>
               <select
-                value={filters.category_id}
-                onChange={(e) => setFilters((f) => ({ ...f, category_id: e.target.value }))}
+                value={pendingFilters.category_id}
+                onChange={(e) => setPendingFilters((f) => ({ ...f, category_id: e.target.value }))}
                 className="w-full rounded border border-gray-300 px-2 py-1.5 text-sm"
                 aria-label="Filter by category"
               >
@@ -283,8 +332,8 @@ export default function Transactions() {
             <div>
               <label className="block text-xs font-medium text-gray-600 mb-1">Tag</label>
               <select
-                value={filters.tag_id}
-                onChange={(e) => setFilters((f) => ({ ...f, tag_id: e.target.value }))}
+                value={pendingFilters.tag_id}
+                onChange={(e) => setPendingFilters((f) => ({ ...f, tag_id: e.target.value }))}
                 className="w-full rounded border border-gray-300 px-2 py-1.5 text-sm"
                 aria-label="Filter by tag"
               >
@@ -572,20 +621,20 @@ export default function Transactions() {
           {showPagination && (
             <div className="mt-4 flex items-center justify-center gap-2 text-sm flex-wrap">
               <button
-                onClick={() => { goPrev(); topRef.current?.scrollIntoView({ behavior: 'smooth' }) }}
-                disabled={pageIndex === 0}
+                onClick={goPrev}
+                disabled={urlPage <= 1}
                 className="flex items-center gap-1 rounded-md border border-gray-300 px-3 py-1.5 text-gray-700 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 <ChevronLeft className="w-4 h-4" /> Prev
               </button>
 
               <span className="text-gray-500 px-1">
-                Page {currentPage} of {totalPages}
+                Page {urlPage} of {totalPages}
               </span>
 
               <select
-                value={pageSize}
-                onChange={(e) => setPageSize(Number(e.target.value))}
+                value={urlPageSize}
+                onChange={(e) => changePageSize(Number(e.target.value))}
                 className="rounded border border-gray-300 px-2 py-1.5 text-sm text-gray-700 bg-white"
                 aria-label="Rows per page"
               >
@@ -595,7 +644,7 @@ export default function Transactions() {
               </select>
 
               <button
-                onClick={() => { goNext(); topRef.current?.scrollIntoView({ behavior: 'smooth' }) }}
+                onClick={goNext}
                 disabled={!nextCursor}
                 className="flex items-center gap-1 rounded-md border border-gray-300 px-3 py-1.5 text-gray-700 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
               >
