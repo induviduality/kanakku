@@ -109,6 +109,18 @@ class GenericTableParser(BaseParser):
         with pdfplumber.open(pdf) as doc:
             for page in doc.pages:
                 records.extend(self._parse_page(page))
+
+        header = self.extract_statement_header(pdf)
+        if header.opening_balance is not None and header.opening_balance > 0:
+            date = header.statement_from or (records[0].date if records else None)
+            if date:
+                records.insert(0, ParsedRecord(
+                    date=date,
+                    description="Opening Balance",
+                    amount=header.opening_balance,
+                    type="opening_balance",
+                ))
+
         return records
 
     def extract_statement_header(self, pdf: io.BytesIO) -> StatementHeader:

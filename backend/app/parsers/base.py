@@ -21,7 +21,7 @@ class ParsedRecord:
     date: str
     description: str
     amount: Decimal
-    type: str  # "expense" or "income"
+    type: str  # "expense", "income", or "opening_balance"
     balance: Decimal | None = None
     reference: str | None = None
     raw_text: str | None = None

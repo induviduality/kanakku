@@ -362,7 +362,10 @@ def _record_to_transaction(record: RawImportRecord, batch: ImportBatch) -> Trans
         transacted_at = datetime.strptime(raw_date, "%Y-%m-%d").replace(tzinfo=UTC)
         amount = Decimal(str(data.get("amount", "0")))
         txn_type_str = str(data.get("type", "expense")).lower()
-        txn_type = TransactionType.income if txn_type_str == "income" else TransactionType.expense
+        txn_type = {
+            "income": TransactionType.income,
+            "opening_balance": TransactionType.opening_balance,
+        }.get(txn_type_str, TransactionType.expense)
         description = str(data.get("description", ""))
 
         if batch.account_id is None:

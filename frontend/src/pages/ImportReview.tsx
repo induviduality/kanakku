@@ -316,14 +316,19 @@ function RecordRow({
           <select
             value={type}
             onChange={e => setType(e.target.value)}
-            className="kk-input h-7 text-xs w-28"
+            className="kk-input h-7 text-xs w-36"
           >
             <option value="expense">expense</option>
             <option value="income">income</option>
+            <option value="opening_balance">opening balance</option>
           </select>
         ) : (
-          <span className={`kk-chip ${txnType === 'income' ? 'kk-chip-positive' : 'kk-chip-negative'}`}>
-            {txnType}
+          <span className={`kk-chip ${
+            txnType === 'income' ? 'kk-chip-positive' :
+            txnType === 'opening_balance' ? 'kk-chip-accent' :
+            'kk-chip-negative'
+          }`}>
+            {txnType === 'opening_balance' ? 'opening bal.' : txnType}
           </span>
         )}
       </td>
