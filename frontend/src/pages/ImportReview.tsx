@@ -60,10 +60,12 @@ function MatchedTransaction({ txnId }: { txnId: string }) {
 function DuplicateResolveModal({
   record,
   batchId,
+  accountId,
   onClose,
 }: {
   record: RawImportRecord
   batchId: string
+  accountId: string | null
   onClose: () => void
 }) {
   const patchMutation = usePatchRecord(batchId)
@@ -103,6 +105,7 @@ function DuplicateResolveModal({
   }
 
   const isBusy = patchMutation.isPending || confirmMutation.isPending || replaceMutation.isPending
+  const noAccount = !accountId
 
   return (
     <div
@@ -149,6 +152,11 @@ function DuplicateResolveModal({
           )}
 
           {/* Actions */}
+          {noAccount && (
+            <p className="text-xs text-warning-dim bg-warning/5 border border-warning/20 rounded-lg px-3 py-2">
+              Select an account on the batch before importing.
+            </p>
+          )}
           <div className="space-y-2 pt-1">
             <button
               onClick={handleKeepExisting}
@@ -161,8 +169,9 @@ function DuplicateResolveModal({
 
             <button
               onClick={handleImportSeparate}
-              disabled={isBusy}
-              className="w-full text-left rounded-lg border border-warning/40 bg-warning/5 px-4 py-3 text-sm hover:bg-warning/10 transition-colors disabled:opacity-50"
+              disabled={isBusy || noAccount}
+              title={noAccount ? 'Select an account first' : undefined}
+              className="w-full text-left rounded-lg border border-warning/40 bg-warning/5 px-4 py-3 text-sm hover:bg-warning/10 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <p className="font-medium text-fg">Import as separate transaction</p>
               <p className="text-xs text-warning-dim mt-0.5">
@@ -173,8 +182,9 @@ function DuplicateResolveModal({
             {duplicateIds.length > 0 && (
               <button
                 onClick={handleReplace}
-                disabled={isBusy}
-                className="w-full text-left rounded-lg border border-negative/30 bg-negative/5 px-4 py-3 text-sm hover:bg-negative/10 transition-colors disabled:opacity-50"
+                disabled={isBusy || noAccount}
+                title={noAccount ? 'Select an account first' : undefined}
+                className="w-full text-left rounded-lg border border-negative/30 bg-negative/5 px-4 py-3 text-sm hover:bg-negative/10 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <p className="font-medium text-fg">Replace existing</p>
                 <p className="text-xs text-negative-dim mt-0.5">
@@ -561,6 +571,7 @@ export default function ImportReview() {
         <DuplicateResolveModal
           record={resolveRecord}
           batchId={batchId}
+          accountId={batch.account_id}
           onClose={() => setResolveRecord(null)}
         />
       )}
