@@ -17,6 +17,7 @@ const MORE_LINKS = [
   { to: '/piggy-banks', label: 'Piggy Banks' },
   { to: '/imports', label: 'Imports' },
   { to: '/reports', label: 'Reports' },
+  { to: '/recently-deleted', label: 'Bin' },
   { to: '/settings', label: 'Settings' },
 ]
 
