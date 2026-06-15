@@ -221,6 +221,7 @@ function RecordRow({
   const patchMutation = usePatchRecord(batchId)
   const { toast } = useToast()
   const [editing, setEditing] = useState(false)
+  const [editingName, setEditingName] = useState(false)
   const [description, setDescription] = useState(parsedField(record, 'description'))
   const [amount, setAmount] = useState(parsedField(record, 'amount'))
   const [type, setType] = useState(parsedField(record, 'type') || 'expense')
@@ -231,6 +232,18 @@ function RecordRow({
       {
         onSuccess: () => setEditing(false),
         onError: () => toast('Failed to save changes. Please try again.', 'error'),
+      },
+    )
+  }
+
+  function saveNameEdit() {
+    const current = parsedField(record, 'description')
+    if (description === current) { setEditingName(false); return }
+    patchMutation.mutate(
+      { recordId: record.id, patch: { parsed_json: { ...record.parsed_json, description } } },
+      {
+        onSuccess: () => setEditingName(false),
+        onError: () => { toast('Failed to save name. Please try again.', 'error'); setEditingName(false) },
       },
     )
   }
@@ -261,8 +274,26 @@ function RecordRow({
             onChange={e => setDescription(e.target.value)}
             className="kk-input h-7 text-xs"
           />
+        ) : editingName ? (
+          <input
+            autoFocus
+            value={description}
+            onChange={e => setDescription(e.target.value)}
+            onBlur={saveNameEdit}
+            onKeyDown={e => {
+              if (e.key === 'Enter') { e.preventDefault(); saveNameEdit() }
+              if (e.key === 'Escape') { setDescription(parsedField(record, 'description')); setEditingName(false) }
+            }}
+            className="kk-input h-7 text-xs w-full"
+          />
         ) : (
-          <span className="text-fg truncate block">{parsedField(record, 'description') || '—'}</span>
+          <span
+            className={`text-fg truncate block ${isPending ? 'cursor-text' : ''}`}
+            onDoubleClick={() => isPending && setEditingName(true)}
+            title={isPending ? 'Double-click to edit name' : undefined}
+          >
+            {parsedField(record, 'description') || '—'}
+          </span>
         )}
       </td>
       <td className="px-3 py-2.5 text-right">
