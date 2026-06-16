@@ -53,6 +53,8 @@ export interface TransactionListResponse {
   items: Transaction[]
   next_cursor: string | null
   total: number
+  total_inflow: string
+  total_outflow: string
 }
 
 export interface TransactionCreate {
@@ -99,13 +101,15 @@ export interface TransactionPatch {
 
 export interface TransactionFilters {
   type?: TransactionType
-  account_id?: string
-  payee_id?: string
+  account_id?: string   // comma-separated UUIDs
+  payee_id?: string     // comma-separated UUIDs
   category_id?: string
-  tag_id?: string
+  tag_id?: string       // comma-separated UUIDs
   budget_id?: string
   from?: string
   to?: string
+  sort_by?: 'transacted_at' | 'amount'
+  sort_dir?: 'asc' | 'desc'
 }
 
 function buildParams(filters: TransactionFilters, limit = 50, cursor?: string): URLSearchParams {
@@ -118,6 +122,8 @@ function buildParams(filters: TransactionFilters, limit = 50, cursor?: string): 
   if (filters.budget_id) p.set('budget_id', filters.budget_id)
   if (filters.from) p.set('from', filters.from)
   if (filters.to) p.set('to', filters.to)
+  if (filters.sort_by) p.set('sort_by', filters.sort_by)
+  if (filters.sort_dir) p.set('sort_dir', filters.sort_dir)
   p.set('limit', String(limit))
   if (cursor) p.set('cursor', cursor)
   return p

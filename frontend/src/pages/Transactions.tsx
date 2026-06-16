@@ -1,6 +1,6 @@
-import { useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useSearch } from '@tanstack/react-router'
-import { ChevronLeft, ChevronRight, Pencil, Trash2 } from 'lucide-react'
+import { ChevronDown, ChevronLeft, ChevronRight, Pencil, Trash2 } from 'lucide-react'
 import {
   useTransactions,
   useDeleteTransaction,
@@ -38,44 +38,116 @@ const TYPE_COLORS: Record<TransactionType, string> = {
 
 interface FiltersState {
   type: TransactionType | ''
-  account_id: string
-  payee_id: string
+  account_id: string   // comma-separated
+  payee_id: string     // comma-separated
   category_id: string
-  tag_id: string
+  tag_id: string       // comma-separated
 }
 
 const EMPTY_FILTERS: FiltersState = {
   type: '', account_id: '', payee_id: '', category_id: '', tag_id: '',
 }
 
+// ── MultiSelect ───────────────────────────────────────────────────────────────
+
+function MultiSelect({
+  label,
+  options,
+  selected,
+  onChange,
+}: {
+  label: string
+  options: { id: string; name: string }[]
+  selected: string[]
+  onChange: (ids: string[]) => void
+}) {
+  const [open, setOpen] = useState(false)
+  const ref = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    function onOutside(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
+    }
+    if (open) document.addEventListener('mousedown', onOutside)
+    return () => document.removeEventListener('mousedown', onOutside)
+  }, [open])
+
+  function toggle(id: string) {
+    onChange(selected.includes(id) ? selected.filter((x) => x !== id) : [...selected, id])
+  }
+
+  const buttonLabel =
+    selected.length === 0
+      ? `All ${label}`
+      : selected.length === 1
+        ? (options.find((o) => o.id === selected[0])?.name ?? '1 selected')
+        : `${selected.length} ${label}`
+
+  return (
+    <div ref={ref} className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className={`w-full flex items-center justify-between rounded border px-2 py-1.5 text-sm text-left ${selected.length > 0 ? 'border-indigo-400 bg-indigo-50 text-indigo-700' : 'border-gray-300 text-gray-700 bg-white'}`}
+      >
+        <span className="truncate">{buttonLabel}</span>
+        <ChevronDown className="w-3.5 h-3.5 ml-1 flex-shrink-0" />
+      </button>
+      {open && (
+        <div className="absolute z-20 mt-1 w-full min-w-[180px] bg-white border border-gray-200 rounded-md shadow-lg max-h-48 overflow-y-auto">
+          {options.length === 0 ? (
+            <p className="px-3 py-2 text-sm text-gray-400">No options</p>
+          ) : (
+            options.map((opt) => (
+              <label key={opt.id} className="flex items-center gap-2 px-3 py-1.5 hover:bg-gray-50 cursor-pointer text-sm select-none">
+                <input
+                  type="checkbox"
+                  checked={selected.includes(opt.id)}
+                  onChange={() => toggle(opt.id)}
+                  className="rounded"
+                />
+                {opt.name}
+              </label>
+            ))
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 
 const PAGE_SIZE_OPTIONS = [10, 20, 30, 50, 100]
 const DEFAULT_PAGE_SIZE = 30
-const PAGINATION_THRESHOLD = 40
 
 export default function Transactions() {
   const navigate = useNavigate()
   const { dashboardParams } = usePeriod()
 
-  // URL is the source of truth for filters and pagination so state survives navigation.
+  // URL is the source of truth for filters, sort, and pagination so state survives navigation.
   const rawSearch = useSearch({ strict: false }) as Record<string, string>
   const urlType       = (rawSearch.txn_type ?? '') as TransactionType | ''
   const urlAccountId  = rawSearch.account_id ?? ''
   const urlPayeeId    = rawSearch.payee_id ?? ''
   const urlCategoryId = rawSearch.category_id ?? ''
   const urlTagId      = rawSearch.tag_id ?? ''
+  const urlSortBy     = (rawSearch.sort_by ?? 'transacted_at') as 'transacted_at' | 'amount'
+  const urlSortDir    = (rawSearch.sort_dir ?? 'desc') as 'asc' | 'desc'
   const urlPageSize   = Number(rawSearch.page_size) || DEFAULT_PAGE_SIZE
   const urlPage       = Math.max(1, Number(rawSearch.page) || 1)
   const urlCursor     = rawSearch.cursor || undefined
 
   // pendingFilters: what's shown in the filter form before the user clicks Apply
   const [pendingFilters, setPendingFilters] = useState<FiltersState>(() => ({
-    type: urlType, account_id: urlAccountId, payee_id: urlPayeeId,
-    category_id: urlCategoryId, tag_id: urlTagId,
+    type: urlType,
+    account_id: urlAccountId,
+    payee_id: urlPayeeId,
+    category_id: urlCategoryId,
+    tag_id: urlTagId,
   }))
 
   // In-session cursor map: page number → cursor needed to load that page.
-  // Grows as the user navigates forward. Falls back to urlCursor on restore.
   const [cursorMap, setCursorMap] = useState<Map<number, string | undefined>>(() => {
     const m = new Map<number, string | undefined>()
     m.set(1, undefined)
@@ -94,11 +166,8 @@ export default function Transactions() {
   const [editingDescId, setEditingDescId] = useState<string | null>(null)
   const [editingDescValue, setEditingDescValue] = useState('')
 
-  // The cursor we actually fetch with: prefer in-session map (accurate Prev),
-  // fall back to URL cursor (fresh restore from a bookmarked/back-navigated URL).
   const fetchCursor = cursorMap.get(urlPage) ?? urlCursor
 
-  // Write filter + pagination state into the URL
   function pushSearch(updates: Record<string, string | number | undefined>) {
     navigate({
       to: '/transactions',
@@ -106,7 +175,6 @@ export default function Transactions() {
     })
   }
 
-  // Applied filters = what's in the URL right now
   const appliedFilters = useMemo<TransactionFilters>(() => {
     const q: TransactionFilters = {}
     if (urlType)       q.type = urlType as TransactionType
@@ -114,10 +182,11 @@ export default function Transactions() {
     if (urlPayeeId)    q.payee_id = urlPayeeId
     if (urlCategoryId) q.category_id = urlCategoryId
     if (urlTagId)      q.tag_id = urlTagId
+    if (urlSortBy !== 'transacted_at') q.sort_by = urlSortBy
+    if (urlSortDir !== 'desc') q.sort_dir = urlSortDir
     return q
-  }, [urlType, urlAccountId, urlPayeeId, urlCategoryId, urlTagId])
+  }, [urlType, urlAccountId, urlPayeeId, urlCategoryId, urlTagId, urlSortBy, urlSortDir])
 
-  // Merge URL filters with the global period from the navbar calendar
   const activeFilters = useMemo<TransactionFilters>(() => ({
     ...appliedFilters,
     ...(dashboardParams.start_date && { from: dashboardParams.start_date + 'T00:00:00.000Z' }),
@@ -166,9 +235,11 @@ export default function Transactions() {
 
   const allItems = txnData?.items ?? []
   const total = txnData?.total ?? 0
+  const totalInflow = parseFloat(txnData?.total_inflow ?? '0')
+  const totalOutflow = parseFloat(txnData?.total_outflow ?? '0')
   const nextCursor = txnData?.next_cursor ?? null
-  const showPagination = total > PAGINATION_THRESHOLD
-  const totalPages = showPagination ? Math.ceil(total / urlPageSize) : 1
+  const totalPages = Math.max(1, Math.ceil(total / urlPageSize))
+  const showPagination = total > urlPageSize || urlPage > 1
 
   const topRef = useRef<HTMLElement>(null)
 
@@ -183,13 +254,17 @@ export default function Transactions() {
   function goPrev() {
     if (urlPage <= 1) return
     const prevPage = urlPage - 1
-    // If we have the cursor in-session, use it; otherwise jump to page 1
     const hasPrevCursor = cursorMap.has(prevPage)
     const targetPage   = (prevPage > 1 && !hasPrevCursor) ? 1 : prevPage
     const targetCursor = cursorMap.get(targetPage)
     pushSearch({ page: targetPage, cursor: targetCursor })
     topRef.current?.scrollIntoView({ behavior: 'smooth' })
   }
+
+  // Pending multi-select arrays (derived from pendingFilters strings)
+  const pendingAccountIds = pendingFilters.account_id ? pendingFilters.account_id.split(',').filter(Boolean) : []
+  const pendingPayeeIds   = pendingFilters.payee_id   ? pendingFilters.payee_id.split(',').filter(Boolean)   : []
+  const pendingTagIds     = pendingFilters.tag_id     ? pendingFilters.tag_id.split(',').filter(Boolean)     : []
 
   function applyFilters() {
     setCursorMap(new Map([[1, undefined]]))
@@ -218,6 +293,11 @@ export default function Transactions() {
     pushSearch({ page_size: size, page: 1, cursor: undefined })
   }
 
+  function changeSort(by: string, dir: string) {
+    setCursorMap(new Map([[1, undefined]]))
+    pushSearch({ sort_by: by, sort_dir: dir, page: 1, cursor: undefined })
+  }
+
   function toggleSelect(id: string) {
     setSelectedIds((prev) => {
       const next = new Set(prev)
@@ -243,12 +323,38 @@ export default function Transactions() {
 
   const hasActiveFilters = !!(urlType || urlAccountId || urlPayeeId || urlCategoryId || urlTagId)
 
+  const activeAccounts = accounts.filter((a) => !a.deleted_at)
+  const activePayees   = payees.filter((p) => !p.deleted_at)
+  const activeCategories = categories.filter((c) => !c.deleted_at)
+  const activeTags     = tags.filter((t) => !t.deleted_at)
+
   return (
     <main ref={topRef} className={`p-4 md:p-6 max-w-5xl mx-auto ${selectedIds.size > 0 ? 'pb-20' : ''}`}>
       {/* Header */}
       <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
         <h1 className="text-2xl font-bold text-gray-900">Transactions</h1>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2 items-center">
+          {/* Sort controls */}
+          <div className="flex items-center gap-1">
+            <select
+              value={urlSortBy}
+              onChange={(e) => changeSort(e.target.value, urlSortDir)}
+              className="rounded border border-gray-300 px-2 py-2 text-sm text-gray-700 bg-white"
+              aria-label="Sort by"
+            >
+              <option value="transacted_at">Sort: Date</option>
+              <option value="amount">Sort: Amount</option>
+            </select>
+            <button
+              onClick={() => changeSort(urlSortBy, urlSortDir === 'desc' ? 'asc' : 'desc')}
+              className="rounded border border-gray-300 px-2.5 py-2 text-sm text-gray-700 bg-white hover:bg-gray-50"
+              title={urlSortDir === 'desc' ? 'Descending — click to sort ascending' : 'Ascending — click to sort descending'}
+              aria-label={urlSortDir === 'desc' ? 'Sort descending' : 'Sort ascending'}
+            >
+              {urlSortDir === 'desc' ? '↓' : '↑'}
+            </button>
+          </div>
+
           <button
             onClick={() => setShowFilters((v) => !v)}
             className={`rounded-md px-3 py-2 text-sm font-medium border ${hasActiveFilters ? 'bg-indigo-50 border-indigo-400 text-indigo-700' : 'border-gray-300 text-gray-700 hover:bg-gray-50'}`}
@@ -286,32 +392,22 @@ export default function Transactions() {
 
             <div>
               <label className="block text-xs font-medium text-gray-600 mb-1">Account</label>
-              <select
-                value={pendingFilters.account_id}
-                onChange={(e) => setPendingFilters((f) => ({ ...f, account_id: e.target.value }))}
-                className="w-full rounded border border-gray-300 px-2 py-1.5 text-sm"
-                aria-label="Filter by account"
-              >
-                <option value="">All accounts</option>
-                {accounts.filter((a) => !a.deleted_at).map((a) => (
-                  <option key={a.id} value={a.id}>{a.name}</option>
-                ))}
-              </select>
+              <MultiSelect
+                label="accounts"
+                options={activeAccounts.map((a) => ({ id: a.id, name: a.name }))}
+                selected={pendingAccountIds}
+                onChange={(ids) => setPendingFilters((f) => ({ ...f, account_id: ids.join(',') }))}
+              />
             </div>
 
             <div>
               <label className="block text-xs font-medium text-gray-600 mb-1">Payee</label>
-              <select
-                value={pendingFilters.payee_id}
-                onChange={(e) => setPendingFilters((f) => ({ ...f, payee_id: e.target.value }))}
-                className="w-full rounded border border-gray-300 px-2 py-1.5 text-sm"
-                aria-label="Filter by payee"
-              >
-                <option value="">All payees</option>
-                {payees.filter((p) => !p.deleted_at).map((p) => (
-                  <option key={p.id} value={p.id}>{p.name}</option>
-                ))}
-              </select>
+              <MultiSelect
+                label="payees"
+                options={activePayees.map((p) => ({ id: p.id, name: p.name }))}
+                selected={pendingPayeeIds}
+                onChange={(ids) => setPendingFilters((f) => ({ ...f, payee_id: ids.join(',') }))}
+              />
             </div>
 
             <div>
@@ -323,7 +419,7 @@ export default function Transactions() {
                 aria-label="Filter by category"
               >
                 <option value="">All categories</option>
-                {categories.filter((c) => !c.deleted_at).map((c) => (
+                {activeCategories.map((c) => (
                   <option key={c.id} value={c.id}>{c.name}</option>
                 ))}
               </select>
@@ -331,17 +427,12 @@ export default function Transactions() {
 
             <div>
               <label className="block text-xs font-medium text-gray-600 mb-1">Tag</label>
-              <select
-                value={pendingFilters.tag_id}
-                onChange={(e) => setPendingFilters((f) => ({ ...f, tag_id: e.target.value }))}
-                className="w-full rounded border border-gray-300 px-2 py-1.5 text-sm"
-                aria-label="Filter by tag"
-              >
-                <option value="">All tags</option>
-                {tags.filter((t) => !t.deleted_at).map((t) => (
-                  <option key={t.id} value={t.id}>{t.name}</option>
-                ))}
-              </select>
+              <MultiSelect
+                label="tags"
+                options={activeTags.map((t) => ({ id: t.id, name: t.name }))}
+                selected={pendingTagIds}
+                onChange={(ids) => setPendingFilters((f) => ({ ...f, tag_id: ids.join(',') }))}
+              />
             </div>
           </div>
 
@@ -406,6 +497,20 @@ export default function Transactions() {
         <EmptyState title="No transactions yet" description="Add your first transaction to get started." />
       ) : (
         <>
+          {/* Total count + inflow/outflow summary + page info */}
+          <div className="mb-2 flex items-center justify-between text-xs text-gray-500">
+            <div className="flex items-center gap-3">
+              <span>{total.toLocaleString()} transaction{total !== 1 ? 's' : ''}</span>
+              {(totalInflow > 0 || totalOutflow > 0) && (
+                <>
+                  <span className="text-green-600">+{totalInflow.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                  <span className="text-red-600">−{totalOutflow.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                </>
+              )}
+            </div>
+            {showPagination && <span>Page {urlPage} of {totalPages}</span>}
+          </div>
+
           {/* Desktop table */}
           <div className="hidden md:block overflow-x-auto rounded-xl border border-border bg-surface-1 shadow-sm">
             <table className="w-full text-sm">

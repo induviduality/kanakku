@@ -1,9 +1,10 @@
 import base64
 import uuid
 from datetime import UTC, datetime, timedelta
+from decimal import Decimal
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import delete, func, select
+from sqlalchemy import delete, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.session import get_session
@@ -268,6 +269,20 @@ def _decode_cursor(cursor: str) -> tuple[datetime, uuid.UUID]:
         raise HTTPException(status_code=400, detail="Invalid cursor")
 
 
+def _encode_cursor_amount(amount: Decimal, txn_id: uuid.UUID) -> str:
+    raw = f"amount|{amount}|{txn_id}"
+    return base64.urlsafe_b64encode(raw.encode()).decode()
+
+
+def _decode_cursor_amount(cursor: str) -> tuple[Decimal, uuid.UUID]:
+    try:
+        raw = base64.urlsafe_b64decode(cursor.encode()).decode()
+        _, amount_str, id_str = raw.split("|", 2)
+        return Decimal(amount_str), uuid.UUID(id_str)
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid cursor")
+
+
 # ── Endpoints ─────────────────────────────────────────────────────────────────
 
 @router.post("", status_code=201, response_model=TransactionResponse)
@@ -345,13 +360,15 @@ async def create_transaction(
 @router.get("", response_model=TransactionListResponse)
 async def list_transactions(
     type: TransactionType | None = None,
-    account_id: uuid.UUID | None = None,
-    payee_id: uuid.UUID | None = None,
+    account_id: str | None = None,  # comma-separated UUIDs
+    payee_id: str | None = None,    # comma-separated UUIDs
     category_id: uuid.UUID | None = None,
-    tag_id: uuid.UUID | None = None,
+    tag_id: str | None = None,      # comma-separated UUIDs
     budget_id: uuid.UUID | None = None,
     from_date: datetime | None = Query(None, alias="from"),
     to_date: datetime | None = Query(None, alias="to"),
+    sort_by: str = Query("transacted_at", pattern="^(transacted_at|amount)$"),
+    sort_dir: str = Query("desc", pattern="^(asc|desc)$"),
     cursor: str | None = None,
     limit: int = Query(50, ge=1, le=200),
     include_deleted: bool = False,
@@ -364,10 +381,25 @@ async def list_transactions(
         base_where.append(Transaction.deleted_at.is_(None))
     if type is not None:
         base_where.append(Transaction.type == type)
+
+    # account_id: match source OR destination (covers transfers where account is destination)
     if account_id is not None:
-        base_where.append(Transaction.account_id == account_id)
+        account_ids = [uuid.UUID(x.strip()) for x in account_id.split(',') if x.strip()]
+        if len(account_ids) == 1:
+            aid = account_ids[0]
+            base_where.append(or_(Transaction.account_id == aid, Transaction.to_account_id == aid))
+        elif len(account_ids) > 1:
+            base_where.append(
+                or_(Transaction.account_id.in_(account_ids), Transaction.to_account_id.in_(account_ids))
+            )
+
     if payee_id is not None:
-        base_where.append(Transaction.payee_id == payee_id)
+        payee_ids = [uuid.UUID(x.strip()) for x in payee_id.split(',') if x.strip()]
+        if len(payee_ids) == 1:
+            base_where.append(Transaction.payee_id == payee_ids[0])
+        elif len(payee_ids) > 1:
+            base_where.append(Transaction.payee_id.in_(payee_ids))
+
     if from_date is not None:
         base_where.append(Transaction.transacted_at >= from_date)
     if to_date is not None:
@@ -381,13 +413,23 @@ async def list_transactions(
             )
         )
     if tag_id is not None:
-        base_where.append(
-            Transaction.id.in_(
-                select(transaction_tags.c.transaction_id).where(
-                    transaction_tags.c.tag_id == tag_id
+        tag_ids = [uuid.UUID(x.strip()) for x in tag_id.split(',') if x.strip()]
+        if len(tag_ids) == 1:
+            base_where.append(
+                Transaction.id.in_(
+                    select(transaction_tags.c.transaction_id).where(
+                        transaction_tags.c.tag_id == tag_ids[0]
+                    )
                 )
             )
-        )
+        elif len(tag_ids) > 1:
+            base_where.append(
+                Transaction.id.in_(
+                    select(transaction_tags.c.transaction_id).where(
+                        transaction_tags.c.tag_id.in_(tag_ids)
+                    )
+                )
+            )
     if budget_id is not None:
         base_where.append(
             Transaction.id.in_(
@@ -401,20 +443,54 @@ async def list_transactions(
     count_stmt = select(func.count()).select_from(Transaction).where(*base_where)
     total: int = (await session.execute(count_stmt)).scalar_one()
 
+    # Inflow/outflow totals — transfers excluded (net-zero between own accounts)
+    inflow_row = await session.execute(
+        select(func.coalesce(func.sum(Transaction.amount), Decimal("0")))
+        .where(*base_where, Transaction.type == TransactionType.income)
+    )
+    total_inflow: Decimal = inflow_row.scalar_one()
+
+    outflow_row = await session.execute(
+        select(func.coalesce(func.sum(Transaction.amount), Decimal("0")))
+        .where(*base_where, Transaction.type == TransactionType.expense)
+    )
+    total_outflow: Decimal = outflow_row.scalar_one()
+
     stmt = select(Transaction).where(*base_where)
 
-    # Cursor (transacted_at DESC, id DESC)
+    # Cursor-based pagination — format depends on sort field
     if cursor is not None:
-        cur_ts, cur_id = _decode_cursor(cursor)
-        stmt = stmt.where(
-            (Transaction.transacted_at < cur_ts)
-            | (
-                (Transaction.transacted_at == cur_ts)
-                & (Transaction.id < cur_id)
-            )
-        )
+        if sort_by == 'amount':
+            cur_amount, cur_id = _decode_cursor_amount(cursor)
+            if sort_dir == 'asc':
+                stmt = stmt.where(
+                    (Transaction.amount > cur_amount)
+                    | ((Transaction.amount == cur_amount) & (Transaction.id > cur_id))
+                )
+            else:
+                stmt = stmt.where(
+                    (Transaction.amount < cur_amount)
+                    | ((Transaction.amount == cur_amount) & (Transaction.id < cur_id))
+                )
+        else:
+            cur_ts, cur_id = _decode_cursor(cursor)
+            if sort_dir == 'asc':
+                stmt = stmt.where(
+                    (Transaction.transacted_at > cur_ts)
+                    | ((Transaction.transacted_at == cur_ts) & (Transaction.id > cur_id))
+                )
+            else:
+                stmt = stmt.where(
+                    (Transaction.transacted_at < cur_ts)
+                    | ((Transaction.transacted_at == cur_ts) & (Transaction.id < cur_id))
+                )
 
-    stmt = stmt.order_by(Transaction.transacted_at.desc(), Transaction.id.desc())
+    sort_col = Transaction.amount if sort_by == 'amount' else Transaction.transacted_at
+    id_col = Transaction.id
+    if sort_dir == 'asc':
+        stmt = stmt.order_by(sort_col.asc(), id_col.asc())
+    else:
+        stmt = stmt.order_by(sort_col.desc(), id_col.desc())
     stmt = stmt.limit(limit + 1)
 
     rows = (await session.execute(stmt)).scalars().all()
@@ -425,10 +501,19 @@ async def list_transactions(
     next_cursor: str | None = None
     if has_more and items:
         last = items[-1]
-        next_cursor = _encode_cursor(last.transacted_at, last.id)
+        if sort_by == 'amount':
+            next_cursor = _encode_cursor_amount(last.amount, last.id)
+        else:
+            next_cursor = _encode_cursor(last.transacted_at, last.id)
 
     responses = [await _to_response(t, session) for t in items]
-    return TransactionListResponse(items=responses, next_cursor=next_cursor, total=total)
+    return TransactionListResponse(
+        items=responses,
+        next_cursor=next_cursor,
+        total=total,
+        total_inflow=total_inflow,
+        total_outflow=total_outflow,
+    )
 
 
 @router.get("/{txn_id}", response_model=TransactionResponse)
