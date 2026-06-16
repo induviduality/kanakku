@@ -1,6 +1,7 @@
 .PHONY: up down restart logs build ps \
         backend-shell worker-shell frontend-shell psql redis-shell ollama-shell \
-        migrate ollama-init prod-up prod-down
+        migrate ollama-init prod-up prod-down \
+        deploy-frontend deploy-backend deploy-all
 
 # ── Compose lifecycle ──────────────────────────────────────────────────────────
 
@@ -23,6 +24,17 @@ prod-up:
 
 prod-down:
 	docker compose -f docker-compose.yml down
+
+# ── Redeploy (no volume impact) ────────────────────────────────────────────────
+
+deploy-frontend:
+	bash scripts/redeploy.sh frontend
+
+deploy-backend:
+	bash scripts/redeploy.sh backend
+
+deploy-all:
+	bash scripts/redeploy.sh all
 
 ps:
 	docker compose ps
