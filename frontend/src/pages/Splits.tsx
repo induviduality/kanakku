@@ -22,16 +22,15 @@ function StatusBadge({ status }: { status: SplitShareStatus }) {
 }
 
 function SplitCard({ split, onSelect, onDelete }: { split: Split; onSelect: (id: string) => void; onDelete: (id: string) => void }) {
-  const pending  = split.shares.filter(s => s.status === 'pending')
-  const settled  = split.shares.filter(s => s.status === 'settled')
-  const forgiven = split.shares.filter(s => s.status === 'forgiven')
+  // Own share (payee_id === null) is always considered fulfilled — exclude it from status
+  const payeeShares = split.shares.filter(s => s.payee_id !== null)
+  const pending  = payeeShares.filter(s => s.status === 'pending')
+  const settled  = payeeShares.filter(s => s.status === 'settled')
+  const forgiven = payeeShares.filter(s => s.status === 'forgiven')
   const total    = split.shares.reduce((sum, s) => sum + parseFloat(s.amount), 0)
 
-  // A split is "unsettled" if any share has remaining balance
   const overallStatus: SplitShareStatus =
-    split.shares.some(s => parseFloat(s.amount) - parseFloat(s.paid_amount) - parseFloat(s.forgiven_amount) > 0.005)
-      ? 'pending'
-      : settled.length > 0 ? 'settled' : 'forgiven'
+    pending.length > 0 ? 'pending' : settled.length > 0 ? 'settled' : 'forgiven'
 
   return (
     <div
@@ -124,7 +123,7 @@ export default function Splits() {
 
   const periodSplits  = allSplits.filter(inPeriod)
   const unsettled = periodSplits.filter(s =>
-    s.shares.some(sh => parseFloat(sh.amount) - parseFloat(sh.paid_amount) - parseFloat(sh.forgiven_amount) > 0.005),
+    s.shares.some(sh => sh.payee_id !== null && sh.status === 'pending'),
   )
 
   return (

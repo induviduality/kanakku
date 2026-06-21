@@ -25,9 +25,10 @@ function StatusBadge({ status }: { status: SplitShareStatus }) {
 }
 
 function SplitRow({ split, onSelect, onDelete }: { split: Split; onSelect: (id: string) => void; onDelete: (id: string) => void }) {
-  const pending  = split.shares.filter(s => s.status === 'pending')
-  const settled  = split.shares.filter(s => s.status === 'settled')
-  const forgiven = split.shares.filter(s => s.status === 'forgiven')
+  const payeeShares = split.shares.filter(s => s.payee_id !== null)
+  const pending  = payeeShares.filter(s => s.status === 'pending')
+  const settled  = payeeShares.filter(s => s.status === 'settled')
+  const forgiven = payeeShares.filter(s => s.status === 'forgiven')
   const total    = split.shares.reduce((sum, s) => sum + parseFloat(s.amount), 0)
 
   const overallStatus: SplitShareStatus =
@@ -115,7 +116,7 @@ export default function SplitsAll({ mode }: Props) {
 
   const periodSplits = allSplits.filter(inPeriod)
   const displayed    = mode === 'pending'
-    ? periodSplits.filter(s => s.shares.some(sh => sh.status === 'pending'))
+    ? periodSplits.filter(s => s.shares.some(sh => sh.payee_id !== null && sh.status === 'pending'))
     : periodSplits
 
   return (
