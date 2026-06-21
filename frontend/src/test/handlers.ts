@@ -682,7 +682,25 @@ export const handlers = [
   }),
 
   // Transactions
-  http.get('/api/v1/transactions', () => HttpResponse.json(TRANSACTIONS_RESPONSE)),
+  http.get('/api/v1/transactions', ({ request }) => {
+    const url = new URL(request.url)
+    const type = url.searchParams.get('type')
+    const from = url.searchParams.get('from')
+    const q = url.searchParams.get('q')?.toLowerCase()
+    const limit = parseInt(url.searchParams.get('limit') ?? '50', 10)
+
+    let items = TRANSACTIONS_RESPONSE.items
+    if (type) items = items.filter((t) => t.type === type)
+    if (from) items = items.filter((t) => t.transacted_at >= from)
+    if (q) items = items.filter((t) => (t.description ?? '').toLowerCase().includes(q))
+    items = items.slice(0, limit)
+
+    return HttpResponse.json({
+      ...TRANSACTIONS_RESPONSE,
+      items,
+      total: items.length,
+    })
+  }),
   http.post('/api/v1/transactions', async ({ request }) => {
     const body = await request.json() as Record<string, unknown>
     return HttpResponse.json(
