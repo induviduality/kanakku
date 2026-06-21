@@ -1,5 +1,14 @@
 # Completed Milestones
 
+## Fix splits page bugs (2026-06-21)
+
+Fixed three bugs in `SplitDetail.tsx` found via live site testing:
+- **"Blank Payee" for own share**: Changed label from `'Blank Payee'` to `'Your share'` when `payee_id === null`
+- **UUID transaction labels**: Replaced `useTransactions({ type: 'income' })` (paginated, misses older transactions) with `useQueries` individual fetches by ID — same pattern already used in `SplitDrawer.tsx`
+- **Wrong settlement date**: Changed `SettlementItem` to use `txn?.transacted_at ?? s.created_at` instead of always using `s.created_at`
+
+Also confirmed `SplitDrawer.tsx` already had the correct `useQueries` fix in source, but the live bundle was stale (pre-`useQueries` commit) — fixed by rebuilding.
+
 ## Edit Split functionality (2026-06-21)
 
 Implemented full "Edit Split" functionality allowing users to modify an existing split (adding/removing payees, updating notes, and adjusting payee/user shares) in a unified, atomic editor:

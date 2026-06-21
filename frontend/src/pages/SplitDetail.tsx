@@ -1,6 +1,7 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { Pencil } from 'lucide-react'
 import { useParams } from '@tanstack/react-router'
+import { useQueries } from '@tanstack/react-query'
 import {
   useGetSplit,
   useSettleShare,
@@ -12,8 +13,9 @@ import {
   type SplitShareSettlement,
   type SplitShareStatus,
 } from '../api/splits'
-import { useTransactions } from '../api/transactions'
+import { useTransactions, type Transaction } from '../api/transactions'
 import { usePayees, useCreatePayee } from '../api/payees'
+import { apiGet } from '../lib/api-client'
 import Autocomplete from '../components/Autocomplete'
 import ConfirmDialog from '../components/ConfirmDialog'
 
@@ -31,14 +33,14 @@ function SettlementItem({
   s, txnMap, splitId, shareId,
 }: {
   s: SplitShareSettlement
-  txnMap: Record<string, { description: string | null; amount: string }>
+  txnMap: Record<string, Transaction>
   splitId: string
   shareId: string
 }) {
   const unlink = useUnlinkSettlement(splitId)
   const txn = txnMap[s.transaction_id]
   const label = txn?.description ?? `Payment ${s.transaction_id.slice(0, 8)}…`
-  const date = new Date(s.created_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })
+  const date = new Date(txn?.transacted_at ?? s.created_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })
 
   return (
     <li className="flex items-center justify-between gap-2 py-1 text-xs">
@@ -131,7 +133,7 @@ function ShareRow({
   payeeName: string
   payeeOptions: Array<{ id: string; label: string }>
   onCreatePayee: (name: string) => Promise<{ id: string; label: string }>
-  txnMap: Record<string, { description: string | null; amount: string }>
+  txnMap: Record<string, Transaction>
   incomeTransactions: Array<{ id: string; description: string | null; amount: string }>
 }) {
   const [editOpen, setEditOpen] = useState(false)
@@ -190,7 +192,7 @@ function ShareRow({
           <div className="flex items-center gap-1.5">
             {share.payee_id
               ? <span className="font-medium text-fg">{payeeName}</span>
-              : <span className="text-fg-muted italic">Blank Payee</span>}
+              : <span className="text-fg-muted italic">Your share</span>}
             <button
               type="button"
               onClick={() => setEditOpen(true)}
@@ -334,14 +336,35 @@ export default function SplitDetail() {
   const { data: txnData } = useTransactions({ type: 'income' })
   const createPayeeMutation = useCreatePayee()
 
+  // Collect settlement transaction IDs so we can fetch each individually
+  const settlementTxnIds = useMemo(() => {
+    if (!split) return []
+    return [...new Set(split.shares.flatMap(s => s.settlements.map(st => st.transaction_id)))]
+  }, [split])
+
+  // Fetch each settlement transaction by ID so labels work regardless of page/date
+  const settlementTxnQueries = useQueries({
+    queries: settlementTxnIds.map(id => ({
+      queryKey: ['transaction', id] as const,
+      queryFn: () => apiGet<Transaction>(`/transactions/${id}`),
+      staleTime: 5 * 60 * 1000,
+    })),
+  })
+
+  const txnMap = useMemo(() => {
+    const m: Record<string, Transaction> = {}
+    for (const q of settlementTxnQueries) {
+      if (q.data) m[q.data.id] = q.data
+    }
+    return m
+  }, [settlementTxnQueries])
+
   const payeeMap: Record<string, string> = {}
   for (const p of payeesRaw) payeeMap[p.id] = p.name
   const payeeOptions = payeesRaw.map(p => ({ id: p.id, label: p.name }))
 
-  const txnMap: Record<string, { description: string | null; amount: string }> = {}
   const incomeTransactions: Array<{ id: string; description: string | null; amount: string }> = []
   for (const t of txnData?.items ?? []) {
-    txnMap[t.id] = { description: t.description, amount: t.amount }
     incomeTransactions.push({ id: t.id, description: t.description, amount: t.amount })
   }
 
@@ -387,7 +410,7 @@ export default function SplitDetail() {
                 key={share.id}
                 share={share}
                 splitId={split.id}
-                payeeName={share.payee_id ? (payeeMap[share.payee_id] ?? share.payee_id.slice(0, 8)) : 'Blank Payee'}
+                payeeName={share.payee_id ? (payeeMap[share.payee_id] ?? share.payee_id.slice(0, 8)) : 'Your share'}
                 payeeOptions={payeeOptions}
                 onCreatePayee={handleCreatePayee}
                 txnMap={txnMap}
