@@ -110,6 +110,7 @@ export interface TransactionFilters {
   to?: string
   sort_by?: 'transacted_at' | 'amount'
   sort_dir?: 'asc' | 'desc'
+  q?: string
 }
 
 function buildParams(filters: TransactionFilters, limit = 50, cursor?: string): URLSearchParams {
@@ -124,16 +125,23 @@ function buildParams(filters: TransactionFilters, limit = 50, cursor?: string): 
   if (filters.to) p.set('to', filters.to)
   if (filters.sort_by) p.set('sort_by', filters.sort_by)
   if (filters.sort_dir) p.set('sort_dir', filters.sort_dir)
+  if (filters.q) p.set('q', filters.q)
   p.set('limit', String(limit))
   if (cursor) p.set('cursor', cursor)
   return p
 }
 
-export function useTransactions(filters: TransactionFilters = {}, limit = 50, cursor?: string) {
+export function useTransactions(
+  filters: TransactionFilters = {},
+  limit = 50,
+  cursor?: string,
+  options?: { enabled?: boolean },
+) {
   return useQuery({
     queryKey: ['transactions', filters, limit, cursor],
     queryFn: () =>
       apiGet<TransactionListResponse>(`/transactions?${buildParams(filters, limit, cursor)}`),
+    enabled: options?.enabled ?? true,
   })
 }
 
