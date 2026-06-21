@@ -214,7 +214,7 @@ function ShareRow({
         <p className="text-sm font-medium text-fg truncate">{payeeName}</p>
         <div className="flex items-center gap-2 shrink-0">
           <span className="text-xs text-fg-faint kk-mono">₹{fmt(share.amount)}</span>
-          <span className={STATUS_CLS[share.status]}>{share.status}</span>
+          {!isOwnShare && <span className={STATUS_CLS[share.status]}>{share.status}</span>}
           <ChevronRight className={`w-4 h-4 text-fg-faint transition-transform ${isExpanded ? 'rotate-90' : ''}`} />
         </div>
       </button>
