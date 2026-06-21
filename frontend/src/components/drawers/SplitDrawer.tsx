@@ -21,6 +21,7 @@ import Autocomplete from '../Autocomplete'
 import ConfirmDialog from '../ConfirmDialog'
 import { TransactionPicker } from '../TransactionPicker'
 import { SplitForm } from '../SplitForm'
+import { TransactionDrawer } from './TransactionDrawer'
 
 const STATUS_CLS: Record<SplitShareStatus, string> = {
   pending:  'kk-chip kk-chip-warning',
@@ -38,24 +39,30 @@ function fmt(amount: string | number) {
 // ── SettlementRow ─────────────────────────────────────────────────────────────
 
 function SettlementRow({
-  s, txnMap, splitId, shareId,
+  s, txnMap, splitId, shareId, onViewTxn,
 }: {
   s: SplitShareSettlement
-  txnMap: Record<string, { description: string | null; amount: string }>
+  txnMap: Record<string, Transaction>
   splitId: string
   shareId: string
+  onViewTxn: (txn: Transaction) => void
 }) {
   const unlink = useUnlinkSettlement(splitId)
   const txn    = txnMap[s.transaction_id]
   const label  = txn?.description ?? `Payment ${s.transaction_id.slice(0, 8)}…`
-  const date   = new Date(s.created_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })
+  const date   = new Date(txn?.transacted_at ?? s.created_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })
 
   return (
     <div className="flex items-center justify-between gap-2 py-1.5 border-b border-border last:border-0">
-      <div className="min-w-0">
-        <p className="text-xs text-fg truncate">{label}</p>
+      <button
+        type="button"
+        onClick={() => txn && onViewTxn(txn)}
+        disabled={!txn}
+        className="min-w-0 flex-1 text-left disabled:cursor-default"
+      >
+        <p className="text-xs text-fg truncate hover:underline">{label}</p>
         <p className="text-xs text-fg-faint kk-mono">₹{fmt(s.amount)} · {date}</p>
-      </div>
+      </button>
       <button
         onClick={() => unlink.mutate({ shareId, settlementId: s.id })}
         disabled={unlink.isPending}
@@ -73,14 +80,15 @@ function SettlementRow({
 type ActiveAction = 'settle' | 'forgive' | 'edit' | null
 
 function ShareRow({
-  share, splitId, payeeName, payeeOptions, onCreatePayee, txnMap, isExpanded, onToggle,
+  share, splitId, payeeName, payeeOptions, onCreatePayee, txnMap, onViewTxn, isExpanded, onToggle,
 }: {
   share: SplitShare
   splitId: string
   payeeName: string
   payeeOptions: Array<{ id: string; label: string }>
   onCreatePayee: (name: string) => Promise<{ id: string; label: string }>
-  txnMap: Record<string, { description: string | null; amount: string }>
+  txnMap: Record<string, Transaction>
+  onViewTxn: (txn: Transaction) => void
   isExpanded: boolean
   onToggle: () => void
 }) {
@@ -236,7 +244,7 @@ function ShareRow({
           {share.settlements.length > 0 && (
             <div className="rounded-md border border-border bg-surface-2 px-3 py-1">
               {share.settlements.map(s => (
-                <SettlementRow key={s.id} s={s} txnMap={txnMap} splitId={splitId} shareId={share.id} />
+                <SettlementRow key={s.id} s={s} txnMap={txnMap} splitId={splitId} shareId={share.id} onViewTxn={onViewTxn} />
               ))}
             </div>
           )}
@@ -413,6 +421,7 @@ export function SplitDrawer({ splitId, onClose }: Props) {
   const [detailsOpen, setDetailsOpen]     = useState(false)
   const [expandedShareId, setExpandedShareId] = useState<string | null>(null)
   const [isEditing, setIsEditing]         = useState(false)
+  const [viewTxn, setViewTxn]             = useState<Transaction | null>(null)
 
   const { data: split, isLoading } = useGetSplit(splitId)
   const { data: payeesRaw = [] }   = usePayees()
@@ -453,9 +462,9 @@ export function SplitDrawer({ splitId, onClose }: Props) {
   })
 
   const txnMap = useMemo(() => {
-    const m: Record<string, { description: string | null; amount: string }> = {}
+    const m: Record<string, Transaction> = {}
     for (const q of settlementTxnQueries) {
-      if (q.data) m[q.data.id] = { description: q.data.description, amount: String(q.data.amount) }
+      if (q.data) m[q.data.id] = q.data
     }
     return m
   }, [settlementTxnQueries])
@@ -549,6 +558,7 @@ export function SplitDrawer({ splitId, onClose }: Props) {
                     payeeOptions={payeeOptions}
                     onCreatePayee={handleCreatePayee}
                     txnMap={txnMap}
+                    onViewTxn={setViewTxn}
                     isExpanded={expandedShareId === share.id}
                     onToggle={() => toggleShare(share.id)}
                   />
@@ -601,6 +611,11 @@ export function SplitDrawer({ splitId, onClose }: Props) {
           deleteSplit.mutate(splitId, { onSuccess: () => { setDeleteOpen(false); onClose() } })
         }}
         onCancel={() => setDeleteOpen(false)}
+      />
+
+      <TransactionDrawer
+        transaction={viewTxn}
+        onClose={() => setViewTxn(null)}
       />
     </Drawer>
   )
