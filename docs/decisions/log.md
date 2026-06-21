@@ -1,5 +1,29 @@
 # Decision Log
 
+## 2026-06-21 — Splits revamp: balance indicator uses amber (bg-warning) for under-allocated, not red
+
+**Context:** The design spec (2026-06-21-splits-revamp-design.md) says the balance progress bar in `CreateSplitDrawer` should be "red when over or under" the total. The implementation plan code uses `bg-warning` (amber) when under-allocated and `bg-negative` (red) only when over-allocated.
+
+**Decision:** Keep amber for under-allocated. Showing red when the user hasn't filled all shares yet is misleading — it implies an error state before the user has had a chance to enter amounts. Amber correctly communicates "in progress" while red communicates "you've gone too far." The spec's "red for both" was likely a copy simplification.
+
+**Affects:** `frontend/src/components/drawers/CreateSplitDrawer.tsx`
+
+## 2026-06-21 — Splits revamp: SplitDrawer action row uses · separators (spec vs gap-only in original plan)
+
+**Context:** The design spec shows action links as `Record payment · Forgive · Edit · Reset` with `·` separators. The original implementation plan code used only `gap-x-3` spacing. During execution the spec was treated as authoritative for visual design details.
+
+**Decision:** Added literal `·` `<span aria-hidden>` elements between action links to match the spec. The separators are hidden from screen readers via `aria-hidden` so assistive technologies only read the buttons.
+
+**Affects:** `frontend/src/components/drawers/SplitDrawer.tsx`
+
+## 2026-06-21 — Splits revamp: SplitDrawer fallback title is "Split expense" not "Split detail"
+
+**Context:** The implementation plan code had `title={split?.notes ?? 'Split detail'}` but the design spec explicitly says fallback should be `"Split expense"`.
+
+**Decision:** Applied spec. "Split expense" is clearer to users than "Split detail" as it describes what the drawer is showing.
+
+**Affects:** `frontend/src/components/drawers/SplitDrawer.tsx`
+
 ## 2026-06-21 — TransactionPicker: three-tier escalation instead of single large fetch
 
 **Context:** H4 UX bug: split pickers capped at 50 rows. Options were: (A) raise limit globally, (B) full pagination, (C) tiered escalation (3-month pool + search fallback).
