@@ -50,33 +50,60 @@ describe('BundleAsSplitModal', () => {
       http.get('/api/v1/transactions', () => HttpResponse.json({ items: [], total: 0 })),
     )
     renderWithQuery(<BundleAsSplitModal {...defaultProps} />)
-    await waitFor(() => expect(screen.getByText('No income transactions found.')).toBeInTheDocument())
+    await waitFor(() =>
+      expect(screen.getByText('No income transactions in the last 3 months.')).toBeInTheDocument(),
+    )
   })
 
   it('can toggle income transactions', async () => {
     const user = userEvent.setup()
     server.use(
-      http.get('/api/v1/transactions', () => HttpResponse.json({
-        items: [
-          { id: 'inc-1', amount: '100.00', description: 'Refund', type: 'income' },
-          { id: 'inc-2', amount: '50.00', description: 'Cashback', type: 'income' }
-        ],
-        total: 2
-      })),
+      http.get('/api/v1/transactions', () =>
+        HttpResponse.json({
+          items: [
+            {
+              id: 'inc-1',
+              amount: '100.00',
+              description: 'Refund',
+              type: 'income',
+              account_id: 'acc-1',
+              transacted_at: '2026-05-01T10:00:00Z',
+              payee_id: null,
+              to_account_id: null,
+            },
+            {
+              id: 'inc-2',
+              amount: '50.00',
+              description: 'Cashback',
+              type: 'income',
+              account_id: 'acc-1',
+              transacted_at: '2026-05-02T10:00:00Z',
+              payee_id: null,
+              to_account_id: null,
+            },
+          ],
+          total: 2,
+        }),
+      ),
     )
     renderWithQuery(<BundleAsSplitModal {...defaultProps} />)
-    
+
     await waitFor(() => screen.getByText('Refund'))
-    
-    const checkboxes = screen.getAllByRole('checkbox')
-    expect(checkboxes).toHaveLength(2)
 
-    await user.click(checkboxes[0]) // Select 'Refund' (100)
-    expect(checkboxes[0]).toBeChecked()
+    // TransactionPicker uses TransactionRow with role="option" for selection;
+    // the checkbox is decorative (onChange is a no-op, onClick stops propagation).
+    const options = screen.getAllByRole('option')
+    expect(options.length).toBeGreaterThanOrEqual(2)
 
-    // Uncheck
-    await user.click(checkboxes[0])
-    expect(checkboxes[0]).not.toBeChecked()
+    // First option (Refund) starts unselected
+    expect(options[0]).toHaveAttribute('aria-selected', 'false')
+
+    await user.click(options[0]) // Select 'Refund'
+    expect(options[0]).toHaveAttribute('aria-selected', 'true')
+
+    // Deselect
+    await user.click(options[0])
+    expect(options[0]).toHaveAttribute('aria-selected', 'false')
   })
 
   it('can add, update, and remove forgiven amounts', async () => {
@@ -94,16 +121,21 @@ describe('BundleAsSplitModal', () => {
     expect(screen.queryByLabelText('Forgiven amount 1')).not.toBeInTheDocument()
   })
 
-  it('shows error if total exceeds expense', async () => {
+  it('shows backend error when bundle API fails (over-budget validated server-side)', async () => {
     const user = userEvent.setup()
+    server.use(
+      http.post('/api/v1/splits/bundle', () => new HttpResponse(null, { status: 422 })),
+    )
     renderWithQuery(<BundleAsSplitModal {...defaultProps} />)
-    
+
     await user.click(screen.getByText('+ Add forgiven amount'))
     const input = screen.getByLabelText('Forgiven amount 1')
     await user.type(input, '600') // Exceeds 500
 
     await user.click(screen.getByRole('button', { name: /^bundle$/i }))
-    expect(screen.getByRole('alert')).toHaveTextContent('exceeds expense (500.00)')
+    await waitFor(() =>
+      expect(screen.getByRole('alert')).toHaveTextContent('Failed to bundle split. Please try again.'),
+    )
   })
 
   it('submits with valid data and calls onSuccess', async () => {

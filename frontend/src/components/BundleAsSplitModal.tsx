@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import * as Dialog from '@radix-ui/react-dialog'
 import { useBundleSplit, type ForgivenShareCreate } from '../api/splits'
-import { useTransactions } from '../api/transactions'
+import { TransactionPicker } from './TransactionPicker'
 
 interface BundleAsSplitModalProps {
   expenseTransactionIds: string[]
@@ -19,26 +19,11 @@ export default function BundleAsSplitModal({
   onSuccess,
 }: BundleAsSplitModalProps) {
   const bundle = useBundleSplit()
-  const { data: txnData } = useTransactions({ type: 'income' })
-  const incomeTransactions = txnData?.items ?? []
 
   const [selectedIncomeIds, setSelectedIncomeIds] = useState<string[]>([])
   const [forgivenShares, setForgivenShares] = useState<ForgivenShareCreate[]>([])
   const [notes, setNotes] = useState('')
   const [error, setError] = useState('')
-
-  const expenseNum = Number(expenseAmount)
-  const incomeTotal = selectedIncomeIds
-    .map((id) => incomeTransactions.find((t) => t.id === id))
-    .reduce((sum, t) => sum + (t ? Number(t.amount) : 0), 0)
-  const forgivenTotal = forgivenShares.reduce((sum, f) => sum + (Number(f.amount) || 0), 0)
-  const userShare = expenseNum - incomeTotal - forgivenTotal
-
-  function toggleIncome(id: string) {
-    setSelectedIncomeIds((prev) =>
-      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id],
-    )
-  }
 
   function addForgiven() {
     setForgivenShares((prev) => [...prev, { amount: '' }])
@@ -55,12 +40,6 @@ export default function BundleAsSplitModal({
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setError('')
-
-    if (incomeTotal + forgivenTotal > expenseNum) {
-      setError(`Income + forgiven (${(incomeTotal + forgivenTotal).toFixed(2)}) exceeds expense (${expenseAmount})`)
-      return
-    }
-
     try {
       await bundle.mutateAsync({
         expense_transaction_ids: expenseTransactionIds,
@@ -96,11 +75,6 @@ export default function BundleAsSplitModal({
           </Dialog.Title>
           <p className="text-sm text-gray-500 mb-4">
             Expense: <strong>₹{expenseAmount}</strong>
-            {userShare >= 0 && (
-              <span className="ml-2 text-indigo-600">
-                Your share: ₹{userShare.toFixed(2)}
-              </span>
-            )}
           </p>
 
           <form onSubmit={handleSubmit} className="space-y-4">
@@ -109,24 +83,12 @@ export default function BundleAsSplitModal({
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Select income transactions (settlement legs)
               </label>
-              {incomeTransactions.length === 0 ? (
-                <p className="text-sm text-gray-400">No income transactions found.</p>
-              ) : (
-                <div className="max-h-40 overflow-y-auto space-y-1 border border-gray-200 rounded-md p-2">
-                  {incomeTransactions.map((t) => (
-                    <label key={t.id} className="flex items-center gap-2 text-sm cursor-pointer hover:bg-gray-50 rounded px-1">
-                      <input
-                        type="checkbox"
-                        checked={selectedIncomeIds.includes(t.id)}
-                        onChange={() => toggleIncome(t.id)}
-                        className="rounded"
-                      />
-                      <span>{t.description ?? t.id.slice(0, 8)}</span>
-                      <span className="ml-auto text-green-600 font-medium">+₹{t.amount}</span>
-                    </label>
-                  ))}
-                </div>
-              )}
+              <TransactionPicker
+                type="income"
+                multiple
+                value={selectedIncomeIds}
+                onChange={(ids) => setSelectedIncomeIds(ids as string[])}
+              />
             </div>
 
             {/* Forgiven shares */}
