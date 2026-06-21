@@ -708,6 +708,11 @@ export const handlers = [
       { status: 201 },
     )
   }),
+  http.get('/api/v1/transactions/:id', ({ params }) => {
+    const found = TRANSACTIONS_RESPONSE.items.find((t) => t.id === params.id)
+    if (!found) return HttpResponse.json({ detail: 'Not found' }, { status: 404 })
+    return HttpResponse.json(found)
+  }),
   http.patch('/api/v1/transactions/:id', async ({ request }) => {
     const body = await request.json() as Record<string, unknown>
     return HttpResponse.json({ ...TRANSACTIONS_RESPONSE.items[0], ...body })

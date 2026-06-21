@@ -27,8 +27,8 @@ describe('SplitDrawer component', () => {
     // own (900) + Priya forgiven (900) = 1800
     expect(screen.getByText('₹1,800')).toBeInTheDocument()
 
-    // Check shares
-    expect(screen.getByText('My share')).toBeInTheDocument()
+    // Check shares (own share has no payee so renders as "Blank Payee")
+    expect(screen.getByText('Blank Payee')).toBeInTheDocument()
     expect(screen.getByText('Rahul')).toBeInTheDocument()
     expect(screen.getByText('Priya')).toBeInTheDocument()
     expect(screen.getByText('Neel')).toBeInTheDocument()
@@ -68,10 +68,14 @@ describe('SplitDrawer component', () => {
     await user.click(addPaymentButtons[0])
 
     expect(screen.getByText('Link income transaction')).toBeInTheDocument()
-    const select = screen.getByRole('combobox')
-    
-    // Select an income transaction
-    await user.selectOptions(select, 'txn-may-salary')
+
+    // TransactionPicker renders a search input; wait for income transactions to load
+    await waitFor(() => {
+      expect(screen.getByText('May salary')).toBeInTheDocument()
+    })
+
+    // Click the income transaction row to select it
+    await user.click(screen.getByText('May salary'))
 
     const confirmButton = screen.getByRole('button', { name: /confirm/i })
     expect(confirmButton).toBeEnabled()

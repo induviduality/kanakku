@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Pencil, Trash2 } from 'lucide-react'
 import { Drawer, DrawerSection } from '../Drawer'
 import {
@@ -13,10 +13,11 @@ import {
   type SplitShareSettlement,
   type SplitShareStatus,
 } from '../../api/splits'
-import { useTransactions } from '../../api/transactions'
+import { useTransactions, useTransaction } from '../../api/transactions'
 import { usePayees, useCreatePayee } from '../../api/payees'
 import Autocomplete from '../Autocomplete'
 import ConfirmDialog from '../ConfirmDialog'
+import { TransactionPicker } from '../TransactionPicker'
 
 const STATUS_CLS: Record<SplitShareStatus, string> = {
   pending:  'kk-chip kk-chip-warning',
@@ -140,7 +141,6 @@ function ShareRow({
   payeeOptions,
   onCreatePayee,
   txnMap,
-  incomeTransactions,
 }: {
   share: SplitShare
   splitId: string
@@ -148,7 +148,6 @@ function ShareRow({
   payeeOptions: Array<{ id: string; label: string }>
   onCreatePayee: (name: string) => Promise<{ id: string; label: string }>
   txnMap: Record<string, { description: string | null; amount: string }>
-  incomeTransactions: Array<{ id: string; description: string | null; amount: string }>
 }) {
   const [editOpen, setEditOpen] = useState(false)
   const [settleOpen, setSettleOpen] = useState(false)
@@ -169,16 +168,15 @@ function ShareRow({
   const isResolved = remaining <= 0
   const hasActivity = paid > 0 || forgiven > 0
 
-  const selectedTxn = incomeTransactions.find(t => t.id === settleTxnId)
+  const { data: selectedTxn } = useTransaction(settleTxnId || undefined)
 
-  function onTxnSelect(txnId: string) {
-    setSettleTxnId(txnId)
-    const t = incomeTransactions.find(i => i.id === txnId)
-    if (t) {
-      const capped = Math.min(parseFloat(t.amount), remaining)
+  // Pre-fill settle amount when a transaction is selected
+  useEffect(() => {
+    if (selectedTxn && remaining > 0) {
+      const capped = Math.min(parseFloat(selectedTxn.amount), remaining)
       setSettleAmount(capped.toFixed(2))
     }
-  }
+  }, [selectedTxn?.id, remaining])
 
   async function handleSettle() {
     if (!settleTxnId) return
@@ -270,14 +268,11 @@ function ShareRow({
       {settleOpen && (
         <div className="rounded-lg border border-border bg-surface-2 p-3 space-y-2">
           <p className="text-xs font-medium text-fg-muted">Link income transaction</p>
-          <select value={settleTxnId} onChange={e => onTxnSelect(e.target.value)} className="kk-input text-sm">
-            <option value="">Select transaction…</option>
-            {incomeTransactions.map(t => (
-              <option key={t.id} value={t.id}>
-                {t.description ?? t.id.slice(0, 8)} — ₹{t.amount}
-              </option>
-            ))}
-          </select>
+          <TransactionPicker
+            type="income"
+            value={settleTxnId}
+            onChange={(id) => setSettleTxnId(id as string)}
+          />
           {settleTxnId && (
             <div>
               <label className="text-xs text-fg-muted block mb-1">
@@ -354,7 +349,6 @@ export function SplitDrawer({ splitId, onClose }: Props) {
 
   const txnMap: Record<string, { description: string | null; amount: string }> = {}
   for (const t of txnData?.items ?? []) txnMap[t.id] = { description: t.description, amount: t.amount }
-  const incomeTransactions = txnData?.items ?? []
 
   const netExpense = split?.shares.reduce((sum, s) => {
     const own     = s.payee_id === null ? parseFloat(s.amount) : 0
@@ -404,7 +398,6 @@ export function SplitDrawer({ splitId, onClose }: Props) {
                   payeeOptions={payeeOptions}
                   onCreatePayee={handleCreatePayee}
                   txnMap={txnMap}
-                  incomeTransactions={incomeTransactions}
                 />
               ))}
             </div>
