@@ -16,7 +16,7 @@ import { useCategories } from '../api/categories'
 import { useTags } from '../api/tags'
 import { usePeriod } from '../lib/period-context'
 import ConfirmDialog from '../components/ConfirmDialog'
-import BundleAsSplitModal from '../components/BundleAsSplitModal'
+
 import { EmptyState } from '../components/EmptyState'
 import { TransactionDrawer } from '../components/drawers/TransactionDrawer'
 
@@ -160,9 +160,7 @@ export default function Transactions() {
   const [drawerTransaction, setDrawerTransaction] = useState<Transaction | null>(null)
   const [drawerSplitId, setDrawerSplitId] = useState<string | null>(null)
   const [drawerSplitTitle, setDrawerSplitTitle] = useState<string | null>(null)
-  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [showFilters, setShowFilters] = useState(false)
-  const [bundleTarget, setBundleTarget] = useState<Transaction[] | null>(null)
   const [editingDescId, setEditingDescId] = useState<string | null>(null)
   const [editingDescValue, setEditingDescValue] = useState('')
 
@@ -298,14 +296,7 @@ export default function Transactions() {
     pushSearch({ sort_by: by, sort_dir: dir, page: 1, cursor: undefined })
   }
 
-  function toggleSelect(id: string) {
-    setSelectedIds((prev) => {
-      const next = new Set(prev)
-      if (next.has(id)) next.delete(id)
-      else next.add(id)
-      return next
-    })
-  }
+
 
   function openDrawer(t: Transaction) {
     setDrawerTransaction(t)
@@ -329,7 +320,7 @@ export default function Transactions() {
   const activeTags     = tags.filter((t) => !t.deleted_at)
 
   return (
-    <main ref={topRef} className={`p-4 md:p-6 max-w-5xl mx-auto ${selectedIds.size > 0 ? 'pb-20' : ''}`}>
+    <main ref={topRef} className="p-4 md:p-6 max-w-5xl mx-auto">
       {/* Header */}
       <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
         <h1 className="text-2xl font-bold text-gray-900">Transactions</h1>
@@ -453,40 +444,7 @@ export default function Transactions() {
         </div>
       )}
 
-      {/* Sticky bulk action bar */}
-      {selectedIds.size > 0 && (() => {
-        const selectedItems = allItems.filter((t) => selectedIds.has(t.id))
-        const selectedExpenses = selectedItems.filter((t) => t.type === 'expense')
-        const allExpenses = selectedExpenses.length === selectedItems.length
-        return (
-          <div className="fixed bottom-0 left-0 right-0 z-30 flex items-center gap-3 bg-white border-t border-indigo-200 shadow-lg px-4 py-3 md:left-64">
-            <span className="text-sm font-semibold text-indigo-700 shrink-0">
-              {selectedIds.size} selected
-            </span>
-            <div className="flex items-center gap-2 flex-wrap">
-              {allExpenses ? (
-                <button
-                  onClick={() => setBundleTarget(selectedExpenses)}
-                  className="rounded-md bg-indigo-600 px-3 py-1.5 text-sm font-semibold text-white hover:bg-indigo-700"
-                  aria-label="Bundle as split"
-                >
-                  Bundle as Split
-                </button>
-              ) : (
-                <span className="text-xs text-gray-400 italic">
-                  Select only expenses to bundle as split
-                </span>
-              )}
-            </div>
-            <button
-              onClick={() => setSelectedIds(new Set())}
-              className="ml-auto rounded-md border border-gray-300 px-3 py-1.5 text-xs text-gray-600 hover:bg-gray-50 shrink-0"
-            >
-              Clear
-            </button>
-          </div>
-        )
-      })()}
+
 
       {/* Loading */}
       {isLoading ? (
@@ -516,9 +474,7 @@ export default function Transactions() {
             <table className="w-full text-sm">
               <thead className="bg-surface-2/80 border-b border-border">
                 <tr>
-                  <th className="w-8 px-3 py-2">
-                    <span className="sr-only">Select</span>
-                  </th>
+
                   <th className="px-3 py-2 text-left font-medium text-fg-faint">Date</th>
                   <th className="px-3 py-2 text-left font-medium text-fg-faint">Description / Payee</th>
                   <th className="px-3 py-2 text-right font-medium text-fg-faint">Amount</th>
@@ -538,14 +494,7 @@ export default function Transactions() {
                       className="hover:bg-surface-2/50 cursor-pointer"
                       onClick={() => openDrawer(t)}
                     >
-                      <td className="px-3 py-2" onClick={(e) => e.stopPropagation()}>
-                        <input
-                          type="checkbox"
-                          checked={selectedIds.has(t.id)}
-                          onChange={() => toggleSelect(t.id)}
-                          aria-label={`Select ${t.description ?? t.id}`}
-                        />
-                      </td>
+
                       <td className="px-3 py-2 text-gray-500 whitespace-nowrap">{formatDate(t.transacted_at)}</td>
                       <td className="px-3 py-2" onClick={(e) => e.stopPropagation()}>
                         {editingDescId === t.id ? (
@@ -642,14 +591,6 @@ export default function Transactions() {
                   onClick={() => openDrawer(t)}
                 >
                   <div className="p-3 flex gap-3">
-                    <input
-                      type="checkbox"
-                      checked={selectedIds.has(t.id)}
-                      onChange={() => toggleSelect(t.id)}
-                      onClick={e => e.stopPropagation()}
-                      className="mt-1 flex-shrink-0"
-                      aria-label={`Select ${t.description ?? t.id}`}
-                    />
                     <div className="flex-1 min-w-0">
                       <div className="flex justify-between items-start">
                         <div className="min-w-0 flex-1">
@@ -773,15 +714,7 @@ export default function Transactions() {
         onCancel={() => setDeleteTarget(null)}
       />
 
-      {bundleTarget && (
-        <BundleAsSplitModal
-          expenseTransactionIds={bundleTarget.map((t) => t.id)}
-          expenseAmount={bundleTarget.reduce((sum, t) => sum + Number(t.amount), 0).toFixed(2)}
-          open={!!bundleTarget}
-          onClose={() => setBundleTarget(null)}
-          onSuccess={() => setSelectedIds(new Set())}
-        />
-      )}
+
 
       <TransactionDrawer
         transaction={drawerTransaction}
