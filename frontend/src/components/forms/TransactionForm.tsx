@@ -379,21 +379,15 @@ export default function TransactionForm({
       {/* Budget (expense only) */}
       {type === 'expense' && allBudgets.length > 0 && (
         <div>
-          <label className="block text-sm font-medium text-fg-muted">Budget</label>
-          <div className="mt-1 flex flex-wrap gap-1">
-            {allBudgets.map((b) => (
-              <button
-                key={b.id}
-                type="button"
-                onClick={() => setSelectedBudgetId(selectedBudgetId === b.id ? null : b.id)}
-                className={`rounded-full px-3 py-1 text-xs font-medium border transition-colors
-                  ${selectedBudgetId === b.id
-                    ? 'bg-accent-dim text-white border-accent-dim'
-                    : 'bg-surface-2 text-fg-muted border-border-strong hover:border-accent'}`}
-              >
-                {b.name}
-              </button>
-            ))}
+          <label htmlFor="txn-budget" className="block text-sm font-medium text-fg-muted">Budget</label>
+          <div className="mt-1">
+            <Autocomplete
+              id="txn-budget"
+              options={allBudgets.map(b => ({ id: b.id, label: b.name }))}
+              value={selectedBudgetId}
+              onChange={setSelectedBudgetId}
+              placeholder="Search budget…"
+            />
           </div>
         </div>
       )}
@@ -401,21 +395,15 @@ export default function TransactionForm({
       {/* Piggy bank (expense + income only) */}
       {type !== 'transfer' && type !== 'opening_balance' && allPiggyBanks.filter(p => !p.deleted_at && !p.is_completed).length > 0 && (
         <div>
-          <label className="block text-sm font-medium text-fg-muted">Savings Goal</label>
-          <div className="mt-1 flex flex-wrap gap-1">
-            {allPiggyBanks.filter(p => !p.deleted_at && !p.is_completed).map((p) => (
-              <button
-                key={p.id}
-                type="button"
-                onClick={() => setSelectedPiggyBankId(selectedPiggyBankId === p.id ? null : p.id)}
-                className={`rounded-full px-3 py-1 text-xs font-medium border transition-colors
-                  ${selectedPiggyBankId === p.id
-                    ? 'bg-accent-dim text-white border-accent-dim'
-                    : 'bg-surface-2 text-fg-muted border-border-strong hover:border-accent'}`}
-              >
-                {p.name}
-              </button>
-            ))}
+          <label htmlFor="txn-piggybank" className="block text-sm font-medium text-fg-muted">Savings Goal</label>
+          <div className="mt-1">
+            <Autocomplete
+              id="txn-piggybank"
+              options={allPiggyBanks.filter(p => !p.deleted_at && !p.is_completed).map(p => ({ id: p.id, label: p.name }))}
+              value={selectedPiggyBankId}
+              onChange={setSelectedPiggyBankId}
+              placeholder="Search savings goal…"
+            />
           </div>
         </div>
       )}

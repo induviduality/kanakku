@@ -10,6 +10,7 @@ import {
 } from '../api/budgets'
 import { useCategories } from '../api/categories'
 import EntityModal from '../components/EntityModal'
+import Autocomplete from '../components/Autocomplete'
 
 const INPUT_CLS =
   'mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500'
@@ -82,7 +83,7 @@ export default function BudgetFormPage() {
   const [rrule, setRrule] = useState('FREQ=MONTHLY')
   const [startDate, setStartDate] = useState('')
   const [endDate, setEndDate] = useState('')
-  const [selectedCats, setSelectedCats] = useState<string[]>([])
+  const [selectedCat, setSelectedCat] = useState<string | null>(null)
   const [error, setError] = useState('')
   const [scopeOpen, setScopeOpen] = useState(false)
   const [pendingPatch, setPendingPatch] = useState<BudgetPatch | null>(null)
@@ -96,15 +97,9 @@ export default function BudgetFormPage() {
       setRrule(existing.recurrence_rule ?? 'FREQ=MONTHLY')
       setStartDate(existing.start_date ?? '')
       setEndDate(existing.end_date ?? '')
-      setSelectedCats(existing.category_ids)
+      setSelectedCat(existing.category_ids[0] ?? null)
     }
   }, [existing])
-
-  function toggleCat(id: string) {
-    setSelectedCats((prev) =>
-      prev.includes(id) ? prev.filter((c) => c !== id) : [...prev, id],
-    )
-  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -115,7 +110,7 @@ export default function BudgetFormPage() {
         name,
         amount,
         currency,
-        category_ids: selectedCats,
+        category_ids: selectedCat ? [selectedCat] : [],
       }
       if (rrule) patch.recurrence_rule = rrule
       if (startDate) patch.start_date = startDate
@@ -141,7 +136,7 @@ export default function BudgetFormPage() {
       amount,
       currency,
       type,
-      category_ids: selectedCats,
+      category_ids: selectedCat ? [selectedCat] : [],
     }
     if (startDate) body.start_date = startDate
     if (endDate) body.end_date = endDate
@@ -270,22 +265,14 @@ export default function BudgetFormPage() {
 
         {categories.length > 0 && (
           <div>
-            <label className={LABEL_CLS}>Categories</label>
-            <div className="mt-1 flex flex-wrap gap-2">
-              {categories.map((c) => (
-                <button
-                  key={c.id}
-                  type="button"
-                  onClick={() => toggleCat(c.id)}
-                  className={`rounded-full px-3 py-0.5 text-xs font-medium border ${
-                    selectedCats.includes(c.id)
-                      ? 'bg-indigo-600 text-white border-indigo-600'
-                      : 'bg-white text-gray-700 border-gray-300 hover:border-indigo-400'
-                  }`}
-                >
-                  {c.name}
-                </button>
-              ))}
+            <label className={LABEL_CLS}>Category</label>
+            <div className="mt-1">
+              <Autocomplete
+                options={categories.filter(c => !c.deleted_at).map(c => ({ id: c.id, label: c.icon ? `${c.icon} ${c.name}` : c.name }))}
+                value={selectedCat}
+                onChange={setSelectedCat}
+                placeholder="Search category…"
+              />
             </div>
           </div>
         )}
