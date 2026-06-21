@@ -17,7 +17,10 @@ function n(v: string | number | null | undefined): number {
 }
 
 function inr(v: number): string {
-  return v.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+  return v.toLocaleString('en-IN', {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 2,
+  })
 }
 
 function txnLabel(
@@ -97,6 +100,12 @@ function CreateSplitForm({ onClose, onCreated }: { onClose: () => void; onCreate
   }, [existingSplits])
 
   const expenseTxns = expensePool?.items ?? []
+  const expenseMap = useMemo(() => {
+    const m: Record<string, Transaction> = {}
+    for (const t of expenseTxns) m[t.id] = t
+    return m
+  }, [expenseTxns])
+
   const incomeMap   = useMemo(() => {
     const m: Record<string, Transaction> = {}
     for (const t of incomePool?.items ?? []) m[t.id] = t
@@ -104,10 +113,12 @@ function CreateSplitForm({ onClose, onCreated }: { onClose: () => void; onCreate
   }, [incomePool])
 
   // ── Derived totals ───────────────────────────────────────────────────────
-  const totalExpense     = selectedExpenseIds.reduce((sum, id) => {
-    const t = expenseTxns.find(e => e.id === id)
-    return sum + (t ? n(t.amount) : 0)
-  }, 0)
+  const totalExpense = useMemo(() =>
+    selectedExpenseIds.reduce((sum, id) => {
+      const t = expenseMap[id]
+      return sum + (t ? n(t.amount) : 0)
+    }, 0)
+  , [selectedExpenseIds, expenseMap])
   const myShareNum       = n(myShare)
   const payeeSharesTotal = shares.reduce((s, p) => s + n(p.amount), 0)
   const allocated        = myShareNum + payeeSharesTotal

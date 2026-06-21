@@ -1,5 +1,29 @@
 # Decision Log
 
+## 2026-06-21 — Splits Bug Fixes: net expense calculation uses own share + payee forgiven amounts (BUG-1)
+
+**Context:** BUG-1 noted that the net expense calculation was summing all shares' forgiven amounts, which is incorrect.
+
+**Decision:** Net expense calculation updated to `own_share + forgiven_amounts_on_payee_shares` per FR-7.9.
+
+**Affects:** `frontend/src/components/drawers/SplitDrawer.tsx`
+
+## 2026-06-21 — Splits Bug Fixes: decimal values display convention (BUG-8)
+
+**Context:** The user wanted to see decimals only if there is a paisa (non-zero decimal) value.
+
+**Decision:** Formatter (`fmt` in `SplitDrawer.tsx` and `inr` in `CreateSplitDrawer.tsx`) set to `minimumFractionDigits: 0` and `maximumFractionDigits: 2`.
+
+**Affects:** `frontend/src/components/drawers/SplitDrawer.tsx`, `frontend/src/components/drawers/CreateSplitDrawer.tsx`
+
+## 2026-06-21 — Splits Bug Fixes: Settle/Forgive form validation and error handling (BUG-3)
+
+**Context:** Settle/Forgive actions could fail silently or crash the frontend on backend error.
+
+**Decision:** Added client-side validations to disable Confirm/Set buttons when invalid values are typed, and added try/catch blocks with inline error displays.
+
+**Affects:** `frontend/src/components/drawers/SplitDrawer.tsx`
+
 ## 2026-06-21 — Splits revamp: balance indicator uses amber (bg-warning) for under-allocated, not red
 
 **Context:** The design spec (2026-06-21-splits-revamp-design.md) says the balance progress bar in `CreateSplitDrawer` should be "red when over or under" the total. The implementation plan code uses `bg-warning` (amber) when under-allocated and `bg-negative` (red) only when over-allocated.

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useMemo } from 'react'
 import { ChevronRight, Trash2 } from 'lucide-react'
 import { Drawer, DrawerSection } from '../Drawer'
 import {
@@ -26,7 +26,10 @@ const STATUS_CLS: Record<SplitShareStatus, string> = {
 }
 
 function fmt(amount: string | number) {
-  return parseFloat(String(amount)).toLocaleString('en-IN', { maximumFractionDigits: 2 })
+  return parseFloat(String(amount)).toLocaleString('en-IN', {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 2,
+  })
 }
 
 // ── SettlementRow ─────────────────────────────────────────────────────────────
@@ -84,9 +87,11 @@ function ShareRow({
   // Settle form state
   const [settleTxnId, setSettleTxnId]   = useState('')
   const [settleAmount, setSettleAmount] = useState('')
+  const [settleError, setSettleError]   = useState('')
 
   // Forgive form state
   const [forgiveAmount, setForgiveAmount] = useState('')
+  const [forgiveError, setForgiveError]   = useState('')
 
   // Edit form state
   const [editPayeeId, setEditPayeeId] = useState<string | null>(share.payee_id ?? null)
@@ -115,8 +120,15 @@ function ShareRow({
       setSettleTxnId(''); setSettleAmount('')
       setForgiveAmount('')
       setEditPayeeId(share.payee_id ?? null); setEditAmount(share.amount); setEditError('')
+      setSettleError(''); setForgiveError('')
     }
   }, [isExpanded])
+
+  // Sync edit form state on prop changes
+  useEffect(() => {
+    setEditPayeeId(share.payee_id ?? null)
+    setEditAmount(share.amount)
+  }, [share.payee_id, share.amount])
 
   // Pre-fill settle amount when a transaction is selected
   useEffect(() => {
@@ -131,19 +143,50 @@ function ShareRow({
     setSettleTxnId(''); setSettleAmount('')
     setForgiveAmount(remaining.toFixed(2))
     setEditPayeeId(share.payee_id ?? null); setEditAmount(share.amount); setEditError('')
+    setSettleError(''); setForgiveError('')
   }
 
   async function handleSettle() {
     if (!settleTxnId) return
-    const body: { transaction_id: string; amount?: string } = { transaction_id: settleTxnId }
-    if (settleAmount && settleAmount !== selectedTxn?.amount) body.amount = settleAmount
-    await settle.mutateAsync({ shareId: share.id, body })
-    setActiveAction(null); setSettleTxnId(''); setSettleAmount('')
+    setSettleError('')
+    const amt = parseFloat(settleAmount)
+    if (isNaN(amt) || amt <= 0) {
+      setSettleError('Settle amount must be positive')
+      return
+    }
+    if (amt > remaining) {
+      setSettleError(`Settle amount cannot exceed remaining amount (₹${fmt(remaining)})`)
+      return
+    }
+
+    try {
+      const body: { transaction_id: string; amount?: string } = { transaction_id: settleTxnId }
+      if (settleAmount && settleAmount !== selectedTxn?.amount) body.amount = settleAmount
+      await settle.mutateAsync({ shareId: share.id, body })
+      setActiveAction(null); setSettleTxnId(''); setSettleAmount('')
+    } catch {
+      setSettleError('Failed to record settlement. Please try again.')
+    }
   }
 
   async function handleForgive() {
-    await forgive.mutateAsync({ shareId: share.id, amount: forgiveAmount })
-    setActiveAction(null); setForgiveAmount('')
+    setForgiveError('')
+    const amt = parseFloat(forgiveAmount)
+    if (isNaN(amt) || amt < 0) {
+      setForgiveError('Forgiven amount must be non-negative')
+      return
+    }
+    if (amt > total - paid) {
+      setForgiveError(`Forgiven amount cannot exceed remaining unpaid balance (₹${fmt(total - paid)})`)
+      return
+    }
+
+    try {
+      await forgive.mutateAsync({ shareId: share.id, amount: forgiveAmount })
+      setActiveAction(null); setForgiveAmount('')
+    } catch {
+      setForgiveError('Failed to set forgiven amount. Please try again.')
+    }
   }
 
   async function handleEdit() {
@@ -243,21 +286,24 @@ function ShareRow({
               />
               {settleTxnId && (
                 <div>
-                  <label className="text-xs text-fg-muted block mb-1">
+                  <label htmlFor="settle-amount-input" className="text-xs text-fg-muted block mb-1">
                     Amount to credit <span className="text-fg-faint">(max ₹{fmt(remaining)})</span>
                   </label>
                   <input
+                    id="settle-amount-input"
                     type="number" step="0.01" min="0.01" max={remaining}
                     value={settleAmount} onChange={e => setSettleAmount(e.target.value)}
+                    aria-label="Amount to credit"
                     className="kk-input text-sm"
                   />
                 </div>
               )}
+              {settleError && <p className="text-xs text-negative-dim">{settleError}</p>}
               <div className="flex gap-2">
                 <button onClick={() => setActiveAction(null)} className="kk-btn-ghost flex-1 justify-center">Cancel</button>
                 <button
                   onClick={handleSettle}
-                  disabled={!settleTxnId || !settleAmount || settle.isPending}
+                  disabled={!settleTxnId || !settleAmount || parseFloat(settleAmount) <= 0 || parseFloat(settleAmount) > remaining || settle.isPending}
                   className="flex-1 rounded-md border border-positive/30 bg-positive/10 py-1.5 text-xs font-medium text-positive-dim disabled:opacity-50"
                 >
                   {settle.isPending ? 'Saving…' : 'Confirm'}
@@ -277,6 +323,7 @@ function ShareRow({
                 <input
                   type="number" step="0.01" min="0" max={total - paid}
                   value={forgiveAmount} onChange={e => setForgiveAmount(e.target.value)}
+                  aria-label="Forgive amount"
                   className="kk-input text-sm flex-1"
                 />
                 <button
@@ -286,11 +333,12 @@ function ShareRow({
                   All remaining
                 </button>
               </div>
+              {forgiveError && <p className="text-xs text-negative-dim">{forgiveError}</p>}
               <div className="flex gap-2">
                 <button onClick={() => setActiveAction(null)} className="kk-btn-ghost flex-1 justify-center">Cancel</button>
                 <button
                   onClick={handleForgive}
-                  disabled={!forgiveAmount || forgive.isPending}
+                  disabled={!forgiveAmount || parseFloat(forgiveAmount) < 0 || parseFloat(forgiveAmount) > (total - paid) || forgive.isPending}
                   className="flex-1 rounded-md border border-border bg-surface-3 py-1.5 text-xs font-medium text-fg-muted disabled:opacity-50"
                 >
                   {forgive.isPending ? 'Saving…' : 'Set'}
@@ -368,18 +416,35 @@ export function SplitDrawer({ splitId, onClose }: Props) {
   const deleteSplit                = useDeleteSplit()
   const createPayeeMutation        = useCreatePayee()
 
-  const payeeMap: Record<string, string> = {}
-  for (const p of payeesRaw) payeeMap[p.id] = p.name
-  const payeeOptions = payeesRaw.map(p => ({ id: p.id, label: p.name }))
+  // Reset drawer state when splitId changes
+  useEffect(() => {
+    setDeleteOpen(false)
+    setDetailsOpen(false)
+    setExpandedShareId(null)
+  }, [splitId])
 
-  const txnMap: Record<string, { description: string | null; amount: string }> = {}
-  for (const t of txnData?.items ?? []) txnMap[t.id] = { description: t.description, amount: t.amount }
+  const payeeMap = useMemo(() => {
+    const m: Record<string, string> = {}
+    for (const p of payeesRaw) m[p.id] = p.name
+    return m
+  }, [payeesRaw])
 
-  const netExpense = split?.shares.reduce((sum, s) => {
-    const own     = s.payee_id === null ? parseFloat(s.amount) : 0
-    const forgiven = parseFloat(s.forgiven_amount)
-    return sum + own + forgiven
-  }, 0) ?? 0
+  const payeeOptions = useMemo(() => 
+    payeesRaw.map(p => ({ id: p.id, label: p.name }))
+  , [payeesRaw])
+
+  const txnMap = useMemo(() => {
+    const m: Record<string, { description: string | null; amount: string }> = {}
+    for (const t of txnData?.items ?? []) m[t.id] = { description: t.description, amount: t.amount }
+    return m
+  }, [txnData])
+
+  const ownShare = split?.shares.find(s => s.payee_id === null)
+  const payeeShares = split?.shares.filter(s => s.payee_id !== null) || []
+  const netExpense = (
+    parseFloat(ownShare?.amount ?? '0') +
+    payeeShares.reduce((sum, s) => sum + parseFloat(s.forgiven_amount), 0)
+  )
 
   const totalAmount = split?.shares.reduce((sum, s) => sum + parseFloat(s.amount), 0) ?? 0
 
