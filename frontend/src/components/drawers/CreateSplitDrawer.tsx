@@ -7,7 +7,7 @@ import { useTransactions, type Transaction } from '../../api/transactions'
 import { usePayees, useCreatePayee } from '../../api/payees'
 import { TransactionPicker } from '../TransactionPicker'
 
-// ── Helpers ─────────────────────────────────────────────────────────────────
+// ── Helpers ──────────────────────────────────────────────────────────────────
 
 const EPS = 0.005
 
@@ -20,7 +20,10 @@ function inr(v: number): string {
   return v.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 }
 
-function txnLabel(t: { description: string | null; payee_id: string | null }, payeeMap: Record<string, string>): string {
+function txnLabel(
+  t: { description: string | null; payee_id: string | null },
+  payeeMap: Record<string, string>,
+): string {
   if (t.description) return t.description
   if (t.payee_id && payeeMap[t.payee_id]) return payeeMap[t.payee_id]
   return 'Transaction'
@@ -30,22 +33,12 @@ interface PayeeShare {
   key: string
   payeeId: string | null
   amount: string
-  forgiveOpen: boolean
-  forgiven: string
   linkOpen: boolean
   settlementIds: string[]
 }
 
 function newPayeeShare(): PayeeShare {
-  return {
-    key: crypto.randomUUID(),
-    payeeId: null,
-    amount: '',
-    forgiveOpen: false,
-    forgiven: '',
-    linkOpen: false,
-    settlementIds: [],
-  }
+  return { key: crypto.randomUUID(), payeeId: null, amount: '', linkOpen: false, settlementIds: [] }
 }
 
 // ── Component ────────────────────────────────────────────────────────────────
@@ -69,20 +62,18 @@ function CreateSplitForm({ onClose, onCreated }: { onClose: () => void; onCreate
     const d = new Date(); d.setDate(d.getDate() - 90); return d.toISOString().split('T')[0]
   }, [])
 
-  // Expense pool: shared query key with TransactionPicker (React Query caches)
   const { data: expensePool } = useTransactions({ type: 'expense', from: threeMonthsAgo }, 200)
-  // Income pool: used to resolve settled transaction labels and amounts
-  const { data: incomePool } = useTransactions({ type: 'income', from: threeMonthsAgo }, 200)
-  const { data: payees } = usePayees()
+  const { data: incomePool }  = useTransactions({ type: 'income',  from: threeMonthsAgo }, 200)
+  const { data: payees }      = usePayees()
   const { data: existingSplits } = useListSplits()
   const createPayee = useCreatePayee()
   const createSplit = useCreateSplit()
 
+  const [notes, setNotes]                     = useState('')
   const [selectedExpenseIds, setSelectedExpenseIds] = useState<string[]>([])
-  const [myShare, setMyShare] = useState('')
-  const [shares, setShares] = useState<PayeeShare[]>([])
-  const [notes, setNotes] = useState('')
-  const [submitError, setSubmitError] = useState('')
+  const [myShare, setMyShare]                 = useState('')
+  const [shares, setShares]                   = useState<PayeeShare[]>([])
+  const [submitError, setSubmitError]         = useState('')
 
   const payeeMap = useMemo(() => {
     const m: Record<string, string> = {}
@@ -90,7 +81,6 @@ function CreateSplitForm({ onClose, onCreated }: { onClose: () => void; onCreate
     return m
   }, [payees])
 
-  // Expense transaction IDs already used in any existing split.
   const alreadySplitExpenseIds = useMemo(() => {
     const ids: string[] = []
     for (const sp of existingSplits ?? [])
@@ -98,7 +88,6 @@ function CreateSplitForm({ onClose, onCreated }: { onClose: () => void; onCreate
     return ids
   }, [existingSplits])
 
-  // Income transactions already used as settlements in any existing split.
   const usedIncomeIds = useMemo(() => {
     const s = new Set<string>()
     for (const sp of existingSplits ?? [])
@@ -108,29 +97,27 @@ function CreateSplitForm({ onClose, onCreated }: { onClose: () => void; onCreate
   }, [existingSplits])
 
   const expenseTxns = expensePool?.items ?? []
-  const incomeMap = useMemo(() => {
+  const incomeMap   = useMemo(() => {
     const m: Record<string, Transaction> = {}
     for (const t of incomePool?.items ?? []) m[t.id] = t
     return m
   }, [incomePool])
 
-  // ── Derived totals ──
-  const totalExpense = selectedExpenseIds.reduce((sum, id) => {
+  // ── Derived totals ───────────────────────────────────────────────────────
+  const totalExpense     = selectedExpenseIds.reduce((sum, id) => {
     const t = expenseTxns.find(e => e.id === id)
     return sum + (t ? n(t.amount) : 0)
   }, 0)
-  const myShareNum = n(myShare)
+  const myShareNum       = n(myShare)
   const payeeSharesTotal = shares.reduce((s, p) => s + n(p.amount), 0)
-  const sharesTotal = myShareNum + payeeSharesTotal
-  const balance = sharesTotal - totalExpense
-  const forgivenTotal = shares.reduce((s, p) => s + n(p.forgiven), 0)
-  const netExpense = myShareNum + forgivenTotal
+  const allocated        = myShareNum + payeeSharesTotal
+  const balance          = allocated - totalExpense
 
   function settledTotal(p: PayeeShare): number {
     return p.settlementIds.reduce((s, id) => s + n(incomeMap[id]?.amount), 0)
   }
 
-  // ── Per-card validation ──
+  // ── Validation ───────────────────────────────────────────────────────────
   const payeeError: Record<string, string> = {}
   const seenPayees = new Set<string>()
   for (const p of shares) {
@@ -141,18 +128,12 @@ function CreateSplitForm({ onClose, onCreated }: { onClose: () => void; onCreate
     } else {
       seenPayees.add(p.payeeId)
     }
-    if (!payeeError[p.key] && n(p.amount) <= 0) {
+    if (!payeeError[p.key] && n(p.amount) <= 0)
       payeeError[p.key] = 'Enter a valid amount for this payee.'
-    }
-    if (!payeeError[p.key]) {
-      const over = settledTotal(p) + n(p.forgiven) - n(p.amount)
-      if (over > EPS) {
-        payeeError[p.key] = `Paid + forgiven (₹${inr(settledTotal(p) + n(p.forgiven))}) cannot exceed this payee's share (₹${inr(n(p.amount))}).`
-      }
-    }
+    if (!payeeError[p.key] && settledTotal(p) - n(p.amount) > EPS)
+      payeeError[p.key] = `Linked payments (₹${inr(settledTotal(p))}) cannot exceed this payee's share (₹${inr(n(p.amount))}).`
   }
 
-  // ── Global validation ──
   const errors: string[] = []
   if (selectedExpenseIds.length === 0) errors.push('Select at least one expense transaction.')
   if (myShareNum < 0) errors.push('Your share cannot be negative.')
@@ -162,7 +143,7 @@ function CreateSplitForm({ onClose, onCreated }: { onClose: () => void; onCreate
 
   const canSubmit = errors.length === 0 && !createSplit.isPending
 
-  // ── Mutators ──
+  // ── Mutators ─────────────────────────────────────────────────────────────
   function updateShare(key: string, patch: Partial<PayeeShare>) {
     setShares(prev => prev.map(p => (p.key === key ? { ...p, ...patch } : p)))
   }
@@ -195,7 +176,6 @@ function CreateSplitForm({ onClose, onCreated }: { onClose: () => void; onCreate
         payee_id: p.payeeId,
         amount: n(p.amount).toFixed(2),
         ...(p.settlementIds.length > 0 && { settlement_transaction_ids: p.settlementIds }),
-        ...(n(p.forgiven) > 0 && { forgiven_amount: n(p.forgiven).toFixed(2) }),
       })
     }
     try {
@@ -208,11 +188,25 @@ function CreateSplitForm({ onClose, onCreated }: { onClose: () => void; onCreate
   }
 
   const payeeOptions = (payees ?? []).map(p => ({ id: p.id, label: p.name }))
+  const allocatedPct = totalExpense > 0 ? Math.min(1, allocated / totalExpense) : 0
+  const balanceOk    = Math.abs(balance) <= EPS && selectedExpenseIds.length > 0
 
   return (
     <div className="space-y-6 p-5">
-      {/* Section 1 — Expense transactions */}
-      <DrawerSection label="Expense transactions">
+      {/* 1 — Notes */}
+      <DrawerSection label="Notes">
+        <input
+          type="text"
+          value={notes}
+          onChange={e => setNotes(e.target.value)}
+          placeholder="e.g. Goa trip dinner, May 28"
+          aria-label="Notes"
+          className="kk-input"
+        />
+      </DrawerSection>
+
+      {/* 2 — Expenses */}
+      <DrawerSection label="Expenses">
         <TransactionPicker
           type="expense"
           multiple
@@ -222,41 +216,40 @@ function CreateSplitForm({ onClose, onCreated }: { onClose: () => void; onCreate
         />
         {selectedExpenseIds.length > 0 && (
           <p className="mt-2 text-xs text-fg-muted">
-            Total selected: <span className="kk-mono text-fg">₹{inr(totalExpense)}</span>
+            Total: <span className="kk-mono text-fg">₹{inr(totalExpense)}</span>
           </p>
         )}
       </DrawerSection>
 
-      {/* Section 2 — My share */}
-      <DrawerSection label="My share">
-        <div className="flex items-end gap-2">
-          <div className="flex-1">
-            <label htmlFor="my-share" className="mb-1 block text-xs text-fg-muted">My share amount</label>
-            <input
-              id="my-share"
-              type="number"
-              step="0.01"
-              min="0"
-              value={myShare}
-              onChange={e => setMyShare(e.target.value)}
-              placeholder="0.00"
-              className="kk-input"
-            />
-          </div>
-          <button type="button" onClick={myShareRemainder} className="kk-btn-ghost shrink-0">
-            Use remainder
-          </button>
-        </div>
-        <p className="mt-1 text-xs text-fg-faint">
-          Your net expense = my share + forgiven amounts (FR-7.9).
-        </p>
-      </DrawerSection>
-
-      {/* Section 3 — Payee shares */}
-      <DrawerSection label="Payee shares">
+      {/* 3 — Shares */}
+      <DrawerSection label="Shares">
         <div className="space-y-3">
+          {/* Your share — always first, non-removable */}
+          <div className="kk-panel space-y-2">
+            <p className="text-xs font-medium text-fg-muted">Your share</p>
+            <div className="flex items-end gap-2">
+              <div className="flex-1">
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={myShare}
+                  onChange={e => setMyShare(e.target.value)}
+                  placeholder="0.00"
+                  aria-label="Your share amount"
+                  className="kk-input"
+                />
+              </div>
+              <button type="button" onClick={myShareRemainder} className="kk-btn-ghost shrink-0 text-xs">
+                Use remainder
+              </button>
+            </div>
+          </div>
+
+          {/* Payee cards */}
           {shares.map(p => (
             <div key={p.key} className="kk-panel space-y-3">
+              {/* Payee picker + remove */}
               <div className="flex items-start gap-2">
                 <div className="min-w-0 flex-1">
                   <Autocomplete
@@ -277,6 +270,7 @@ function CreateSplitForm({ onClose, onCreated }: { onClose: () => void; onCreate
                 </button>
               </div>
 
+              {/* Amount */}
               <div className="flex items-end gap-2">
                 <div className="flex-1">
                   <label className="mb-1 block text-xs text-fg-muted">Amount owed</label>
@@ -291,57 +285,12 @@ function CreateSplitForm({ onClose, onCreated }: { onClose: () => void; onCreate
                     className="kk-input"
                   />
                 </div>
-                <button type="button" onClick={() => payeeRemainder(p.key)} className="kk-btn-ghost shrink-0">
+                <button type="button" onClick={() => payeeRemainder(p.key)} className="kk-btn-ghost shrink-0 text-xs">
                   Use remainder
                 </button>
               </div>
 
-              {/* Forgive */}
-              {p.forgiveOpen ? (
-                <div className="rounded-md border border-border bg-surface-2 p-3 space-y-2">
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      value={p.forgiven}
-                      onChange={e => updateShare(p.key, { forgiven: e.target.value })}
-                      placeholder="Forgiven amount"
-                      aria-label="Forgiven amount"
-                      className="kk-input flex-1"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => updateShare(p.key, { forgiven: Math.max(0, n(p.amount) - settledTotal(p)).toFixed(2) })}
-                      className="text-xs text-accent hover:underline whitespace-nowrap"
-                    >
-                      All
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => updateShare(p.key, { forgiveOpen: false, forgiven: '' })}
-                      className="text-xs text-fg-muted hover:underline"
-                    >
-                      Remove
-                    </button>
-                  </div>
-                  {n(p.forgiven) > 0 && (
-                    <p className="text-xs text-fg-faint">
-                      Payee effectively owes ₹{inr(Math.max(0, n(p.amount) - n(p.forgiven)))} after forgiveness.
-                    </p>
-                  )}
-                </div>
-              ) : (
-                <button
-                  type="button"
-                  onClick={() => updateShare(p.key, { forgiveOpen: true })}
-                  className="text-xs text-fg-muted hover:underline"
-                >
-                  Forgive part of this share
-                </button>
-              )}
-
-              {/* Settlement transactions */}
+              {/* Linked settlements list */}
               {p.settlementIds.length > 0 && (
                 <div className="rounded-md border border-border bg-surface-2 px-3 py-1">
                   {p.settlementIds.map(id => {
@@ -366,16 +315,17 @@ function CreateSplitForm({ onClose, onCreated }: { onClose: () => void; onCreate
                 </div>
               )}
 
+              {/* Link payments toggle */}
               {p.linkOpen ? (
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
-                    <p className="text-xs font-medium text-fg-muted">Link income transaction</p>
+                    <p className="text-xs font-medium text-fg-muted">Link settlement</p>
                     <button
                       type="button"
                       onClick={() => updateShare(p.key, { linkOpen: false })}
                       className="text-xs text-fg-muted hover:underline"
                     >
-                      Cancel
+                      Done
                     </button>
                   </div>
                   <TransactionPicker
@@ -385,7 +335,6 @@ function CreateSplitForm({ onClose, onCreated }: { onClose: () => void; onCreate
                     onChange={(ids) => updateShare(p.key, { settlementIds: ids as string[] })}
                     excludeIds={[
                       ...usedIncomeIds,
-                      // Exclude IDs staged in other shares (not this one)
                       ...shares.filter(s => s.key !== p.key).flatMap(s => s.settlementIds),
                     ]}
                   />
@@ -395,8 +344,9 @@ function CreateSplitForm({ onClose, onCreated }: { onClose: () => void; onCreate
                   type="button"
                   onClick={() => updateShare(p.key, { linkOpen: true })}
                   className="text-xs text-positive-dim hover:underline"
+                  aria-label="+ Link payments"
                 >
-                  + Link transaction
+                  + Link payments
                 </button>
               )}
 
@@ -406,6 +356,7 @@ function CreateSplitForm({ onClose, onCreated }: { onClose: () => void; onCreate
             </div>
           ))}
         </div>
+
         <button
           type="button"
           onClick={() => setShares(prev => [...prev, newPayeeShare()])}
@@ -415,37 +366,33 @@ function CreateSplitForm({ onClose, onCreated }: { onClose: () => void; onCreate
         </button>
       </DrawerSection>
 
-      {/* Section 4 — Balance */}
-      <DrawerSection label="Balance check">
-        <div className="kk-panel space-y-1.5 text-xs">
-          <Row label="Total expense" value={`₹${inr(totalExpense)}`} />
-          <Row label="My share" value={`₹${inr(myShareNum)}`} />
-          <Row label="Payee shares" value={`₹${inr(payeeSharesTotal)}`} />
-          <hr className="kk-divider" />
-          <Row
-            label="Balance"
-            value={`₹${inr(balance)}`}
-            valueClass={Math.abs(balance) <= EPS ? 'text-positive-dim' : 'text-negative-dim'}
-          />
-          {forgivenTotal > 0 && <Row label="Forgiven (total)" value={`₹${inr(forgivenTotal)}`} />}
-          <Row label="Your net expense" value={`₹${inr(netExpense)}`} valueClass="text-negative-dim font-semibold" />
+      {/* 4 — Balance indicator (only shown once an expense is selected) */}
+      {selectedExpenseIds.length > 0 && (
+        <div className="space-y-1.5">
+          <div className="flex items-center justify-between text-xs">
+            <span className="text-fg-muted">Allocated</span>
+            <span className={`kk-mono font-medium ${balanceOk ? 'text-positive-dim' : 'text-negative-dim'}`}>
+              ₹{inr(allocated)} / ₹{inr(totalExpense)}
+            </span>
+          </div>
+          <div className="h-1.5 w-full overflow-hidden rounded-full bg-surface-3">
+            <div
+              className={`h-full rounded-full transition-all ${
+                balanceOk ? 'bg-positive' : allocated > totalExpense ? 'bg-negative' : 'bg-warning'
+              }`}
+              style={{ width: `${allocatedPct * 100}%` }}
+            />
+          </div>
+          <div className="flex items-center justify-between text-xs">
+            <span className="text-fg-muted">Your net expense</span>
+            <span className="kk-mono font-medium text-negative-dim">₹{inr(myShareNum)}</span>
+          </div>
         </div>
-      </DrawerSection>
-
-      {/* Section 5 — Notes */}
-      <DrawerSection label="Notes">
-        <input
-          type="text"
-          value={notes}
-          onChange={e => setNotes(e.target.value)}
-          placeholder="e.g. Goa trip dinner, May 28"
-          aria-label="Notes"
-          className="kk-input"
-        />
-      </DrawerSection>
+      )}
 
       {submitError && <p role="alert" className="text-sm text-negative-dim">{submitError}</p>}
 
+      {/* 5 — CTA */}
       <div className="flex gap-3 pt-2">
         <button type="button" onClick={onClose} className="kk-btn-ghost flex-1 justify-center">
           Cancel
@@ -462,13 +409,3 @@ function CreateSplitForm({ onClose, onCreated }: { onClose: () => void; onCreate
     </div>
   )
 }
-
-function Row({ label, value, valueClass }: { label: string; value: string; valueClass?: string }) {
-  return (
-    <div className="flex justify-between">
-      <span className="text-fg-muted">{label}</span>
-      <span className={`kk-mono ${valueClass ?? 'text-fg'}`}>{value}</span>
-    </div>
-  )
-}
-

@@ -9,13 +9,15 @@ import { CreateSplitDrawer } from './CreateSplitDrawer'
 describe('CreateSplitDrawer', () => {
   it('does not render content when closed', () => {
     renderWithQuery(<CreateSplitDrawer open={false} onClose={vi.fn()} />)
-    expect(screen.queryByText('Expense transactions')).not.toBeInTheDocument()
+    expect(screen.queryByText('Expenses')).not.toBeInTheDocument()
   })
 
-  it('renders sections and the expense list when open', async () => {
+  it('renders Notes, Expenses, Shares sections and the expense list when open', async () => {
     renderWithQuery(<CreateSplitDrawer open onClose={vi.fn()} />)
-    expect(screen.getByText('Expense transactions')).toBeInTheDocument()
-    expect(screen.getByLabelText('My share amount')).toBeInTheDocument()
+    expect(screen.getByLabelText('Notes')).toBeInTheDocument()
+    expect(screen.getByText('Expenses')).toBeInTheDocument()
+    expect(screen.getByText('Shares')).toBeInTheDocument()
+    expect(screen.getByLabelText('Your share amount')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /add payee/i })).toBeInTheDocument()
     await waitFor(() => expect(screen.getByText('Gym membership')).toBeInTheDocument())
   })
@@ -27,25 +29,22 @@ describe('CreateSplitDrawer', () => {
     const submit = screen.getByRole('button', { name: 'Create Split' })
     expect(submit).toBeDisabled()
 
-    await waitFor(() => screen.getByText('Gym membership')) // 2500.00
+    await waitFor(() => screen.getByText('Gym membership'))
     await user.click(screen.getByText('Gym membership'))
 
-    // Selected but shares don't add up yet
     expect(submit).toBeDisabled()
-    expect(screen.getByText('Total selected:')).toBeInTheDocument()
 
-    await user.type(screen.getByLabelText('My share amount'), '2500')
+    await user.type(screen.getByLabelText('Your share amount'), '2500')
     await waitFor(() => expect(submit).toBeEnabled())
   })
 
   it('excludes already-split expenses from the picker', async () => {
     renderWithQuery(<CreateSplitDrawer open onClose={vi.fn()} />)
     await waitFor(() => screen.getByText('Gym membership'))
-    // Already-split expenses are excluded entirely from the picker
     expect(screen.queryByText('Dinner at Taj')).not.toBeInTheDocument()
   })
 
-  it('submits an atomic payload with my share + a payee share and reports the new id', async () => {
+  it('submits an atomic payload with your share + a payee share', async () => {
     const user = userEvent.setup()
     const onCreated = vi.fn()
     const onClose = vi.fn()
@@ -60,10 +59,9 @@ describe('CreateSplitDrawer', () => {
     renderWithQuery(<CreateSplitDrawer open onClose={onClose} onCreated={onCreated} />)
 
     await waitFor(() => screen.getByText('Gym membership'))
-    await user.click(screen.getByText('Gym membership')) // 2500.00
-    await user.type(screen.getByLabelText('My share amount'), '1500')
+    await user.click(screen.getByText('Gym membership'))
+    await user.type(screen.getByLabelText('Your share amount'), '1500')
 
-    // Add a payee share for 1000
     await user.click(screen.getByRole('button', { name: /add payee/i }))
     const combobox = screen.getByRole('combobox')
     await user.type(combobox, 'Rahul')
@@ -84,23 +82,29 @@ describe('CreateSplitDrawer', () => {
     expect(payee.amount).toBe('1000.00')
   })
 
-  it('shows an inline error and blocks submit when forgiven exceeds the share', async () => {
+  it('shows an inline error when linked payments exceed the share amount', async () => {
     const user = userEvent.setup()
     renderWithQuery(<CreateSplitDrawer open onClose={vi.fn()} />)
 
     await waitFor(() => screen.getByText('Gym membership'))
-    await user.click(screen.getByText('Gym membership')) // 2500
-    await user.type(screen.getByLabelText('My share amount'), '1500')
+    await user.click(screen.getByText('Gym membership'))
+    await user.type(screen.getByLabelText('Your share amount'), '1500')
 
     await user.click(screen.getByRole('button', { name: /add payee/i }))
     await user.type(screen.getByRole('combobox'), 'Rahul')
     await user.click(await screen.findByRole('option', { name: 'Rahul' }))
     await user.type(screen.getByLabelText('Amount owed'), '1000')
 
-    await user.click(screen.getByRole('button', { name: /forgive part of this share/i }))
-    await user.type(screen.getByLabelText('Forgiven amount'), '1200') // > 1000
+    // Open the link-payments panel
+    await user.click(screen.getByRole('button', { name: /link payments/i }))
 
-    expect(screen.getByRole('alert')).toHaveTextContent(/cannot exceed this payee/i)
+    // Select an income transaction (May salary = 85000 > 1000 share)
+    await waitFor(() => screen.getByText('May salary'))
+    await user.click(screen.getByText('May salary'))
+
+    await waitFor(() => {
+      expect(screen.getByRole('alert')).toHaveTextContent(/cannot exceed this payee/i)
+    })
     expect(screen.getByRole('button', { name: 'Create Split' })).toBeDisabled()
   })
 })
