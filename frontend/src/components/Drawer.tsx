@@ -6,9 +6,10 @@ interface DrawerProps {
   onClose: () => void
   title: string
   children: React.ReactNode
+  headerAction?: React.ReactNode
 }
 
-export function Drawer({ open, onClose, title, children }: DrawerProps) {
+export function Drawer({ open, onClose, title, children, headerAction }: DrawerProps) {
   return (
     <Dialog.Root open={open} onOpenChange={o => !o && onClose()}>
       <Dialog.Portal>
@@ -19,14 +20,17 @@ export function Drawer({ open, onClose, title, children }: DrawerProps) {
         >
           <div className="flex shrink-0 items-center justify-between border-b border-border px-5 py-4">
             <Dialog.Title className="text-sm font-semibold text-fg">{title}</Dialog.Title>
-            <Dialog.Close asChild>
-              <button
-                className="rounded p-1.5 text-fg-muted transition-colors hover:bg-surface-2 hover:text-fg"
-                aria-label="Close"
-              >
-                <X className="h-4 w-4" />
-              </button>
-            </Dialog.Close>
+            <div className="flex items-center gap-1">
+              {headerAction}
+              <Dialog.Close asChild>
+                <button
+                  className="rounded p-1.5 text-fg-muted transition-colors hover:bg-surface-2 hover:text-fg"
+                  aria-label="Close"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </Dialog.Close>
+            </div>
           </div>
           <div className="flex-1 overflow-y-auto">{children}</div>
         </Dialog.Content>
