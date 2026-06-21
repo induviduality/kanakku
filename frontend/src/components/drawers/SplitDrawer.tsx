@@ -1,4 +1,5 @@
 import { useEffect, useState, useMemo } from 'react'
+import { useQueries } from '@tanstack/react-query'
 import { ChevronRight, Trash2, Edit } from 'lucide-react'
 import { Drawer, DrawerSection } from '../Drawer'
 import {
@@ -13,7 +14,8 @@ import {
   type SplitShareSettlement,
   type SplitShareStatus,
 } from '../../api/splits'
-import { useTransactions, useTransaction } from '../../api/transactions'
+import { useTransaction, type Transaction } from '../../api/transactions'
+import { apiGet } from '../../lib/api-client'
 import { usePayees, useCreatePayee } from '../../api/payees'
 import Autocomplete from '../Autocomplete'
 import ConfirmDialog from '../ConfirmDialog'
@@ -414,7 +416,6 @@ export function SplitDrawer({ splitId, onClose }: Props) {
 
   const { data: split, isLoading } = useGetSplit(splitId)
   const { data: payeesRaw = [] }   = usePayees()
-  const { data: txnData }          = useTransactions({ type: 'income' })
   const deleteSplit                = useDeleteSplit()
   const createPayeeMutation        = useCreatePayee()
 
@@ -436,11 +437,28 @@ export function SplitDrawer({ splitId, onClose }: Props) {
     payeesRaw.map(p => ({ id: p.id, label: p.name }))
   , [payeesRaw])
 
+  // Collect settlement transaction IDs from the loaded split
+  const settlementTxnIds = useMemo(() => {
+    if (!split) return []
+    return [...new Set(split.shares.flatMap(s => s.settlements.map(st => st.transaction_id)))]
+  }, [split])
+
+  // Fetch each settlement transaction individually so we always get the description
+  const settlementTxnQueries = useQueries({
+    queries: settlementTxnIds.map(id => ({
+      queryKey: ['transaction', id] as const,
+      queryFn: () => apiGet<Transaction>(`/transactions/${id}`),
+      staleTime: 5 * 60 * 1000,
+    })),
+  })
+
   const txnMap = useMemo(() => {
     const m: Record<string, { description: string | null; amount: string }> = {}
-    for (const t of txnData?.items ?? []) m[t.id] = { description: t.description, amount: t.amount }
+    for (const q of settlementTxnQueries) {
+      if (q.data) m[q.data.id] = { description: q.data.description, amount: String(q.data.amount) }
+    }
     return m
-  }, [txnData])
+  }, [settlementTxnQueries])
 
   const ownShare = split?.shares.find(s => s.payee_id === null)
   const payeeShares = split?.shares.filter(s => s.payee_id !== null) || []

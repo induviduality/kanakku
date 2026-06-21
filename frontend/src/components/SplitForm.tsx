@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { useQueries } from '@tanstack/react-query'
 import { Plus, X } from 'lucide-react'
 import { DrawerSection } from './Drawer'
 import Autocomplete from './Autocomplete'
@@ -10,6 +11,7 @@ import {
   type SplitShareCreate,
 } from '../api/splits'
 import { useTransactions, type Transaction } from '../api/transactions'
+import { apiGet } from '../lib/api-client'
 import { usePayees, useCreatePayee } from '../api/payees'
 import { TransactionPicker } from './TransactionPicker'
 
@@ -71,6 +73,7 @@ export function SplitForm({ initialSplit, onClose, onSuccess }: Props) {
   const createSplit = useCreateSplit()
   const updateSplit = useUpdateSplit()
 
+  const [pickerOpen, setPickerOpen] = useState(false)
   const [notes, setNotes] = useState(() => initialSplit?.notes ?? '')
   const [selectedExpenseIds, setSelectedExpenseIds] = useState<string[]>(() => initialSplit?.expense_transaction_ids ?? [])
   const [myShare, setMyShare] = useState(() => {
@@ -130,20 +133,63 @@ export function SplitForm({ initialSplit, onClose, onSuccess }: Props) {
     return m
   }, [incomePool])
 
+  // Fetch pre-selected expense transactions individually (handles IDs outside the pool window)
+  const initialExpenseIds = initialSplit?.expense_transaction_ids ?? []
+  const preselectedExpenseQueries = useQueries({
+    queries: initialExpenseIds.map(id => ({
+      queryKey: ['transaction', id] as const,
+      queryFn: () => apiGet<Transaction>(`/transactions/${id}`),
+      staleTime: 5 * 60 * 1000,
+    })),
+  })
+  const preselectedExpenseMap = useMemo(() => {
+    const m: Record<string, Transaction> = {}
+    for (const q of preselectedExpenseQueries) {
+      if (q.data) m[q.data.id] = q.data
+    }
+    return m
+  }, [preselectedExpenseQueries])
+
+  // Fetch pre-selected settlement income transactions individually
+  const initialSettlementIds = useMemo(() => {
+    if (!initialSplit) return []
+    return [...new Set(initialSplit.shares.flatMap(s => s.settlements.map(st => st.transaction_id)))]
+  }, [initialSplit])
+  const preselectedIncomeQueries = useQueries({
+    queries: initialSettlementIds.map(id => ({
+      queryKey: ['transaction', id] as const,
+      queryFn: () => apiGet<Transaction>(`/transactions/${id}`),
+      staleTime: 5 * 60 * 1000,
+    })),
+  })
+  const preselectedIncomeMap = useMemo(() => {
+    const m: Record<string, Transaction> = {}
+    for (const q of preselectedIncomeQueries) {
+      if (q.data) m[q.data.id] = q.data
+    }
+    return m
+  }, [preselectedIncomeQueries])
+
+  // Merge pool data with individually fetched pre-selected data
+  const mergedExpenseMap = useMemo(() => ({ ...preselectedExpenseMap, ...expenseMap }), [preselectedExpenseMap, expenseMap])
+  const mergedIncomeMap  = useMemo(() => ({ ...preselectedIncomeMap,  ...incomeMap  }), [preselectedIncomeMap,  incomeMap])
+
+  const isLoadingPreselected = preselectedExpenseQueries.some(q => q.isLoading)
+
   // ── Derived totals ───────────────────────────────────────────────────────
   const totalExpense = useMemo(() =>
     selectedExpenseIds.reduce((sum, id) => {
-      const t = expenseMap[id]
+      const t = mergedExpenseMap[id]
       return sum + (t ? n(t.amount) : 0)
     }, 0)
-  , [selectedExpenseIds, expenseMap])
+  , [selectedExpenseIds, mergedExpenseMap])
   const myShareNum       = n(myShare)
   const payeeSharesTotal = shares.reduce((s, p) => s + n(p.amount), 0)
   const allocated        = myShareNum + payeeSharesTotal
   const balance          = allocated - totalExpense
 
   function settledTotal(p: PayeeShare): number {
-    return p.settlementIds.reduce((s, id) => s + n(incomeMap[id]?.amount), 0)
+    return p.settlementIds.reduce((s, id) => s + n(mergedIncomeMap[id]?.amount), 0)
   }
 
   // ── Validation ───────────────────────────────────────────────────────────
@@ -171,7 +217,7 @@ export function SplitForm({ initialSplit, onClose, onSuccess }: Props) {
   errors.push(...Object.values(payeeError))
 
   const isPending = createSplit.isPending || updateSplit.isPending
-  const canSubmit = errors.length === 0 && !isPending
+  const canSubmit = errors.length === 0 && !isPending && !isLoadingPreselected
 
   // ── Mutators ─────────────────────────────────────────────────────────────
   function updateShare(key: string, patch: Partial<PayeeShare>) {
@@ -246,13 +292,74 @@ export function SplitForm({ initialSplit, onClose, onSuccess }: Props) {
 
       {/* 2 — Expenses */}
       <DrawerSection label="Expenses">
-        <TransactionPicker
-          type="expense"
-          multiple
-          value={selectedExpenseIds}
-          onChange={(ids) => setSelectedExpenseIds(ids as string[])}
-          excludeIds={alreadySplitExpenseIds}
-        />
+        {/* Edit mode: linked expense rows + add button */}
+        {initialSplit && (
+          <>
+            <div className="rounded-lg border border-border bg-surface overflow-hidden">
+              {selectedExpenseIds.length === 0 ? (
+                <p className="px-3 py-3 text-center text-xs text-fg-muted">No expenses linked yet.</p>
+              ) : selectedExpenseIds.map(id => {
+                const txn = mergedExpenseMap[id]
+                const date = txn ? new Date(txn.transacted_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' }) : ''
+                const label = txn ? txnLabel(txn, payeeMap) : `Expense ${id.slice(0, 8)}…`
+                return (
+                  <div key={id} className="flex items-center justify-between gap-3 px-3 py-2.5 border-b border-border last:border-0">
+                    <div className="min-w-0 flex-1">
+                      {txn ? (
+                        <>
+                          <p className="text-sm text-fg truncate">{label}</p>
+                          <p className="text-xs text-fg-muted">{date}</p>
+                        </>
+                      ) : (
+                        <div className="space-y-1.5">
+                          <div className="h-3.5 w-36 animate-pulse rounded bg-surface-3" />
+                          <div className="h-3 w-20 animate-pulse rounded bg-surface-3" />
+                        </div>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      {txn && <span className="text-sm kk-mono">₹{inr(n(txn.amount))}</span>}
+                      <button
+                        type="button"
+                        onClick={() => setSelectedExpenseIds(prev => prev.filter(x => x !== id))}
+                        className="rounded p-1 text-fg-muted hover:text-negative-dim"
+                        aria-label="Remove expense"
+                      >
+                        <X className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+            <button
+              type="button"
+              onClick={() => setPickerOpen(v => !v)}
+              className="mt-2 inline-flex items-center gap-1 text-xs text-accent hover:underline"
+            >
+              <Plus className="h-3.5 w-3.5" />
+              {pickerOpen ? 'Close' : 'Add expense'}
+            </button>
+          </>
+        )}
+
+        {/* Picker: always shown in create mode, toggled in edit mode */}
+        {(!initialSplit || pickerOpen) && (
+          <div className={initialSplit ? 'mt-2' : ''}>
+            <TransactionPicker
+              type="expense"
+              multiple
+              value={selectedExpenseIds}
+              onChange={(ids) => setSelectedExpenseIds(ids as string[])}
+              excludeIds={
+                initialSplit
+                  ? [...alreadySplitExpenseIds, ...selectedExpenseIds]
+                  : alreadySplitExpenseIds
+              }
+            />
+          </div>
+        )}
+
         {selectedExpenseIds.length > 0 && (
           <p className="mt-2 text-xs text-fg-muted">
             Total: <span className="kk-mono text-fg">₹{inr(totalExpense)}</span>
@@ -333,7 +440,7 @@ export function SplitForm({ initialSplit, onClose, onSuccess }: Props) {
               {p.settlementIds.length > 0 && (
                 <div className="rounded-md border border-border bg-surface-2 px-3 py-1">
                   {p.settlementIds.map(id => {
-                    const t = incomeMap[id]
+                    const t = mergedIncomeMap[id]
                     return (
                       <div key={id} className="flex items-center justify-between gap-2 py-1.5 border-b border-border last:border-0">
                         <span className="min-w-0 truncate text-xs text-fg">
