@@ -1,5 +1,15 @@
 # Completed Milestones
 
+## TransactionPicker feature (2026-06-21)
+
+Replaced the 50-row capped native `<select>` / checkbox pickers in split settlement flows with a reusable `TransactionPicker` component:
+- `TransactionRow` (pure display: date + description + amount + source→destination)
+- `TransactionPicker` (three-tier search: 3-month pool → auto-triggered year-scoped backend search → manual all-time search)
+- Backend: `q` (description ILIKE) param added to `GET /transactions`
+- Wired into `SplitDrawer` (settle picker + `useTransaction` amount pre-fill), `BundleAsSplitModal` (multi-select; removed buggy client-side `incomeTotal`/M3), `CreateSplitDrawer` (both expense and per-share income pickers)
+- 8 commits: b3f506b (backend q param), 4a0d49e (frontend API), d7ebcca (MSW handler), b31a6c9 (TransactionRow), 2666b57 (TransactionPicker), 6507d0d (SplitDrawer), 0f761f7 (BundleAsSplitModal), 6239662 (CreateSplitDrawer)
+- Minor finding noted for future cleanup: `txnMap` in SplitDrawer still uses the default limit=50 (pre-existing behaviour, accepted per spec)
+
 ## Transaction form enrichment + Category/Tag management pages (2026-06-15)
 
 **Spending Classification**

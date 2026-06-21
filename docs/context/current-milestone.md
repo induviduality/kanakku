@@ -50,6 +50,14 @@
 
 ## Milestone 13: PWA & Polish — COMPLETE
 
+# Ad-hoc Feature Sprint (2026-06-21) — TransactionPicker
+
+## Completed Tasks
+- TransactionPicker feature: reusable income/expense picker with 3-tier search (3-month pool → year-scoped backend search → all-time). Replaces 50-row capped native selects in SplitDrawer, BundleAsSplitModal, CreateSplitDrawer. Adds `q` (ilike) param to backend GET /transactions. 8 commits (b3f506b..6239662). — DONE
+
+## Pending
+- (none)
+
 # Ad-hoc Feature Sprint (2026-06-15)
 
 ## Completed Tasks

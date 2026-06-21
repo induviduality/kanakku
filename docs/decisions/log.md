@@ -1,5 +1,21 @@
 # Decision Log
 
+## 2026-06-21 — TransactionPicker: three-tier escalation instead of single large fetch
+
+**Context:** H4 UX bug: split pickers capped at 50 rows. Options were: (A) raise limit globally, (B) full pagination, (C) tiered escalation (3-month pool + search fallback).
+
+**Decision:** Tier-C. Tier-1 fetches last 90 days (limit 200). If the user types a query with no client matches, tier-2 auto-fires (last year, limit 100, `q` filter). If tier-2 is also empty, a manual "Search all transactions" button triggers tier-3 (all-time, limit 100). This avoids loading thousands of transactions upfront while giving complete coverage at cost of only two extra network requests in the worst case.
+
+**Affects:** `frontend/src/components/TransactionPicker.tsx`, `frontend/src/api/transactions.ts`, `backend/app/routers/transactions.py`
+
+## 2026-06-21 — SplitDrawer txnMap kept at default limit=50 for settlement labels
+
+**Context:** SplitDrawer needs income transaction labels for already-linked settlements (SettlementRow). Replacing the picker removed the need for `incomeTransactions` but `txnMap` (used for label display) still comes from `useTransactions({ type: 'income' })` at the default 50-row limit. The spec explicitly accepted this tradeoff.
+
+**Decision:** Leave the txnMap fetch at limit=50. Settlements outside the top-50 income transactions fall back to a truncated-ID label. Full fix would require fetching the specific settlement transaction IDs only, which is a separate scope.
+
+**Affects:** `frontend/src/components/drawers/SplitDrawer.tsx`
+
 ## 2026-06-15 — SpendingClassification: 5-value enum covering intent × necessity + routine
 
 **Context:** User requested tracking "necessary vs unnecessary" expenses. The raw requirement was a 2×2 matrix (wanted/didn't want × necessary/unnecessary) plus a separate "routine" bucket.
