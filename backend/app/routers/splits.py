@@ -70,26 +70,33 @@ async def _load_settlements_for_shares(
     return result
 
 
-async def _load_expense_ids(session: AsyncSession, split_id: uuid.UUID) -> list[uuid.UUID]:
+async def _load_expense_ids_and_date(
+    session: AsyncSession, split_id: uuid.UUID
+) -> tuple[list[uuid.UUID], datetime]:
     rows = (
         await session.execute(
-            select(SplitExpense.transaction_id)
+            select(SplitExpense.transaction_id, Transaction.transacted_at)
+            .join(Transaction, Transaction.id == SplitExpense.transaction_id)
             .where(SplitExpense.split_id == split_id)
             .order_by(SplitExpense.created_at)
         )
-    ).scalars().all()
-    return list(rows)
+    ).all()
+    ids = [r[0] for r in rows]
+    dates = [r[1] for r in rows]
+    expense_date = min(dates) if dates else datetime.now(UTC)
+    return ids, expense_date
 
 
 async def _build_response(
     split: Split, shares: list[SplitShare], session: AsyncSession
 ) -> SplitResponse:
     smap = await _load_settlements_for_shares(session, [s.id for s in shares])
-    expense_ids = await _load_expense_ids(session, split.id)
+    expense_ids, expense_date = await _load_expense_ids_and_date(session, split.id)
     return SplitResponse(
         id=split.id,
         user_id=split.user_id,
         expense_transaction_ids=expense_ids,
+        expense_date=expense_date,
         notes=split.notes,
         shares=[_share_response(s, smap[s.id]) for s in shares],
         created_at=split.created_at,

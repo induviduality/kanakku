@@ -178,6 +178,7 @@ class SplitResponse(BaseModel):
     id: uuid.UUID
     user_id: uuid.UUID
     expense_transaction_ids: list[uuid.UUID]
+    expense_date: datetime
     notes: str | None
     shares: list[SplitShareResponse]
     created_at: datetime

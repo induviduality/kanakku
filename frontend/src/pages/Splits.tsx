@@ -47,7 +47,7 @@ function SplitCard({ split, onSelect, onDelete }: { split: Split; onSelect: (id:
           </p>
           <p className="text-xs text-fg-faint mt-0.5">
             {split.shares.length} {split.shares.length === 1 ? 'share' : 'shares'} &middot;{' '}
-            {new Date(split.created_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
+            {new Date(split.expense_date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
           </p>
         </div>
         <div className="flex items-center gap-2 shrink-0">
@@ -117,7 +117,7 @@ export default function Splits() {
   const start = dashboardParams.start_date ?? ''
   const end   = dashboardParams.end_date ?? ''
   const inPeriod = (s: Split) => {
-    const d = s.created_at.slice(0, 10)
+    const d = s.expense_date.slice(0, 10)
     return d >= start && d <= end
   }
 

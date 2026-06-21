@@ -1,5 +1,14 @@
 # Completed Milestones
 
+## Fix split period filtering — use expense_date instead of created_at (2026-06-21)
+
+Splits were showing up in the wrong time period because the list was filtered by `split.created_at` (when the split record was created), not the date of the underlying expense transactions. A split created in June for May expenses appeared in the June view.
+
+- **Backend** (`schemas/split.py`): Added `expense_date: datetime` to `SplitResponse`.
+- **Backend** (`routers/splits.py`): Replaced `_load_expense_ids` with `_load_expense_ids_and_date`, which joins `SplitExpense` → `Transaction` to fetch `transacted_at` and returns `min(transacted_at)` as `expense_date`.
+- **Frontend** (`api/splits.ts`): Added `expense_date: string` to `Split` interface.
+- **Frontend** (`pages/Splits.tsx`): Period filter and card date now use `split.expense_date` instead of `split.created_at`.
+
 ## Fix splits page bugs (2026-06-21)
 
 Fixed three bugs in `SplitDetail.tsx` found via live site testing:
