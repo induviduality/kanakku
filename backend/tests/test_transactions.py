@@ -320,6 +320,50 @@ async def test_cursor_pagination(authed) -> None:
     assert len(all_ids) == 5
 
 
+async def test_list_transactions_q_search(authed) -> None:
+    client, headers, acc_id = authed
+    for desc, amount, txn_type in [
+        ("Salary credit", "80000.00", "income"),
+        ("Coffee shop", "200.00", "expense"),
+    ]:
+        await client.post(
+            "/api/v1/transactions",
+            json={
+                "type": txn_type,
+                "transacted_at": "2026-01-15T10:00:00Z",
+                "amount": amount,
+                "account_id": acc_id,
+                "description": desc,
+            },
+            headers=headers,
+        )
+    resp = await client.get("/api/v1/transactions?q=salary", headers=headers)
+    assert resp.status_code == 200
+    data = resp.json()
+    assert len(data["items"]) == 1
+    assert data["items"][0]["description"] == "Salary credit"
+
+
+async def test_list_transactions_q_search_case_insensitive(authed) -> None:
+    client, headers, acc_id = authed
+    await client.post(
+        "/api/v1/transactions",
+        json={
+            "type": "income",
+            "transacted_at": "2026-01-15T10:00:00Z",
+            "amount": "5000.00",
+            "account_id": acc_id,
+            "description": "Monthly Rent",
+        },
+        headers=headers,
+    )
+    resp = await client.get("/api/v1/transactions?q=MONTHLY", headers=headers)
+    assert resp.status_code == 200
+    data = resp.json()
+    assert len(data["items"]) == 1
+    assert data["items"][0]["description"] == "Monthly Rent"
+
+
 # ── Get / Patch ───────────────────────────────────────────────────────────────
 
 async def test_get_transaction(authed) -> None:

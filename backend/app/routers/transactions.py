@@ -367,6 +367,7 @@ async def list_transactions(
     budget_id: uuid.UUID | None = None,
     from_date: datetime | None = Query(None, alias="from"),
     to_date: datetime | None = Query(None, alias="to"),
+    q: str | None = None,
     sort_by: str = Query("transacted_at", pattern="^(transacted_at|amount)$"),
     sort_dir: str = Query("desc", pattern="^(asc|desc)$"),
     cursor: str | None = None,
@@ -404,6 +405,8 @@ async def list_transactions(
         base_where.append(Transaction.transacted_at >= from_date)
     if to_date is not None:
         base_where.append(Transaction.transacted_at <= to_date)
+    if q is not None:
+        base_where.append(Transaction.description.ilike(f"%{q}%"))
     if category_id is not None:
         base_where.append(
             Transaction.id.in_(
