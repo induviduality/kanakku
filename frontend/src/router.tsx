@@ -34,6 +34,7 @@ import ReportDashboard from './pages/ReportDashboard'
 import SettingsDataExport from './pages/SettingsDataExport'
 import SettingsDataImport from './pages/SettingsDataImport'
 import RecentlyDeleted from './pages/RecentlyDeleted'
+import Disputes from './pages/Disputes'
 
 // Guest-only paths that must never trigger the auth redirect.
 const GUEST_PATHS = ['/login', '/setup', '/accept-invite']
@@ -278,6 +279,12 @@ const recentlyDeletedRoute = createRoute({
   component: RecentlyDeleted,
 })
 
+const disputesRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/disputes',
+  component: Disputes,
+})
+
 const routeTree = rootRoute.addChildren([
   indexRoute,
   setupRoute,
@@ -315,6 +322,7 @@ const routeTree = rootRoute.addChildren([
   settingsDataExportRoute,
   settingsDataImportRoute,
   recentlyDeletedRoute,
+  disputesRoute,
 ])
 
 export const router = createRouter({ routeTree })

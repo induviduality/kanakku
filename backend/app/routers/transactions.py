@@ -4,7 +4,7 @@ from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import delete, func, or_, select
+from sqlalchemy import and_, delete, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.session import get_session
@@ -355,6 +355,105 @@ async def create_transaction(
     await session.commit()
     await session.refresh(txn)
     return await _to_response(txn, session)
+
+
+@router.get("/potential-duplicates")
+async def list_potential_duplicates(
+    from_date: datetime | None = Query(None, alias="from"),
+    to_date: datetime | None = Query(None, alias="to"),
+    current_user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+) -> dict:
+    """Return groups of transactions sharing the same calendar date and amount.
+
+    Matches across all transaction types — a transfer that was previously imported
+    as a debit/credit will still be flagged if the amount+date matches.
+    opening_balance transactions are excluded.
+    """
+    from app.models.payee import Payee
+
+    date_expr = func.date(Transaction.transacted_at)
+
+    dup_conds = [
+        Transaction.user_id == current_user.id,
+        Transaction.deleted_at.is_(None),
+        Transaction.type != TransactionType.opening_balance,
+    ]
+    if from_date is not None:
+        dup_conds.append(Transaction.transacted_at >= from_date)
+    if to_date is not None:
+        dup_conds.append(Transaction.transacted_at <= to_date)
+
+    dup_keys_subq = (
+        select(date_expr.label("txn_date"), Transaction.amount.label("txn_amount"))
+        .where(*dup_conds)
+        .group_by(date_expr, Transaction.amount)
+        .having(func.count() >= 2)
+        .subquery()
+    )
+
+    stmt = (
+        select(
+            Transaction.id,
+            Transaction.type,
+            Transaction.transacted_at,
+            Transaction.amount,
+            Transaction.currency,
+            Transaction.description,
+            Transaction.account_id,
+            Transaction.payee_id,
+            Account.name.label("account_name"),
+            Payee.name.label("payee_name"),
+        )
+        .join(
+            dup_keys_subq,
+            and_(
+                func.date(Transaction.transacted_at) == dup_keys_subq.c.txn_date,
+                Transaction.amount == dup_keys_subq.c.txn_amount,
+            ),
+        )
+        .outerjoin(Account, Account.id == Transaction.account_id)
+        .outerjoin(
+            Payee,
+            and_(Payee.id == Transaction.payee_id, Payee.deleted_at.is_(None)),
+        )
+        .where(
+            Transaction.user_id == current_user.id,
+            Transaction.deleted_at.is_(None),
+        )
+        .order_by(date_expr, Transaction.amount, Transaction.transacted_at)
+    )
+
+    rows = (await session.execute(stmt)).all()
+
+    groups: list[dict] = []
+    current_key: tuple[str, str] | None = None
+    current_txns: list[dict] = []
+
+    for row in rows:
+        key = (str(row.transacted_at.date()), str(row.amount))
+        if key != current_key:
+            if current_key is not None and len(current_txns) >= 2:
+                groups.append({"date": current_key[0], "amount": current_key[1], "transactions": current_txns})
+            current_key = key
+            current_txns = []
+        current_txns.append({
+            "id": str(row.id),
+            "type": row.type.value if hasattr(row.type, "value") else str(row.type),
+            "transacted_at": row.transacted_at.isoformat(),
+            "amount": str(row.amount),
+            "currency": row.currency,
+            "description": row.description,
+            "account_id": str(row.account_id),
+            "account_name": row.account_name,
+            "payee_id": str(row.payee_id) if row.payee_id else None,
+            "payee_name": row.payee_name,
+        })
+
+    if current_key is not None and len(current_txns) >= 2:
+        groups.append({"date": current_key[0], "amount": current_key[1], "transactions": current_txns})
+
+    return {"groups": groups, "total_groups": len(groups)}
 
 
 @router.get("", response_model=TransactionListResponse)

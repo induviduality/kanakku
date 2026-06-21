@@ -23,11 +23,13 @@ export default function Payees() {
   const [notes, setNotes] = useState('')
 
   const [editName, setEditName] = useState('')
+  const [editType, setEditType] = useState<Payee['type']>('merchant')
   const [editNotes, setEditNotes] = useState('')
 
   function openEdit(p: Payee) {
     setEditTarget(p)
     setEditName(p.name)
+    setEditType(p.type)
     setEditNotes(p.notes ?? '')
   }
 
@@ -43,7 +45,7 @@ export default function Payees() {
   async function handleEdit(e: React.FormEvent) {
     e.preventDefault()
     if (!editTarget) return
-    await patchPayee.mutateAsync({ id: editTarget.id, patch: { name: editName, notes: editNotes || undefined } })
+    await patchPayee.mutateAsync({ id: editTarget.id, patch: { name: editName, type: editType, notes: editNotes || undefined } })
     setEditTarget(null)
   }
 
@@ -160,6 +162,20 @@ export default function Payees() {
               required
               className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
             />
+          </div>
+          <div>
+            <label htmlFor="edit-payee-type" className="block text-sm font-medium text-gray-700">Type</label>
+            <select
+              id="edit-payee-type"
+              value={editType}
+              onChange={(e) => setEditType(e.target.value as Payee['type'])}
+              className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            >
+              <option value="merchant">Merchant</option>
+              <option value="person">Person</option>
+              <option value="business">Business</option>
+              <option value="other">Other</option>
+            </select>
           </div>
           <div>
             <label htmlFor="edit-payee-notes" className="block text-sm font-medium text-gray-700">Notes</label>
