@@ -5,7 +5,7 @@ import Autocomplete from '../Autocomplete'
 import { useCreateSplit, useListSplits, type SplitShareCreate } from '../../api/splits'
 import { useTransactions, type Transaction } from '../../api/transactions'
 import { usePayees, useCreatePayee } from '../../api/payees'
-import { useAccounts } from '../../api/accounts'
+import { TransactionPicker } from '../TransactionPicker'
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -65,15 +65,19 @@ export function CreateSplitDrawer({ open, onClose, onCreated }: Props) {
 }
 
 function CreateSplitForm({ onClose, onCreated }: { onClose: () => void; onCreated?: (id: string) => void }) {
-  const { data: expenseData } = useTransactions({ type: 'expense' })
-  const { data: incomeData } = useTransactions({ type: 'income' })
+  const threeMonthsAgo = useMemo(() => {
+    const d = new Date(); d.setDate(d.getDate() - 90); return d.toISOString().split('T')[0]
+  }, [])
+
+  // Expense pool: shared query key with TransactionPicker (React Query caches)
+  const { data: expensePool } = useTransactions({ type: 'expense', from: threeMonthsAgo }, 200)
+  // Income pool: used to resolve settled transaction labels and amounts
+  const { data: incomePool } = useTransactions({ type: 'income', from: threeMonthsAgo }, 200)
   const { data: payees } = usePayees()
-  const { data: accounts } = useAccounts()
   const { data: existingSplits } = useListSplits()
   const createPayee = useCreatePayee()
   const createSplit = useCreateSplit()
 
-  const [expenseSearch, setExpenseSearch] = useState('')
   const [selectedExpenseIds, setSelectedExpenseIds] = useState<string[]>([])
   const [myShare, setMyShare] = useState('')
   const [shares, setShares] = useState<PayeeShare[]>([])
@@ -86,11 +90,13 @@ function CreateSplitForm({ onClose, onCreated }: { onClose: () => void; onCreate
     return m
   }, [payees])
 
-  const accountMap = useMemo(() => {
-    const m: Record<string, string> = {}
-    for (const a of accounts ?? []) m[a.id] = a.name
-    return m
-  }, [accounts])
+  // Expense transaction IDs already used in any existing split.
+  const alreadySplitExpenseIds = useMemo(() => {
+    const ids: string[] = []
+    for (const sp of existingSplits ?? [])
+      for (const id of sp.expense_transaction_ids ?? []) ids.push(id)
+    return ids
+  }, [existingSplits])
 
   // Income transactions already used as settlements in any existing split.
   const usedIncomeIds = useMemo(() => {
@@ -101,20 +107,12 @@ function CreateSplitForm({ onClose, onCreated }: { onClose: () => void; onCreate
     return s
   }, [existingSplits])
 
-  const expenseTxns = expenseData?.items ?? []
-  const incomeTxns = incomeData?.items ?? []
+  const expenseTxns = expensePool?.items ?? []
   const incomeMap = useMemo(() => {
     const m: Record<string, Transaction> = {}
-    for (const t of incomeTxns) m[t.id] = t
+    for (const t of incomePool?.items ?? []) m[t.id] = t
     return m
-  }, [incomeTxns])
-
-  // Income txn ids already linked to a card in this form.
-  const stagedIncomeIds = useMemo(() => {
-    const s = new Set<string>()
-    for (const sh of shares) for (const id of sh.settlementIds) s.add(id)
-    return s
-  }, [shares])
+  }, [incomePool])
 
   // ── Derived totals ──
   const totalExpense = selectedExpenseIds.reduce((sum, id) => {
@@ -165,9 +163,6 @@ function CreateSplitForm({ onClose, onCreated }: { onClose: () => void; onCreate
   const canSubmit = errors.length === 0 && !createSplit.isPending
 
   // ── Mutators ──
-  function toggleExpense(id: string) {
-    setSelectedExpenseIds(prev => (prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]))
-  }
   function updateShare(key: string, patch: Partial<PayeeShare>) {
     setShares(prev => prev.map(p => (p.key === key ? { ...p, ...patch } : p)))
   }
@@ -212,61 +207,19 @@ function CreateSplitForm({ onClose, onCreated }: { onClose: () => void; onCreate
     }
   }
 
-  const filteredExpenses = expenseTxns.filter(t => {
-    if (!expenseSearch.trim()) return true
-    const q = expenseSearch.toLowerCase()
-    return txnLabel(t, payeeMap).toLowerCase().includes(q)
-  })
-
   const payeeOptions = (payees ?? []).map(p => ({ id: p.id, label: p.name }))
 
   return (
     <div className="space-y-6 p-5">
       {/* Section 1 — Expense transactions */}
       <DrawerSection label="Expense transactions">
-        <input
-          type="text"
-          value={expenseSearch}
-          onChange={e => setExpenseSearch(e.target.value)}
-          placeholder="Search expenses…"
-          aria-label="Search expenses"
-          className="kk-input mb-2"
+        <TransactionPicker
+          type="expense"
+          multiple
+          value={selectedExpenseIds}
+          onChange={(ids) => setSelectedExpenseIds(ids as string[])}
+          excludeIds={alreadySplitExpenseIds}
         />
-        <div className="max-h-52 overflow-y-auto rounded-md border border-border bg-surface-2">
-          {filteredExpenses.length === 0 ? (
-            <p className="p-3 text-xs text-fg-faint">No expense transactions found.</p>
-          ) : (
-            filteredExpenses.map(t => {
-              const disabled = t.is_split
-              const checked = selectedExpenseIds.includes(t.id)
-              const date = new Date(t.transacted_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })
-              return (
-                <label
-                  key={t.id}
-                  className={`flex items-center gap-2 px-3 py-2 border-b border-border last:border-0 text-sm ${
-                    disabled ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer hover:bg-surface-3'
-                  }`}
-                  title={disabled ? 'Already in a split' : undefined}
-                >
-                  <input
-                    type="checkbox"
-                    checked={checked}
-                    disabled={disabled}
-                    onChange={() => toggleExpense(t.id)}
-                  />
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-fg">{txnLabel(t, payeeMap)}</p>
-                    <p className="text-xs text-fg-faint">
-                      {date} · {accountMap[t.account_id] ?? '—'}
-                      {disabled && <span className="ml-1">· in a split</span>}
-                    </p>
-                  </div>
-                  <span className="kk-mono text-negative-dim shrink-0">₹{inr(n(t.amount))}</span>
-                </label>
-              )
-            })
-          )}
-        </div>
         {selectedExpenseIds.length > 0 && (
           <p className="mt-2 text-xs text-fg-muted">
             Total selected: <span className="kk-mono text-fg">₹{inr(totalExpense)}</span>
@@ -414,14 +367,29 @@ function CreateSplitForm({ onClose, onCreated }: { onClose: () => void; onCreate
               )}
 
               {p.linkOpen ? (
-                <LinkTransactionPanel
-                  incomeTxns={incomeTxns}
-                  payeeMap={payeeMap}
-                  accountMap={accountMap}
-                  isExcluded={id => usedIncomeIds.has(id) || stagedIncomeIds.has(id)}
-                  onPick={id => updateShare(p.key, { settlementIds: [...p.settlementIds, id], linkOpen: false })}
-                  onCancel={() => updateShare(p.key, { linkOpen: false })}
-                />
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <p className="text-xs font-medium text-fg-muted">Link income transaction</p>
+                    <button
+                      type="button"
+                      onClick={() => updateShare(p.key, { linkOpen: false })}
+                      className="text-xs text-fg-muted hover:underline"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                  <TransactionPicker
+                    type="income"
+                    multiple
+                    value={p.settlementIds}
+                    onChange={(ids) => updateShare(p.key, { settlementIds: ids as string[] })}
+                    excludeIds={[
+                      ...usedIncomeIds,
+                      // Exclude IDs staged in other shares (not this one)
+                      ...shares.filter(s => s.key !== p.key).flatMap(s => s.settlementIds),
+                    ]}
+                  />
+                </div>
               ) : (
                 <button
                   type="button"
@@ -504,67 +472,3 @@ function Row({ label, value, valueClass }: { label: string; value: string; value
   )
 }
 
-function LinkTransactionPanel({
-  incomeTxns,
-  payeeMap,
-  accountMap,
-  isExcluded,
-  onPick,
-  onCancel,
-}: {
-  incomeTxns: Transaction[]
-  payeeMap: Record<string, string>
-  accountMap: Record<string, string>
-  isExcluded: (id: string) => boolean
-  onPick: (id: string) => void
-  onCancel: () => void
-}) {
-  const [search, setSearch] = useState('')
-  const results = incomeTxns.filter(t => {
-    if (isExcluded(t.id)) return false
-    if (!search.trim()) return true
-    return txnLabel(t, payeeMap).toLowerCase().includes(search.toLowerCase())
-  })
-
-  return (
-    <div className="rounded-md border border-border bg-surface-2 p-3 space-y-2">
-      <div className="flex items-center justify-between">
-        <p className="text-xs font-medium text-fg-muted">Link income transaction</p>
-        <button type="button" onClick={onCancel} className="text-xs text-fg-muted hover:underline">
-          Cancel
-        </button>
-      </div>
-      <input
-        type="text"
-        value={search}
-        onChange={e => setSearch(e.target.value)}
-        placeholder="Search income…"
-        aria-label="Search income"
-        className="kk-input"
-      />
-      <div className="max-h-40 overflow-y-auto rounded-md border border-border bg-surface-1">
-        {results.length === 0 ? (
-          <p className="p-2 text-xs text-fg-faint">No available income transactions.</p>
-        ) : (
-          results.map(t => {
-            const date = new Date(t.transacted_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })
-            return (
-              <button
-                key={t.id}
-                type="button"
-                onClick={() => onPick(t.id)}
-                className="flex w-full items-center gap-2 px-3 py-2 border-b border-border last:border-0 text-left text-sm hover:bg-surface-3"
-              >
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-fg">{txnLabel(t, payeeMap)}</p>
-                  <p className="text-xs text-fg-faint">{date} · {accountMap[t.account_id] ?? '—'}</p>
-                </div>
-                <span className="kk-mono text-positive-dim shrink-0">+₹{inr(n(t.amount))}</span>
-              </button>
-            )
-          })
-        )}
-      </div>
-    </div>
-  )
-}

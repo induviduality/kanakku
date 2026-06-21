@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest'
-import { screen, waitFor, within } from '@testing-library/react'
+import { screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { http, HttpResponse } from 'msw'
 import { server } from '../../test/server'
@@ -38,12 +38,11 @@ describe('CreateSplitDrawer', () => {
     await waitFor(() => expect(submit).toBeEnabled())
   })
 
-  it('disables an already-split expense', async () => {
+  it('excludes already-split expenses from the picker', async () => {
     renderWithQuery(<CreateSplitDrawer open onClose={vi.fn()} />)
-    await waitFor(() => screen.getByText('Dinner at Taj'))
-    const row = screen.getByText('Dinner at Taj').closest('label')!
-    const checkbox = within(row).getByRole('checkbox')
-    expect(checkbox).toBeDisabled()
+    await waitFor(() => screen.getByText('Gym membership'))
+    // Already-split expenses are excluded entirely from the picker
+    expect(screen.queryByText('Dinner at Taj')).not.toBeInTheDocument()
   })
 
   it('submits an atomic payload with my share + a payee share and reports the new id', async () => {
