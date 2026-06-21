@@ -50,10 +50,11 @@
 
 ## Milestone 13: PWA & Polish — COMPLETE
 
-# Ad-hoc Feature Sprint (2026-06-21) — TransactionPicker
+# Ad-hoc Feature Sprint (2026-06-21) — Edit Split & TransactionPicker
 
 ## Completed Tasks
 - TransactionPicker feature: reusable income/expense picker with 3-tier search (3-month pool → year-scoped backend search → all-time). Replaces 50-row capped native selects in SplitDrawer, BundleAsSplitModal, CreateSplitDrawer. Adds `q` (ilike) param to backend GET /transactions. 8 commits (b3f506b..6239662). — DONE
+- Edit Split functionality: Added `PUT /splits/{split_id}` endpoint in backend for transactional/atomic updates. Extracted split form to `SplitForm.tsx` to share between Create and Edit modes. Integrated Edit flow in `SplitDrawer.tsx` via header action. Verified with Vitest tests and frontend build typechecks. — DONE
 
 ## Pending
 - (none)

@@ -294,4 +294,30 @@ describe('SplitDrawer component', () => {
     expect(screen.queryByText(/^ID:/)).not.toBeInTheDocument() // Details collapsed
     expect(screen.queryByText(/Remove this split\?/i)).not.toBeInTheDocument() // Delete dialog closed
   })
+
+  it('enters edit mode on clicking the edit header button and shows pre-populated SplitForm', async () => {
+    const user = userEvent.setup()
+    renderWithQuery(<SplitDrawer splitId="split-dinner" onClose={vi.fn()} />)
+
+    await waitFor(() => expect(screen.getByRole('heading', { name: 'Dinner at Taj' })).toBeInTheDocument())
+
+    // Click the Edit split button in the header actions
+    const editBtn = screen.getByTitle('Edit split')
+    expect(editBtn).toBeInTheDocument()
+    await user.click(editBtn)
+
+    // Header title updates
+    await waitFor(() => {
+      expect(screen.getByRole('heading', { name: 'Edit Split' })).toBeInTheDocument()
+    })
+
+    // SplitForm is rendered and populated
+    const notesInput = screen.getByLabelText('Notes')
+    expect(notesInput).toBeInTheDocument()
+    expect(notesInput).toHaveValue('Dinner at Taj')
+
+    const myShareInput = screen.getByLabelText('Your share amount')
+    expect(myShareInput).toBeInTheDocument()
+    expect(myShareInput).toHaveValue(900)
+  })
 })

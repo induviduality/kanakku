@@ -93,6 +93,15 @@ export async function apiPatch<T>(path: string, body: unknown): Promise<T> {
   return parseJsonOrUndefined<T>(res)
 }
 
+export async function apiPut<T>(path: string, body: unknown): Promise<T> {
+  const res = await authedFetch(path, {
+    method: 'PUT',
+    body: JSON.stringify(body),
+  })
+  if (!res.ok) throw res
+  return parseJsonOrUndefined<T>(res)
+}
+
 export async function apiDelete<T = void>(path: string): Promise<T> {
   const res = await authedFetch(path, { method: 'DELETE' })
   if (!res.ok) throw res

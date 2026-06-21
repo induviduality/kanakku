@@ -1,5 +1,21 @@
 # Decision Log
 
+## 2026-06-21 — Edit Split: Atomic PUT endpoint for safe updates
+
+**Context:** The backend lacked an endpoint to edit a split and its shares in one go. Patching shares individually (via PATCH) is impossible when changing amounts because the total sum of shares must always equal the total expense; intermediate PATCH requests would violate this invariant.
+
+**Decision:** Created a `PUT /splits/{split_id}` endpoint that accepts a `SplitCreate` payload. It atomically validates the new payload, deletes old split child rows (expenses, settlements, shares), inserts new ones, validates the invariant, and commits within a single database transaction. 
+
+**Affects:** `backend/app/routers/splits.py`, `frontend/src/api/splits.ts`
+
+## 2026-06-21 — Edit Split: Extracted SplitForm component
+
+**Context:** The form logic for split creation was inside `CreateSplitDrawer.tsx` (as `CreateSplitForm`). To support editing without duplicating state management and rendering code, we needed to share this form.
+
+**Decision:** Extracted the form to `SplitForm.tsx` as a reusable component. It accepts an optional `initialSplit` prop, switches query mutations between Create and Update, and excludes already split expenses/settlements from other splits while preserving the current split's own selection.
+
+**Affects:** `frontend/src/components/SplitForm.tsx`, `frontend/src/components/drawers/CreateSplitDrawer.tsx`, `frontend/src/components/drawers/SplitDrawer.tsx`
+
 ## 2026-06-21 — Splits Bug Fixes: net expense calculation uses own share + payee forgiven amounts (BUG-1)
 
 **Context:** BUG-1 noted that the net expense calculation was summing all shares' forgiven amounts, which is incorrect.

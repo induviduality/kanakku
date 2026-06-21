@@ -1,5 +1,5 @@
 import { useEffect, useState, useMemo } from 'react'
-import { ChevronRight, Trash2 } from 'lucide-react'
+import { ChevronRight, Trash2, Edit } from 'lucide-react'
 import { Drawer, DrawerSection } from '../Drawer'
 import {
   useGetSplit,
@@ -18,6 +18,7 @@ import { usePayees, useCreatePayee } from '../../api/payees'
 import Autocomplete from '../Autocomplete'
 import ConfirmDialog from '../ConfirmDialog'
 import { TransactionPicker } from '../TransactionPicker'
+import { SplitForm } from '../SplitForm'
 
 const STATUS_CLS: Record<SplitShareStatus, string> = {
   pending:  'kk-chip kk-chip-warning',
@@ -409,6 +410,7 @@ export function SplitDrawer({ splitId, onClose }: Props) {
   const [deleteOpen, setDeleteOpen]       = useState(false)
   const [detailsOpen, setDetailsOpen]     = useState(false)
   const [expandedShareId, setExpandedShareId] = useState<string | null>(null)
+  const [isEditing, setIsEditing]         = useState(false)
 
   const { data: split, isLoading } = useGetSplit(splitId)
   const { data: payeesRaw = [] }   = usePayees()
@@ -421,6 +423,7 @@ export function SplitDrawer({ splitId, onClose }: Props) {
     setDeleteOpen(false)
     setDetailsOpen(false)
     setExpandedShareId(null)
+    setIsEditing(false)
   }, [splitId])
 
   const payeeMap = useMemo(() => {
@@ -466,15 +469,26 @@ export function SplitDrawer({ splitId, onClose }: Props) {
     <Drawer
       open={!!splitId}
       onClose={onClose}
-      title={split?.notes ?? 'Split expense'}
+      title={isEditing ? 'Edit Split' : (split?.notes ?? 'Split expense')}
       headerAction={
-        <button
-          onClick={() => setDeleteOpen(true)}
-          className="rounded p-1.5 text-fg-muted transition-colors hover:bg-surface-2 hover:text-negative-dim"
-          title="Delete split"
-        >
-          <Trash2 className="h-4 w-4" />
-        </button>
+        <div className="flex items-center gap-1">
+          {split && !isEditing && (
+            <button
+              onClick={() => setIsEditing(true)}
+              className="rounded p-1.5 text-fg-muted transition-colors hover:bg-surface-2 hover:text-accent"
+              title="Edit split"
+            >
+              <Edit className="h-4 w-4" />
+            </button>
+          )}
+          <button
+            onClick={() => setDeleteOpen(true)}
+            className="rounded p-1.5 text-fg-muted transition-colors hover:bg-surface-2 hover:text-negative-dim"
+            title="Delete split"
+          >
+            <Trash2 className="h-4 w-4" />
+          </button>
+        </div>
       }
     >
       {isLoading ? (
@@ -484,68 +498,76 @@ export function SplitDrawer({ splitId, onClose }: Props) {
           ))}
         </div>
       ) : split ? (
-        <div className="space-y-6 p-5">
-          {/* Summary panel */}
-          <div className="kk-panel space-y-2">
-            <div className="flex justify-between">
-              <span className="text-xs text-fg-muted">Total expense</span>
-              <span className="text-sm font-semibold text-fg kk-mono">₹{fmt(totalAmount)}</span>
-            </div>
-            <hr className="kk-divider" />
-            <div className="flex justify-between">
-              <span className="text-xs text-fg-muted">Your net expense</span>
-              <span className="text-sm font-semibold text-negative-dim kk-mono">₹{fmt(netExpense)}</span>
-            </div>
-          </div>
-
-          {/* Shares */}
-          <DrawerSection label="Shares">
-            <div className="kk-panel">
-              {split.shares.map(share => (
-                <ShareRow
-                  key={share.id}
-                  share={share}
-                  splitId={split.id}
-                  payeeName={sharePayeeName(share)}
-                  payeeOptions={payeeOptions}
-                  onCreatePayee={handleCreatePayee}
-                  txnMap={txnMap}
-                  isExpanded={expandedShareId === share.id}
-                  onToggle={() => toggleShare(share.id)}
-                />
-              ))}
-            </div>
-          </DrawerSection>
-
-          {/* Notes (only if present — it doubles as the drawer title too) */}
-          {split.notes && (
-            <DrawerSection label="Notes">
-              <p className="text-sm text-fg-dim">{split.notes}</p>
-            </DrawerSection>
-          )}
-
-          {/* Metadata accordion */}
-          <div className="border-t border-border pt-3">
-            <button
-              onClick={() => setDetailsOpen(v => !v)}
-              className="flex w-full items-center justify-between text-xs text-fg-muted hover:text-fg transition-colors"
-            >
-              <span>Details</span>
-              <ChevronRight className={`w-3.5 h-3.5 transition-transform ${detailsOpen ? 'rotate-90' : ''}`} />
-            </button>
-            {detailsOpen && (
-              <div className="mt-2 space-y-1">
-                {split.expense_transaction_ids.map(id => (
-                  <p key={id} className="text-xs text-fg-muted kk-mono">Expense: {id.slice(0, 16)}…</p>
-                ))}
-                <p className="text-xs text-fg-muted kk-mono">ID: {split.id.slice(0, 16)}…</p>
-                <p className="text-xs text-fg-muted">
-                  Created {new Date(split.created_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
-                </p>
+        isEditing ? (
+          <SplitForm
+            initialSplit={split}
+            onClose={() => setIsEditing(false)}
+            onSuccess={() => setIsEditing(false)}
+          />
+        ) : (
+          <div className="space-y-6 p-5">
+            {/* Summary panel */}
+            <div className="kk-panel space-y-2">
+              <div className="flex justify-between">
+                <span className="text-xs text-fg-muted">Total expense</span>
+                <span className="text-sm font-semibold text-fg kk-mono">₹{fmt(totalAmount)}</span>
               </div>
+              <hr className="kk-divider" />
+              <div className="flex justify-between">
+                <span className="text-xs text-fg-muted">Your net expense</span>
+                <span className="text-sm font-semibold text-negative-dim kk-mono">₹{fmt(netExpense)}</span>
+              </div>
+            </div>
+
+            {/* Shares */}
+            <DrawerSection label="Shares">
+              <div className="kk-panel">
+                {split.shares.map(share => (
+                  <ShareRow
+                    key={share.id}
+                    share={share}
+                    splitId={split.id}
+                    payeeName={sharePayeeName(share)}
+                    payeeOptions={payeeOptions}
+                    onCreatePayee={handleCreatePayee}
+                    txnMap={txnMap}
+                    isExpanded={expandedShareId === share.id}
+                    onToggle={() => toggleShare(share.id)}
+                  />
+                ))}
+              </div>
+            </DrawerSection>
+
+            {/* Notes (only if present — it doubles as the drawer title too) */}
+            {split.notes && (
+              <DrawerSection label="Notes">
+                <p className="text-sm text-fg-dim">{split.notes}</p>
+              </DrawerSection>
             )}
+
+            {/* Metadata accordion */}
+            <div className="border-t border-border pt-3">
+              <button
+                onClick={() => setDetailsOpen(v => !v)}
+                className="flex w-full items-center justify-between text-xs text-fg-muted hover:text-fg transition-colors"
+              >
+                <span>Details</span>
+                <ChevronRight className={`w-3.5 h-3.5 transition-transform ${detailsOpen ? 'rotate-90' : ''}`} />
+              </button>
+              {detailsOpen && (
+                <div className="mt-2 space-y-1">
+                  {split.expense_transaction_ids.map(id => (
+                    <p key={id} className="text-xs text-fg-muted kk-mono">Expense: {id.slice(0, 16)}…</p>
+                  ))}
+                  <p className="text-xs text-fg-muted kk-mono">ID: {split.id.slice(0, 16)}…</p>
+                  <p className="text-xs text-fg-muted">
+                    Created {new Date(split.created_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
+                  </p>
+                </div>
+              )}
+            </div>
           </div>
-        </div>
+        )
       ) : (
         <p className="p-5 text-sm text-negative-dim">Split not found.</p>
       )}

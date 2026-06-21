@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { apiDelete, apiGet, apiPatch, apiPost } from '../lib/api-client'
+import { apiDelete, apiGet, apiPatch, apiPost, apiPut } from '../lib/api-client'
 
 export type SplitShareStatus = 'pending' | 'settled' | 'forgiven'
 
@@ -121,6 +121,15 @@ export function useCreateSplit() {
   return useMutation({
     mutationFn: (body: SplitCreate) => apiPost<Split>('/splits', body),
     onSuccess: () => invalidateSplitsAndTransactions(qc),
+  })
+}
+
+export function useUpdateSplit() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ splitId, body }: { splitId: string; body: SplitCreate }) =>
+      apiPut<Split>(`/splits/${splitId}`, body),
+    onSuccess: (_, { splitId }) => invalidateSplitsAndTransactions(qc, splitId),
   })
 }
 

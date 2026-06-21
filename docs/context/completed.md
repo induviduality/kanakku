@@ -1,5 +1,14 @@
 # Completed Milestones
 
+## Edit Split functionality (2026-06-21)
+
+Implemented full "Edit Split" functionality allowing users to modify an existing split (adding/removing payees, updating notes, and adjusting payee/user shares) in a unified, atomic editor:
+- **Backend**: Added `PUT /splits/{split_id}` endpoint in `backend/app/routers/splits.py`. It atomically deletes child rows (expenses, settlements, shares), validates new inputs/invariants under a single transaction, and recreates the split structure.
+- **API Client**: Added `apiPut` helper in `api-client.ts` and `useUpdateSplit` mutation hook in `splits.ts`.
+- **Form Refactoring**: Extracted shared split form logic from `CreateSplitDrawer.tsx` into a reusable `SplitForm.tsx` component. Updated `SplitForm` to support editing when pre-populated with `initialSplit`.
+- **Drawer Integration**: Integrated Edit mode in `SplitDrawer.tsx` with an edit button in the header actions, rendering the `SplitForm` directly inside the drawer when active.
+- **Verification**: Verified via Vitest unit tests in `SplitDrawer.test.tsx` and a full frontend build check (`tsc -b`).
+
 ## TransactionPicker feature (2026-06-21)
 
 Replaced the 50-row capped native `<select>` / checkbox pickers in split settlement flows with a reusable `TransactionPicker` component:

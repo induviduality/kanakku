@@ -288,6 +288,216 @@ async def create_split(
     return await _build_response(split, share_rows, session)
 
 
+# ── Update split ──────────────────────────────────────────────────────────────
+
+
+@router.put("/{split_id}", response_model=SplitResponse)
+async def update_split(
+    split_id: uuid.UUID,
+    body: SplitCreate,
+    user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+) -> SplitResponse:
+    # 1. Fetch split or 404
+    split = await _get_split_or_404(split_id, user, session)
+
+    # 2. Validate and load all expense transactions
+    expense_txns: list[Transaction] = []
+    for exp_id in body.expense_transaction_ids:
+        txn = (
+            await session.execute(
+                select(Transaction).where(
+                    Transaction.id == exp_id,
+                    Transaction.user_id == user.id,
+                    Transaction.deleted_at.is_(None),
+                )
+            )
+        ).scalar_one_or_none()
+        if txn is None:
+            raise HTTPException(status_code=404, detail=f"Transaction {exp_id} not found")
+        if txn.type != TransactionType.expense:
+            raise HTTPException(
+                status_code=422,
+                detail=f"Transaction {exp_id} is not an expense; only expense transactions can be split parents",
+            )
+        existing = (
+            await session.execute(
+                select(SplitExpense).where(SplitExpense.transaction_id == exp_id)
+            )
+        ).scalar_one_or_none()
+        # Allow linking to the current split, reject if linked to a different split
+        if existing is not None and existing.split_id != split_id:
+            raise HTTPException(
+                status_code=409,
+                detail=f"Transaction {exp_id} is already linked to a split",
+            )
+        expense_txns.append(txn)
+
+    total_expense = sum(t.amount for t in expense_txns)
+
+    # Shares must sum exactly to total expense
+    shares_sum = sum(s.amount for s in body.shares)
+    if shares_sum != total_expense:
+        raise HTTPException(
+            status_code=422,
+            detail=f"Shares sum ({shares_sum}) does not equal total expense amount ({total_expense})",
+        )
+
+    # Each individual share must not exceed total expense
+    for s in body.shares:
+        if s.amount > total_expense:
+            raise HTTPException(
+                status_code=422,
+                detail=f"Share amount ({s.amount}) exceeds total expense ({total_expense})",
+            )
+
+    # Build maps of incoming settlements to validate they're not already linked to other splits
+    for s in body.shares:
+        forgiven = s.forgiven_amount or Decimal("0.00")
+        settlement_txns: list[Transaction] = []
+        for inc_id in s.settlement_transaction_ids:
+            inc = (
+                await session.execute(
+                    select(Transaction).where(
+                        Transaction.id == inc_id,
+                        Transaction.user_id == user.id,
+                        Transaction.deleted_at.is_(None),
+                    )
+                )
+            ).scalar_one_or_none()
+            if inc is None:
+                raise HTTPException(
+                    status_code=404, detail=f"Settlement transaction {inc_id} not found"
+                )
+            if inc.type != TransactionType.income:
+                raise HTTPException(
+                    status_code=422,
+                    detail=f"Settlement transaction {inc_id} must be an income transaction",
+                )
+            already_used = (
+                await session.execute(
+                    select(SplitShareSettlement).where(
+                        SplitShareSettlement.transaction_id == inc_id
+                    )
+                )
+            ).scalar_one_or_none()
+            if already_used is not None:
+                # check if this settlement belongs to a share of the current split
+                existing_share = (
+                    await session.execute(
+                        select(SplitShare).where(SplitShare.id == already_used.share_id)
+                    )
+                ).scalar_one_or_none()
+                if existing_share is None or existing_share.split_id != split_id:
+                    raise HTTPException(
+                        status_code=409,
+                        detail=f"Income transaction {inc_id} is already linked to a split",
+                    )
+            settlement_txns.append(inc)
+
+        paid_total = sum((t.amount for t in settlement_txns), Decimal("0.00"))
+        if paid_total + forgiven > s.amount:
+            raise HTTPException(
+                status_code=422,
+                detail=(
+                    f"Paid ({paid_total}) + forgiven ({forgiven}) "
+                    f"exceeds share amount ({s.amount})"
+                ),
+            )
+
+    # 3. Perform deletes
+    # Delete SplitExpense rows
+    expense_links = (
+        await session.execute(
+            select(SplitExpense).where(SplitExpense.split_id == split_id)
+        )
+    ).scalars().all()
+    for link in expense_links:
+        await session.delete(link)
+
+    # Delete SplitShareSettlement rows and SplitShare rows
+    shares = (
+        await session.execute(
+            select(SplitShare).where(SplitShare.split_id == split_id)
+        )
+    ).scalars().all()
+    for share in shares:
+        settlements = (
+            await session.execute(
+                select(SplitShareSettlement).where(
+                    SplitShareSettlement.share_id == share.id
+                )
+            )
+        ).scalars().all()
+        for s in settlements:
+            await session.delete(s)
+        await session.delete(share)
+
+    # Flush deletes to ensure unique constraints are cleared in DB
+    await session.flush()
+
+    # 4. Update the split metadata
+    split.notes = body.notes
+    split.updated_at = datetime.now(UTC)
+
+    # 5. Insert new SplitExpense rows
+    for txn in expense_txns:
+        session.add(SplitExpense(id=uuid.uuid4(), split_id=split.id, transaction_id=txn.id))
+
+    # 6. Insert new SplitShare and SplitShareSettlement rows
+    share_rows: list[SplitShare] = []
+    for s in body.shares:
+        forgiven = s.forgiven_amount or Decimal("0.00")
+        settlement_txns = []
+        for inc_id in s.settlement_transaction_ids:
+            inc = (
+                await session.execute(
+                    select(Transaction).where(
+                        Transaction.id == inc_id,
+                        Transaction.user_id == user.id,
+                        Transaction.deleted_at.is_(None),
+                    )
+                )
+            ).scalar_one_or_none()
+            settlement_txns.append(inc)
+
+        paid_total = sum((t.amount for t in settlement_txns), Decimal("0.00"))
+        share = SplitShare(
+            id=uuid.uuid4(),
+            split_id=split.id,
+            payee_id=s.payee_id,
+            amount=s.amount,
+            status=_derive_status(s.amount, paid_total, forgiven),
+            forgiven_amount=forgiven,
+            notes=s.notes,
+        )
+        session.add(share)
+        share_rows.append(share)
+        await session.flush()
+
+        for t in settlement_txns:
+            session.add(
+                SplitShareSettlement(
+                    id=uuid.uuid4(),
+                    share_id=share.id,
+                    transaction_id=t.id,
+                    amount=t.amount,
+                )
+            )
+
+    await session.flush()
+
+    # 7. Validate invariant
+    try:
+        await validate_invariant(session, split.id)
+    except SplitInvariantError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+    await session.commit()
+    return await _build_response(split, share_rows, session)
+
+
+
 # ── Bundle split ──────────────────────────────────────────────────────────────
 
 
