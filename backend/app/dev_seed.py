@@ -49,7 +49,6 @@ ACC_CREDIT  = uuid.UUID("a1000001-0000-0000-0000-000000000004")
 # Payment methods
 PM_HDFC_UPI   = uuid.UUID("b2000001-0000-0000-0000-000000000001")
 PM_HDFC_DEBIT = uuid.UUID("b2000001-0000-0000-0000-000000000002")
-PM_CREDIT_CC  = uuid.UUID("b2000001-0000-0000-0000-000000000003")
 
 # Categories
 CAT_FOOD      = uuid.UUID("c3000001-0000-0000-0000-000000000001")
@@ -240,8 +239,6 @@ async def seed_dev_data() -> None:
                                   type=PaymentMethodType.upi, name="GPay", upi_app="gpay"))
         session.add(PaymentMethod(id=PM_HDFC_DEBIT, account_id=ACC_HDFC,
                                   type=PaymentMethodType.debit_card, name="HDFC Debit ••4242"))
-        session.add(PaymentMethod(id=PM_CREDIT_CC, account_id=ACC_CREDIT,
-                                  type=PaymentMethodType.credit_card, name="HDFC Credit ••9876"))
 
         # ── Categories ────────────────────────────────────────────────────────
         session.add(Category(id=CAT_FOOD, user_id=USER_ID, name="Food & Dining",
@@ -334,11 +331,11 @@ async def seed_dev_data() -> None:
             Transaction(id=TXN_NETFLIX, user_id=USER_ID, type=TransactionType.expense,
                         transacted_at=_dt(2026, 4, 15), amount=Decimal("649"),
                         currency="INR", account_id=ACC_CREDIT, payee_id=PAYEE_NETFLIX,
-                        payment_method_id=PM_CREDIT_CC, description="Netflix Apr"),
+                        description="Netflix Apr"),
             Transaction(id=TXN_SPOTIFY, user_id=USER_ID, type=TransactionType.expense,
                         transacted_at=_dt(2026, 4, 20), amount=Decimal("119"),
                         currency="INR", account_id=ACC_CREDIT, payee_id=PAYEE_SPOTIFY,
-                        payment_method_id=PM_CREDIT_CC, description="Spotify Apr"),
+                        description="Spotify Apr"),
             Transaction(id=TXN_PHARMACY, user_id=USER_ID, type=TransactionType.expense,
                         transacted_at=_dt(2026, 5, 10), amount=Decimal("540"),
                         currency="INR", account_id=ACC_HDFC, payee_id=PAYEE_PHARMACY,
@@ -346,7 +343,7 @@ async def seed_dev_data() -> None:
             Transaction(id=TXN_AMAZON, user_id=USER_ID, type=TransactionType.expense,
                         transacted_at=_dt(2026, 5, 3), amount=Decimal("1899"),
                         currency="INR", account_id=ACC_CREDIT, payee_id=PAYEE_AMAZON,
-                        payment_method_id=PM_CREDIT_CC, description="USB hub"),
+                        description="USB hub"),
             Transaction(id=TXN_TRANSFER, user_id=USER_ID, type=TransactionType.transfer,
                         transacted_at=_dt(2026, 5, 2), amount=Decimal("10000"),
                         currency="INR", account_id=ACC_HDFC,
@@ -355,7 +352,7 @@ async def seed_dev_data() -> None:
             Transaction(id=TXN_WORK_MEAL, user_id=USER_ID, type=TransactionType.expense,
                         transacted_at=_dt(2026, 5, 15), amount=Decimal("2400"),
                         currency="INR", account_id=ACC_CREDIT, payee_id=PAYEE_SWIGGY,
-                        payment_method_id=PM_CREDIT_CC, description="Team lunch — reimbursable"),
+                        description="Team lunch — reimbursable"),
             Transaction(id=TXN_CC_PAYMENT, user_id=USER_ID, type=TransactionType.transfer,
                         transacted_at=_dt(2026, 5, 22), amount=Decimal("15000"),
                         currency="INR", account_id=ACC_HDFC,
@@ -432,15 +429,15 @@ async def seed_dev_data() -> None:
             Transaction(id=TXN_NETFLIX_JAN, user_id=USER_ID, type=TransactionType.expense,
                         transacted_at=_dt(2026, 1, 15), amount=Decimal("649"),
                         currency="INR", account_id=ACC_CREDIT, payee_id=PAYEE_NETFLIX,
-                        payment_method_id=PM_CREDIT_CC, description="Netflix Jan"),
+                        description="Netflix Jan"),
             Transaction(id=TXN_NETFLIX_FEB, user_id=USER_ID, type=TransactionType.expense,
                         transacted_at=_dt(2026, 2, 15), amount=Decimal("649"),
                         currency="INR", account_id=ACC_CREDIT, payee_id=PAYEE_NETFLIX,
-                        payment_method_id=PM_CREDIT_CC, description="Netflix Feb"),
+                        description="Netflix Feb"),
             Transaction(id=TXN_NETFLIX_MAR, user_id=USER_ID, type=TransactionType.expense,
                         transacted_at=_dt(2026, 3, 15), amount=Decimal("649"),
                         currency="INR", account_id=ACC_CREDIT, payee_id=PAYEE_NETFLIX,
-                        payment_method_id=PM_CREDIT_CC, description="Netflix Mar"),
+                        description="Netflix Mar"),
 
             # Scenario: ICICI used for utility bills Jan–Mar
             Transaction(id=TXN_ICICI_JAN, user_id=USER_ID, type=TransactionType.expense,
@@ -488,23 +485,23 @@ async def seed_dev_data() -> None:
             Transaction(id=TXN_SPOTIFY_JAN, user_id=USER_ID, type=TransactionType.expense,
                         transacted_at=_dt(2026, 1, 15), amount=Decimal("119"),
                         currency="INR", account_id=ACC_CREDIT, payee_id=PAYEE_SPOTIFY,
-                        payment_method_id=PM_CREDIT_CC, description="Spotify Jan"),
+                        description="Spotify Jan"),
             Transaction(id=TXN_SPOTIFY_FEB, user_id=USER_ID, type=TransactionType.expense,
                         transacted_at=_dt(2026, 2, 15), amount=Decimal("119"),
                         currency="INR", account_id=ACC_CREDIT, payee_id=PAYEE_SPOTIFY,
-                        payment_method_id=PM_CREDIT_CC, description="Spotify Feb"),
+                        description="Spotify Feb"),
             Transaction(id=TXN_SPOTIFY_MAR, user_id=USER_ID, type=TransactionType.expense,
                         transacted_at=_dt(2026, 3, 15), amount=Decimal("119"),
                         currency="INR", account_id=ACC_CREDIT, payee_id=PAYEE_SPOTIFY,
-                        payment_method_id=PM_CREDIT_CC, description="Spotify Mar"),
+                        description="Spotify Mar"),
             Transaction(id=TXN_SPOTIFY_MAY, user_id=USER_ID, type=TransactionType.expense,
                         transacted_at=_dt(2026, 5, 15), amount=Decimal("119"),
                         currency="INR", account_id=ACC_CREDIT, payee_id=PAYEE_SPOTIFY,
-                        payment_method_id=PM_CREDIT_CC, description="Spotify May"),
+                        description="Spotify May"),
             Transaction(id=TXN_NETFLIX_MAY, user_id=USER_ID, type=TransactionType.expense,
                         transacted_at=_dt(2026, 5, 15), amount=Decimal("649"),
                         currency="INR", account_id=ACC_CREDIT, payee_id=PAYEE_NETFLIX,
-                        payment_method_id=PM_CREDIT_CC, description="Netflix May"),
+                        description="Netflix May"),
 
             # Scenario: standalone May transactions (no split)
             Transaction(id=TXN_GROCERY_MAY, user_id=USER_ID, type=TransactionType.expense,
@@ -525,7 +522,7 @@ async def seed_dev_data() -> None:
             Transaction(id=TXN_SPLIT_DINNER, user_id=USER_ID, type=TransactionType.expense,
                         transacted_at=_dt(2026, 5, 7), amount=Decimal("3600"),
                         currency="INR", account_id=ACC_CREDIT, payee_id=PAYEE_SWIGGY,
-                        payment_method_id=PM_CREDIT_CC, description="Dinner at Taj"),
+                        description="Dinner at Taj"),
 
             # Scenario: split — Weekend trip fuel (3-way, all payees settled → 100% settled)
             # Total ₹2400: me ₹800, Rahul ₹800 settled, Priya ₹800 settled
@@ -538,7 +535,7 @@ async def seed_dev_data() -> None:
             # Total ₹1800: me ₹900, Neel ₹900 settled
             Transaction(id=TXN_SPLIT_MOVIE, user_id=USER_ID, type=TransactionType.expense,
                         transacted_at=_dt(2026, 5, 21), amount=Decimal("1800"),
-                        currency="INR", account_id=ACC_CREDIT, payment_method_id=PM_CREDIT_CC,
+                        currency="INR", account_id=ACC_CREDIT,
                         description="Movie + dinner"),
 
             # Scenario: split share settlements (income received from friends)
@@ -719,12 +716,12 @@ async def seed_dev_data() -> None:
         session.add(Subscription(id=SUB_NETFLIX, user_id=USER_ID, name="Netflix",
                                  amount=Decimal("649"), currency="INR",
                                  billing_cycle=BillingCycle.monthly, billing_day=15,
-                                 account_id=ACC_CREDIT, payment_method_id=PM_CREDIT_CC,
+                                 account_id=ACC_CREDIT,
                                  category_id=CAT_STREAMING, url="https://netflix.com"))
         session.add(Subscription(id=SUB_SPOTIFY, user_id=USER_ID, name="Spotify",
                                  amount=Decimal("119"), currency="INR",
                                  billing_cycle=BillingCycle.monthly, billing_day=due_soon_day,
-                                 account_id=ACC_CREDIT, payment_method_id=PM_CREDIT_CC,
+                                 account_id=ACC_CREDIT,
                                  category_id=CAT_STREAMING))
         session.add(Subscription(id=SUB_CLOUD, user_id=USER_ID, name="AWS S3 (Personal)",
                                  amount=Decimal("350"), currency="INR",

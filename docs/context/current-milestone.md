@@ -1,3 +1,11 @@
+# Ad-hoc Feature Sprint (2026-07-08) — Credit Card Remodel
+
+## Completed Tasks
+- Removed `credit_card` from `PaymentMethodType` (payment methods now debit_card/netbanking/upi only); credit cards are modeled solely via `AccountType.credit_card`. Migration 0029 drops the enum value (deletes any such payment_methods rows, nulls referencing transactions.payment_method_id first). Frontend hides the "Add payment method" credit_card option and hides the whole payment-methods panel for credit_card accounts. Dashboard `_cashflow_by_account` now excludes credit_card accounts from the cash flow chart (still shown in account_balances/net worth). — DONE
+
+## Pending
+- (none)
+
 # Milestone 9: LLM Integration — In Progress
 
 ## Completed Tasks

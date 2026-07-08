@@ -265,7 +265,7 @@ _SCHEMA: list[TableInfo] = [
             ColumnInfo(name="id", type="uuid", description="Primary key"),
             ColumnInfo(name="account_id", type="uuid", description="Parent account", foreign_key="accounts.id"),
             ColumnInfo(name="name", type="text", description="Payment method name"),
-            ColumnInfo(name="type", type="text", description="Type: debit_card, credit_card, upi, net_banking, cash, other"),
+            ColumnInfo(name="type", type="text", description="Type: debit_card, netbanking, upi"),
             ColumnInfo(name="upi_app", type="text", description="UPI app name (for UPI type)"),
             ColumnInfo(name="is_active", type="boolean", description="Whether the method is active"),
         ],

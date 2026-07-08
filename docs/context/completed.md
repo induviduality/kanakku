@@ -1,5 +1,15 @@
 # Completed Milestones
 
+## Credit card remodel — dropped as a payment method type (2026-07-08)
+
+Credit cards were modeled twice: as their own `AccountType.credit_card` (a liability account) and as a nested `PaymentMethodType.credit_card` under that same account — redundant, since the account already represents the card.
+
+- **Backend**: Removed `credit_card` from `PaymentMethodType` (`debit_card`/`netbanking`/`upi` only). Migration `0029` deletes any existing `credit_card`-typed `payment_methods` rows (nulling referencing `transactions.payment_method_id` first) and recreates the Postgres enum without the value.
+- **Dashboard**: `_cashflow_by_account` (`routers/dashboard.py`) now excludes `credit_card` accounts — a card's balance is a fluctuating liability, not liquid cash flow. They remain in `account_balances` and the net worth total.
+- **Frontend**: `Accounts.tsx` and `AccountDrawer.tsx` hide the payment-methods panel/toggle for `credit_card` accounts and drop `credit_card` from the "Add payment method" type dropdown. `TransactionForm`'s payment-method selector already hides itself when there are no payment methods for the selected account, so no change was needed there.
+- **Verification**: `py_compile` on changed backend files; migration applied against the live dev Postgres and confirmed enum values + zero orphaned payment methods; dev seed re-run end-to-end without errors; `bun run build` clean; frontend Accounts/AccountDrawer tests pass (pre-existing unrelated TransactionForm budget-test failures confirmed via `git stash` to predate this change).
+- Confirmed the PDF-import account picker (`ImportUpload.tsx`, `ImportReview.tsx`) already lists all accounts unfiltered, so selecting a credit-card account as an import destination was already supported — no change needed.
+
 ## Fix split period filtering — use expense_date instead of created_at (2026-06-21)
 
 Splits were showing up in the wrong time period because the list was filtered by `split.created_at` (when the split record was created), not the date of the underlying expense transactions. A split created in June for May expenses appeared in the June view.

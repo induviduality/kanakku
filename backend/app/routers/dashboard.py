@@ -11,7 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.session import get_session
 from app.dependencies import get_current_user
-from app.models.account import Account
+from app.models.account import Account, AccountType
 from app.models.budget import Budget, budget_categories
 from app.models.category import Category
 from app.models.payee import Payee
@@ -604,13 +604,16 @@ async def _cashflow_by_account(
     else:
         trunc_unit = "day"
 
-    # Active accounts for this user
+    # Active accounts for this user, excluding credit cards. Credit-card
+    # balances are a fluctuating liability, not liquid cash flow, so they're
+    # left out of this chart (they still appear in account_balances).
     accounts = (
         await session.execute(
             sa.select(Account).where(
                 Account.user_id == user_id,
                 Account.deleted_at.is_(None),
                 Account.is_active.is_(True),
+                Account.type != AccountType.credit_card,
             )
         )
     ).scalars().all()

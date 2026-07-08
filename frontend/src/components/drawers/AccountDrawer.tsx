@@ -10,7 +10,6 @@ const TYPE_LABEL: Record<Account['type'], string> = {
 
 const PM_TYPE_LABEL: Record<string, string> = {
   debit_card:  'Debit card',
-  credit_card: 'Credit card',
   netbanking:  'Netbanking',
   upi:         'UPI',
 }
@@ -104,9 +103,11 @@ export function AccountDrawer({ account, onClose }: Props) {
           </DrawerSection>
 
           {/* Payment methods */}
-          <DrawerSection label="Payment methods">
-            <PaymentMethodsList accountId={account.id} />
-          </DrawerSection>
+          {account.type !== 'credit_card' && (
+            <DrawerSection label="Payment methods">
+              <PaymentMethodsList accountId={account.id} />
+            </DrawerSection>
+          )}
         </div>
       )}
     </Drawer>

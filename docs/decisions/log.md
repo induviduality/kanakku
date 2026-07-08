@@ -1,5 +1,16 @@
 # Decision Log
 
+## 2026-07-08 — Credit cards: dropped `credit_card` from `PaymentMethodType`, kept only as an `AccountType`
+
+**Context:** Credit cards were modeled two ways at once: `AccountType.credit_card` (a dedicated liability account, e.g. dev seed's "HDFC Credit Card") *and* `PaymentMethodType.credit_card` (a payment method nested under that same account, e.g. dev seed's "HDFC Credit ••9876"). The nested payment method was pure redundancy — the account already represents the card.
+
+**Decision:** Removed `credit_card` from `PaymentMethodType` (now `debit_card` / `netbanking` / `upi` only). Migration `0029` drops the enum value: any `payment_methods` rows of that type are deleted (their transactions' `payment_method_id` nulled first), then the Postgres enum is recreated without the value. Frontend: `TransactionForm`'s payment-method selector already hides itself when `pmOptions` is empty, so no code change was needed there; `Accounts.tsx` and `AccountDrawer.tsx` now hide the "Payment methods" panel/toggle entirely for `credit_card`-type accounts, and the "Add payment method" type dropdown no longer offers `credit_card`. Also excluded `credit_card` accounts from the dashboard's per-account cash-flow chart (`_cashflow_by_account` in `dashboard.py`) — a card's outstanding balance is a fluctuating liability, not liquid cash flow — while leaving them in `account_balances` / net worth, where they still belong.
+
+**Alternatives considered:**
+- Keep `credit_card` as a payment-method type for "swiped in person" vs "online" distinction — rejected by the user; simpler to have no payment method at all under a credit-card account.
+
+**Affects:** `backend/app/models/payment_method.py`, `backend/alembic/versions/0029_remove_credit_card_payment_method_type.py`, `backend/app/routers/dashboard.py`, `backend/app/routers/reports.py`, `backend/app/dev_seed.py`, `frontend/src/api/accounts.ts`, `frontend/src/pages/Accounts.tsx`, `frontend/src/components/drawers/AccountDrawer.tsx`.
+
 ## 2026-06-21 — Edit Split: Atomic PUT endpoint for safe updates
 
 **Context:** The backend lacked an endpoint to edit a split and its shares in one go. Patching shares individually (via PATCH) is impossible when changing amounts because the total sum of shares must always equal the total expense; intermediate PATCH requests would violate this invariant.

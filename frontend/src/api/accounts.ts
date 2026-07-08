@@ -34,7 +34,7 @@ export interface PaymentMethod {
   id: string
   account_id: string
   name: string
-  type: 'debit_card' | 'credit_card' | 'netbanking' | 'upi'
+  type: 'debit_card' | 'netbanking' | 'upi'
   upi_app: string | null
   is_active: boolean
   created_at: string

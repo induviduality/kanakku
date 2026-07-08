@@ -10,7 +10,6 @@ from app.db.base import Base
 
 class PaymentMethodType(StrEnum):
     debit_card = "debit_card"
-    credit_card = "credit_card"
     netbanking = "netbanking"
     upi = "upi"
 

@@ -111,7 +111,6 @@ function PaymentMethodsPanel({ account }: { account: Account }) {
               className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
             >
               <option value="debit_card">Debit card</option>
-              <option value="credit_card">Credit card</option>
               <option value="netbanking">Netbanking</option>
               <option value="upi">UPI</option>
             </select>
@@ -240,17 +239,19 @@ export default function Accounts() {
                   </p>
                 </div>
                 <div className="flex items-center gap-2">
-                  <button
-                    onClick={() =>
-                      setExpandedId(expandedId === acc.id ? null : acc.id)
-                    }
-                    className="p-1.5 rounded text-fg-muted hover:text-fg hover:bg-surface-2 transition-colors"
-                    aria-expanded={expandedId === acc.id}
-                    aria-label={`${expandedId === acc.id ? 'Hide' : 'Show'} payment methods for ${acc.name}`}
-                    title="Payment methods"
-                  >
-                    {expandedId === acc.id ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
-                  </button>
+                  {acc.type !== 'credit_card' && (
+                    <button
+                      onClick={() =>
+                        setExpandedId(expandedId === acc.id ? null : acc.id)
+                      }
+                      className="p-1.5 rounded text-fg-muted hover:text-fg hover:bg-surface-2 transition-colors"
+                      aria-expanded={expandedId === acc.id}
+                      aria-label={`${expandedId === acc.id ? 'Hide' : 'Show'} payment methods for ${acc.name}`}
+                      title="Payment methods"
+                    >
+                      {expandedId === acc.id ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+                    </button>
+                  )}
                   <button
                     onClick={() => openEdit(acc)}
                     className="p-1.5 rounded text-fg-muted hover:text-fg hover:bg-surface-2 transition-colors"
