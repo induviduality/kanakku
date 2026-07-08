@@ -30,3 +30,5 @@ backend/reports/
 frontend/coverage/
 frontend/reports/
 .scannerwork/
+
+.induja-os/
