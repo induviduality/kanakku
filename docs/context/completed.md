@@ -917,3 +917,18 @@ Replaced the 50-row capped native `<select>` / checkbox pickers in split settlem
 - Moved the transactions page "Rows per page" selector from the pagination footer into the header, to the left of the Filters button; preserved its existing `showPagination` visibility gating.
 - 3 backend tests added/updated for the balance and transfer fixes; no local test DB available so only syntax-checked, not executed — flagged to user for a real run.
 - Discovered but explicitly did not fix (out of scope): 64 pre-existing frontend test failures (Categories, Tags, ImportReview, PiggyBankDrawer, BudgetForm, Transactions, Splits) from a `ToastProvider`/`PeriodProvider` gap in the shared test render helper, traced to commit 734cb94 which predates this session. Verified via git-stash isolation that today's changes are not the cause.
+
+# Ad-hoc Fix Sprint (2026-07-11, cont. 3) — Account Balance: Computed From Ledger (Phase 1)
+
+## Completed Tasks
+- Investigated a real production balance mismatch reported by the user (Union Bank vs. their actual bank statement). User ran read-only `psql` queries against their own prod DB comparing stored `current_balance` to a from-scratch recomputation from transaction history; all 5 real accounts showed drift.
+- Root cause: `routers/imports.py`'s `confirm_records` inserted `Transaction` rows directly via `session.add()`, bypassing `apply_balance()` entirely — imported transactions never touched account balance. `replace_existing` was worse: soft-deleted the old transaction and added the new one without touching balance on either side, staying correct only when the replacement amount happened to match exactly.
+- Structural fix (not just patching the two call sites): `Account.current_balance` is now computed from the ledger on read (new `app/services/account_balance.py`, `compute_balance`/`compute_balances`), not imperatively maintained. Removed every `apply_balance` call site from `transactions.py` and `imports.py` — nothing left to forget to call.
+- Staged rollout: kept the `accounts.current_balance` DB column in place (stopped writing to it, still set once at creation) so the user can compare the frozen legacy value against the computed one and their real bank statements before a Phase 2 migration drops the column.
+- Bundled correctness fix: `create_account` now inserts a real `opening_balance` Transaction when `opening_balance != 0` — required so a freshly created account doesn't show ₹0 under the new computed-balance model; also closes the "two sources of truth for a starting balance" gap that caused the session's original false-alarm investigation.
+- `dashboard.py`'s `_account_balances` and `_cashflow_by_account` now call `compute_balances(as_of=...)` directly, replacing the old "live value minus delta" indirection (`_balance_delta_since` deleted, subsumed).
+- 2 new regression tests in `test_imports.py` for the exact bug (confirm + replace balance correctness) — there was previously zero balance coverage on either endpoint. Updated one test written earlier the same day whose fixture assumed a timeless opening balance.
+- Validated via `py_compile` on every touched file plus an explicit import-resolution check (dummy env vars, no real DB) — not executed against a real database; flagged for a real pytest run before considering this fully verified.
+
+## Pending
+- Phase 2: drop the now-unused `accounts.current_balance` column in a follow-up migration once the user has verified computed balances match reality.

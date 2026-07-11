@@ -237,6 +237,98 @@ async def test_confirm_creates_transaction(authed) -> None:
     assert data["total_confirmed"] == 1
 
 
+async def test_confirm_updates_account_balance(authed) -> None:
+    """Regression: confirm_records used to insert the Transaction row without
+    ever crediting/debiting the account — balance stayed frozen at whatever
+    it was before the import. Since balance is now computed from the ledger
+    (not a maintained column), this is really testing that the confirmed
+    transaction is visible to that computation at all."""
+    client, headers, account_id = authed
+    batch_id, record_id = await _create_batch_with_record(client, headers, account_id)
+
+    await client.post(
+        f"/api/v1/imports/{batch_id}/confirm",
+        json={"record_ids": [record_id]},
+        headers=headers,
+    )
+
+    acc = (await client.get(f"/api/v1/accounts/{account_id}", headers=headers)).json()
+    assert acc["current_balance"] == "9650.00"  # 10000 opening - 350 expense
+
+
+async def test_replace_existing_updates_account_balance(authed) -> None:
+    """Regression: replace_existing soft-deleted the old transaction and added
+    the new one without ever touching account balance, so it stayed frozen
+    unless old/new amounts happened to match exactly."""
+    import sqlalchemy as sa
+
+    from app.db.session import async_session_factory
+    from app.models.import_batch import (
+        ImportBatch,
+        ImportBatchStatus,
+        ImportSource,
+        RawImportRecord,
+        RecordStatus,
+    )
+
+    client, headers, account_id = authed
+
+    # An existing manually-entered expense that's about to be replaced by a
+    # more accurate imported record with a DIFFERENT amount (e.g. a bank fee
+    # the manual entry missed) — this is exactly the scenario that silently
+    # desynced real account balances.
+    old_txn_resp = await client.post(
+        "/api/v1/transactions",
+        json={
+            "type": "expense", "transacted_at": "2026-01-15T10:00:00Z",
+            "amount": "300.00", "account_id": account_id,
+        },
+        headers=headers,
+    )
+    old_txn_id = old_txn_resp.json()["id"]
+
+    async with async_session_factory() as session:
+        user_result = await session.execute(sa.text("SELECT id FROM users LIMIT 1"))
+        user_id = user_result.scalar_one()
+
+        batch = ImportBatch(
+            user_id=user_id,
+            source=ImportSource.pdf,
+            filename="replace.pdf",
+            account_id=uuid.UUID(account_id),
+            status=ImportBatchStatus.completed,
+        )
+        session.add(batch)
+        await session.flush()
+
+        record = RawImportRecord(
+            batch_id=batch.id,
+            raw_text="line",
+            parsed_json={
+                "date": "2026-01-15", "description": "SWIGGY",
+                "amount": "325.00", "type": "expense",
+            },
+            status=RecordStatus.duplicate,
+        )
+        session.add(record)
+        await session.commit()
+        batch_id = str(batch.id)
+        record_id = str(record.id)
+
+    resp = await client.post(
+        f"/api/v1/imports/{batch_id}/records/{record_id}/replace",
+        json={"transaction_ids": [old_txn_id]},
+        headers=headers,
+    )
+    assert resp.status_code == 200
+
+    acc = (await client.get(f"/api/v1/accounts/{account_id}", headers=headers)).json()
+    assert acc["current_balance"] == "9675.00"  # 10000 opening - 325 (not 300)
+
+    old_txn = (await client.get(f"/api/v1/transactions/{old_txn_id}", headers=headers)).json()
+    assert old_txn["deleted_at"] is not None
+
+
 async def test_confirm_force_flag_confirms_duplicates(authed) -> None:
     client, headers, account_id = authed
 

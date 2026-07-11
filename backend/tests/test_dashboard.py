@@ -312,32 +312,30 @@ async def test_dashboard_same_currency_transfer_credits_destination_balance(auth
 async def test_dashboard_account_balances_as_of_period_end(authed) -> None:
     """account_balances reflects the balance at the END of the selected period,
     not the account's live current_balance — a later transaction shouldn't
-    leak into an earlier period's snapshot."""
+    leak into an earlier period's snapshot.
+
+    Anchored on "today" (not a fixed past month) since account creation now
+    seeds the ledger with an opening_balance transaction dated at creation
+    time (see account_balance.py) — a period entirely before that timestamp
+    wouldn't see the opening balance at all, which is correct but not what
+    this test is checking.
+    """
     client, headers, acc_id = authed
     today = date.today()
-    if today.month == 1:
-        last_month_year, last_month_num = today.year - 1, 12
-    else:
-        last_month_year, last_month_num = today.year, today.month - 1
-    last_month_start = date(last_month_year, last_month_num, 1)
-    if last_month_num == 12:
-        last_month_end = date(last_month_year, 12, 31)
-    else:
-        last_month_end = date(last_month_year, last_month_num + 1, 1) - timedelta(days=1)
+    tomorrow = today + timedelta(days=1)
 
-    # Opening balance is 10000.00. +5000 income last month → 15000.00 as of
-    # end of last month. Then -300 expense this month → 14700.00 live.
-    await _txn(client, headers, acc_id, "5000.00", "income", f"{last_month_start.isoformat()}T10:00:00Z")
-    await _txn(client, headers, acc_id, "300.00", "expense", f"{today.year}-{today.month:02d}-01T10:00:00Z")
+    # Opening balance (10000, dated "now") + 5000 income dated today →
+    # 15000.00 as of end of today. -300 expense dated tomorrow must not
+    # leak into a period ending today.
+    await _txn(client, headers, acc_id, "5000.00", "income", f"{today.isoformat()}T12:00:00Z")
+    await _txn(client, headers, acc_id, "300.00", "expense", f"{tomorrow.isoformat()}T00:00:00Z")
 
-    # Custom period covering only last month: balance should be the
-    # end-of-last-month snapshot, unaffected by this month's expense.
     resp = await client.get(
         "/api/v1/dashboard/home",
         params={
             "period": "custom",
-            "start_date": last_month_start.isoformat(),
-            "end_date": last_month_end.isoformat(),
+            "start_date": today.isoformat(),
+            "end_date": today.isoformat(),
         },
         headers=headers,
     )

@@ -27,6 +27,7 @@ from app.schemas.transaction import (
     TransactionPatch,
     TransactionResponse,
 )
+from app.services.account_balance import get_account_or_404 as _get_account_or_404
 
 router = APIRouter(prefix="/transactions", tags=["transactions"])
 
@@ -51,22 +52,6 @@ async def _get_txn_or_404(
     if txn is None:
         raise HTTPException(status_code=404, detail="Transaction not found")
     return txn
-
-
-async def _get_account_or_404(
-    account_id: uuid.UUID, user_id: uuid.UUID, session: AsyncSession
-) -> Account:
-    result = await session.execute(
-        select(Account).where(
-            Account.id == account_id,
-            Account.user_id == user_id,
-            Account.deleted_at.is_(None),
-        )
-    )
-    acc = result.scalar_one_or_none()
-    if acc is None:
-        raise HTTPException(status_code=404, detail="Account not found")
-    return acc
 
 
 async def _fetch_category_ids(txn_id: uuid.UUID, session: AsyncSession) -> list[uuid.UUID]:
@@ -159,40 +144,6 @@ async def _to_response(txn: Transaction, session: AsyncSession) -> TransactionRe
 
 
 _LIABILITY_TYPES = {AccountType.credit_card, AccountType.loan}
-
-
-def _apply_balance_delta(account: Account, txn: Transaction, sign: int) -> None:
-    """Adjust account.current_balance. sign=+1 to apply, -1 to reverse."""
-    amount = txn.amount * sign
-    if txn.type == TransactionType.expense:
-        account.current_balance -= amount
-    elif txn.type in (TransactionType.income, TransactionType.opening_balance):
-        account.current_balance += amount
-    # transfer handled separately via _apply_transfer_balances
-
-
-async def _apply_transfer_balances(
-    txn: Transaction,
-    session: AsyncSession,
-    user_id: uuid.UUID,
-    sign: int,
-) -> None:
-    src = await _get_account_or_404(txn.account_id, user_id, session)
-    dst = await _get_account_or_404(txn.to_account_id, user_id, session)  # type: ignore[arg-type]
-    debit = txn.amount * sign
-    credit = (txn.to_amount or txn.amount) * sign
-    src.current_balance -= debit
-    dst.current_balance += credit
-
-
-async def _apply_balance(
-    txn: Transaction, session: AsyncSession, user_id: uuid.UUID, sign: int
-) -> None:
-    if txn.type == TransactionType.transfer:
-        await _apply_transfer_balances(txn, session, user_id, sign)
-    else:
-        acc = await _get_account_or_404(txn.account_id, user_id, session)
-        _apply_balance_delta(acc, txn, sign)
 
 
 async def _set_joins(
@@ -349,7 +300,6 @@ async def create_transaction(
     session.add(txn)
     await session.flush()
 
-    await _apply_balance(txn, session, current_user.id, sign=+1)
     await _set_joins(txn.id, body.category_ids, body.tag_ids, body.budget_ids, session)
     await _sync_piggy_bank(txn, body.piggy_bank_id, session)
     await session.commit()
@@ -637,9 +587,6 @@ async def patch_transaction(
 ) -> TransactionResponse:
     txn = await _get_txn_or_404(txn_id, current_user, session)
 
-    # Reverse old balance effect before applying changes
-    await _apply_balance(txn, session, current_user.id, sign=-1)
-
     # Apply scalar field patches. exclude_unset=True keeps fields the client
     # did NOT send out of the patch entirely, while still allowing them to
     # send explicit nulls to clear nullable fields (payee_id, to_account_id, …).
@@ -677,9 +624,6 @@ async def patch_transaction(
 
     await session.flush()
 
-    # Re-apply new balance effect
-    await _apply_balance(txn, session, current_user.id, sign=+1)
-
     # Update joins if provided. For each list, None = leave alone, [] = clear.
     if body.category_ids is not None or body.tag_ids is not None or body.budget_ids is not None:
         existing_cats = await _fetch_category_ids(txn.id, session)
@@ -710,7 +654,6 @@ async def delete_transaction(
     session: AsyncSession = Depends(get_session),
 ) -> None:
     txn = await _get_txn_or_404(txn_id, current_user, session)
-    await _apply_balance(txn, session, current_user.id, sign=-1)
     txn.deleted_at = datetime.now(UTC)
     await session.commit()
 
@@ -729,7 +672,6 @@ async def restore_transaction(
             status_code=410, detail="Transaction deleted more than 30 days ago; cannot restore"
         )
     txn.deleted_at = None
-    await _apply_balance(txn, session, current_user.id, sign=+1)
     await session.commit()
     await session.refresh(txn)
     return await _to_response(txn, session)

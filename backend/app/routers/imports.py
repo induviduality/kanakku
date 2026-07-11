@@ -301,8 +301,8 @@ async def replace_existing(
                 Transaction.deleted_at.is_(None),
             )
         )
-        for txn in res.scalars().all():
-            txn.deleted_at = datetime.now(UTC)
+        for old_txn in res.scalars().all():
+            old_txn.deleted_at = datetime.now(UTC)
 
     # Confirm the import record as a new transaction
     txn = _record_to_transaction(record, batch)

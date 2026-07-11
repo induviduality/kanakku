@@ -1,5 +1,6 @@
 import uuid
 from datetime import UTC, datetime, timedelta
+from decimal import Decimal
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import or_, select
@@ -8,10 +9,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.db.session import get_session
 from app.dependencies import get_current_user
 from app.models.account import Account
-from app.models.transaction import Transaction
+from app.models.transaction import Transaction, TransactionType
 from app.models.user import User
 from app.models.user_settings import UserSettings
 from app.schemas.account import AccountCreate, AccountPatch, AccountResponse
+from app.services.account_balance import compute_balance, compute_balances
+from app.services.account_balance import get_account_or_404 as _get_account_or_404_base
 
 router = APIRouter(prefix="/accounts", tags=["accounts"])
 
@@ -24,14 +27,30 @@ async def _get_account_or_404(
     session: AsyncSession,
     include_deleted: bool = False,
 ) -> Account:
-    stmt = select(Account).where(Account.id == account_id, Account.user_id == user.id)
     if not include_deleted:
-        stmt = stmt.where(Account.deleted_at.is_(None))
+        return await _get_account_or_404_base(account_id, user.id, session)
+    stmt = select(Account).where(Account.id == account_id, Account.user_id == user.id)
     result = await session.execute(stmt)
     account = result.scalar_one_or_none()
     if account is None:
         raise HTTPException(status_code=404, detail="Account not found")
     return account
+
+
+def _to_response(account: Account, balance: Decimal) -> AccountResponse:
+    return AccountResponse(
+        id=account.id,
+        user_id=account.user_id,
+        name=account.name,
+        type=account.type,
+        currency=account.currency,
+        opening_balance=account.opening_balance,
+        current_balance=balance,
+        is_active=account.is_active,
+        created_at=account.created_at,
+        updated_at=account.updated_at,
+        deleted_at=account.deleted_at,
+    )
 
 
 @router.post("", status_code=201, response_model=AccountResponse)
@@ -55,13 +74,32 @@ async def create_account(
         type=body.type,
         currency=currency,
         opening_balance=body.opening_balance,
+        # This column is no longer read for the live balance (see
+        # app/services/account_balance.py) — kept only as a frozen snapshot
+        # for comparison against the computed value during the transition.
         current_balance=body.opening_balance,
         is_active=body.is_active,
     )
     session.add(account)
+    await session.flush()
+
+    # The live balance is now computed from the ledger, so the starting
+    # balance the user entered has to actually exist as a ledger entry —
+    # otherwise a fresh account would show ₹0 despite a nonzero opening_balance.
+    if body.opening_balance != Decimal("0"):
+        session.add(Transaction(
+            user_id=current_user.id,
+            type=TransactionType.opening_balance,
+            transacted_at=datetime.now(UTC),
+            amount=body.opening_balance,
+            currency=currency,
+            account_id=account.id,
+        ))
+
     await session.commit()
     await session.refresh(account)
-    return AccountResponse.model_validate(account)
+    balance = await compute_balance(session, account.id, current_user.id)
+    return _to_response(account, balance)
 
 
 @router.get("", response_model=list[AccountResponse])
@@ -75,7 +113,9 @@ async def list_accounts(
         stmt = stmt.where(Account.deleted_at.is_(None))
     stmt = stmt.order_by(Account.created_at)
     result = await session.execute(stmt)
-    return [AccountResponse.model_validate(a) for a in result.scalars()]
+    accounts = list(result.scalars())
+    balances = await compute_balances(session, [a.id for a in accounts], current_user.id)
+    return [_to_response(a, balances.get(a.id, Decimal("0.00"))) for a in accounts]
 
 
 @router.get("/{account_id}", response_model=AccountResponse)
@@ -85,7 +125,8 @@ async def get_account(
     session: AsyncSession = Depends(get_session),
 ) -> AccountResponse:
     account = await _get_account_or_404(account_id, current_user, session)
-    return AccountResponse.model_validate(account)
+    balance = await compute_balance(session, account.id, current_user.id)
+    return _to_response(account, balance)
 
 
 @router.patch("/{account_id}", response_model=AccountResponse)
@@ -100,7 +141,8 @@ async def patch_account(
         setattr(account, field, value)
     await session.commit()
     await session.refresh(account)
-    return AccountResponse.model_validate(account)
+    balance = await compute_balance(session, account.id, current_user.id)
+    return _to_response(account, balance)
 
 
 @router.delete("/{account_id}", status_code=204)
@@ -158,4 +200,5 @@ async def restore_account(
     account.deleted_at = None
     await session.commit()
     await session.refresh(account)
-    return AccountResponse.model_validate(account)
+    balance = await compute_balance(session, account.id, current_user.id)
+    return _to_response(account, balance)
