@@ -19,8 +19,24 @@
 - 3 new regression tests (timezone round-trip in TransactionForm, cache invalidation for both mutations in transactions.test.tsx)
 
 ## Next
-- Dashboard: Account balances section should show balance as of the end of the selected period (or today, if the current month is selected) instead of the live current balance
-- Transactions page: move the "Show X per page" control up next to the filter button, to its left
+- (see cont. 2 below)
+
+# Ad-hoc Fix Sprint (2026-07-11, cont. 2) — Dashboard Period Balances + Pagination Move
+
+## Completed Tasks
+- Account Balances section now shows each account's balance as of the end of the selected period (or "today" for the current, still-open period) instead of the live current_balance — new `_balance_delta_since` helper in `routers/dashboard.py`, renamed `AccountBalanceItem.current_balance` → `.balance` throughout (schema, frontend type, Dashboard.tsx, MSW fixture) — DONE
+- Total Balance hero stat now sums the same period-scoped balances, consistent with the section below it — DONE
+- Added "Account Balances — as of {date}" label to make the period scoping visible — DONE
+- Refactored `_cashflow_by_account`'s duplicated opening-balance calc to reuse the new shared helper — DONE
+- **Bug found + fixed**: `SUM(Transaction.to_amount)` for transfer-in credit silently dropped every same-currency transfer (to_amount is NULL unless cross-currency; frontend never sends it) in both the new helper and `_cashflow_by_account`'s per-bucket query — fixed with `COALESCE(to_amount, amount)`, matching the live-balance code path's existing fallback. This is very likely the cause of the cash flow chart looking "completely wrong" — a single dropped transfer-in permanently offsets every later bucket in a running-balance chart — DONE
+- 3 backend tests added/updated (period-end scoping, transfer-credit regression); no local test DB, syntax-checked only — flagged to user
+- Moved the transactions page "Rows per page" selector from the pagination footer into the header row, left of the Filters button; kept its existing visibility gating (`showPagination`) — DONE
+- Discovered (not fixed, out of scope): 64 pre-existing frontend test failures across Categories/Tags/ImportReview/PiggyBankDrawer/BudgetForm/Transactions/Splits, traced to commit 734cb94 (predates this session) adding Toast/Period context usage without updating the shared test render helper. Confirmed via git-stash isolation that nothing touched today caused or worsened this.
+
+## Pending
+- User to confirm cash flow chart now reads correctly after the transfer-in fix (needs a docker redeploy + visual check)
+- Backend tests for the dashboard changes couldn't be executed locally (no DATABASE_URL configured) — worth a real run against a test DB before considering this fully verified
+- Separately: the ToastProvider/PeriodProvider test-infra gap above is a good follow-up task on its own
 
 # Ad-hoc Feature Sprint (2026-07-08) — Credit Card Remodel
 
