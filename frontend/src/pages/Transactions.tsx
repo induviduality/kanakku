@@ -123,7 +123,7 @@ const DEFAULT_PAGE_SIZE = 30
 
 export default function Transactions() {
   const navigate = useNavigate()
-  const { dashboardParams } = usePeriod()
+  const { dashboardParams, rangeStart, rangeEnd } = usePeriod()
 
   // URL is the source of truth for filters, sort, and pagination so state survives navigation.
   const rawSearch = useSearch({ strict: false }) as Record<string, string>
@@ -187,9 +187,9 @@ export default function Transactions() {
 
   const activeFilters = useMemo<TransactionFilters>(() => ({
     ...appliedFilters,
-    ...(dashboardParams.start_date && { from: dashboardParams.start_date + 'T00:00:00.000Z' }),
-    ...(dashboardParams.end_date && { to: dashboardParams.end_date + 'T23:59:59.999Z' }),
-  }), [appliedFilters, dashboardParams])
+    ...(dashboardParams.start_date && { from: rangeStart }),
+    ...(dashboardParams.end_date && { to: rangeEnd }),
+  }), [appliedFilters, dashboardParams, rangeStart, rangeEnd])
 
   const { data: accounts = [] } = useAccounts()
   const { data: payees = [] } = usePayees()

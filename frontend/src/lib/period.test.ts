@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { resolvePeriod, toIsoDate, defaultPeriod } from './period'
+import { resolvePeriod, toIsoDate, defaultPeriod, toLocalStartOfDayISO, toLocalEndOfDayISO } from './period'
 
 describe('period lib', () => {
   beforeEach(() => {
@@ -135,6 +135,44 @@ describe('period lib', () => {
       expect(res.end.getFullYear()).toBe(2026)
       expect(res.end.getMonth()).toBe(4)
       expect(res.end.getDate()).toBe(26)
+    })
+  })
+
+  describe('toLocalStartOfDayISO / toLocalEndOfDayISO', () => {
+    // Regression for the bug where a period boundary date string had a
+    // literal 'Z' reattached (e.g. `${isoDate}T23:59:59.999Z`), silently
+    // reinterpreting a local calendar date as UTC. For any positive-offset
+    // timezone (e.g. IST, UTC+5:30) that leaks a transaction from the start
+    // of the next local day into "today"'s range. These helpers must
+    // round-trip to true local midnight / local end-of-day regardless of
+    // the runner's timezone.
+    it('round-trips to local midnight and local end-of-day', () => {
+      const d = new Date(2025, 11, 31) // Dec 31, 2025, local midnight
+
+      const start = new Date(toLocalStartOfDayISO(d))
+      expect(start.getFullYear()).toBe(2025)
+      expect(start.getMonth()).toBe(11)
+      expect(start.getDate()).toBe(31)
+      expect(start.getHours()).toBe(0)
+      expect(start.getMinutes()).toBe(0)
+      expect(start.getSeconds()).toBe(0)
+
+      const end = new Date(toLocalEndOfDayISO(d))
+      expect(end.getFullYear()).toBe(2025)
+      expect(end.getMonth()).toBe(11)
+      expect(end.getDate()).toBe(31)
+      expect(end.getHours()).toBe(23)
+      expect(end.getMinutes()).toBe(59)
+      expect(end.getSeconds()).toBe(59)
+    })
+
+    it('does not equal a naive Z-suffixed date string on a non-UTC runner', () => {
+      const d = new Date(2025, 11, 31)
+      const offsetMinutes = d.getTimezoneOffset() // 0 only if the runner itself is UTC
+      if (offsetMinutes !== 0) {
+        expect(toLocalStartOfDayISO(d)).not.toBe('2025-12-31T00:00:00.000Z')
+        expect(toLocalEndOfDayISO(d)).not.toBe('2025-12-31T23:59:59.999Z')
+      }
     })
   })
 })

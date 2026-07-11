@@ -103,6 +103,21 @@ export function toIsoDate(d: Date): string {
   return `${y}-${m}-${day}`
 }
 
+// `ResolvedPeriod.start`/`.end` are built with local-time Date constructors
+// (new Date(y, m, d)), so they already represent the correct wall-clock
+// instant — .toISOString() converts that to UTC correctly for any timezone.
+// The mistake to avoid is round-tripping through a bare "YYYY-MM-DD" string
+// and re-attaching a literal 'Z' suffix, which silently reinterprets a local
+// calendar date as a UTC one and shifts the boundary by the browser's offset
+// (e.g. up to ~5.5 hours for IST) — see docs/decisions/log.md 2026-07-11 (11).
+export function toLocalStartOfDayISO(d: Date): string {
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate(), 0, 0, 0, 0).toISOString()
+}
+
+export function toLocalEndOfDayISO(d: Date): string {
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate(), 23, 59, 59, 999).toISOString()
+}
+
 export function defaultPeriod(): PeriodSelection {
   return { mode: 'month' }
 }

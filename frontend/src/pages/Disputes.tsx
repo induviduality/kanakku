@@ -155,9 +155,9 @@ function GroupCard({ group, onResolve }: { group: PotentialDuplicateGroup; onRes
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 export default function Disputes() {
-  const { dashboardParams, label } = usePeriod()
-  const from = dashboardParams.start_date ? dashboardParams.start_date + 'T00:00:00.000Z' : undefined
-  const to   = dashboardParams.end_date   ? dashboardParams.end_date   + 'T23:59:59.999Z' : undefined
+  const { dashboardParams, label, rangeStart, rangeEnd } = usePeriod()
+  const from = dashboardParams.start_date ? rangeStart : undefined
+  const to   = dashboardParams.end_date   ? rangeEnd   : undefined
 
   const { data, isLoading } = usePotentialDuplicates(from, to)
   const qc = useQueryClient()

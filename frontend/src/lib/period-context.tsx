@@ -1,11 +1,25 @@
 import { createContext, useContext, useState } from 'react'
 import { type DashboardParams } from '../api/dashboard'
-import { defaultPeriod, resolvePeriod, toIsoDate, type PeriodSelection } from './period'
+import {
+  defaultPeriod,
+  resolvePeriod,
+  toIsoDate,
+  toLocalEndOfDayISO,
+  toLocalStartOfDayISO,
+  type PeriodSelection,
+} from './period'
 
 interface PeriodCtx {
   selection: PeriodSelection
   setSelection: (s: PeriodSelection) => void
   dashboardParams: DashboardParams
+  // Correct UTC instants for the period's local start-of-day/end-of-day —
+  // use these (not dashboardParams.start_date/end_date + a literal 'Z') for
+  // any query that filters by full timestamp, e.g. GET /transactions
+  // from/to. dashboardParams.start_date/end_date remain bare "YYYY-MM-DD"
+  // for endpoints that take date-only params.
+  rangeStart: string
+  rangeEnd: string
   label: string
   shortLabel: string
 }
@@ -27,6 +41,8 @@ export function PeriodProvider({ children }: { children: React.ReactNode }) {
       selection,
       setSelection,
       dashboardParams,
+      rangeStart: toLocalStartOfDayISO(resolved.start),
+      rangeEnd: toLocalEndOfDayISO(resolved.end),
       label: resolved.label,
       shortLabel: resolved.shortLabel,
     }}>
