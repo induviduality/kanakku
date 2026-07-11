@@ -386,7 +386,8 @@ export default function ImportReview() {
   const { toast } = useToast()
 
   const { data: batch, isLoading: batchLoading } = useGetImportBatch(batchId)
-  const { data: records = [], isLoading: recordsLoading } = useGetImportRecords(batchId, activeTab)
+  const batchProcessing = batch?.status === 'pending' || batch?.status === 'processing'
+  const { data: records = [], isLoading: recordsLoading } = useGetImportRecords(batchId, activeTab, batchProcessing)
   const { data: accounts = [] } = useAccounts()
   const confirmMutation = useConfirmRecords(batchId)
   const rejectMutation = useRejectRecords(batchId)
@@ -552,11 +553,14 @@ export default function ImportReview() {
       )}
 
       {/* Records table */}
-      {recordsLoading ? (
+      {recordsLoading || (batchProcessing && records.length === 0) ? (
         <div className="space-y-2">
           {[0, 1, 2, 3, 4].map(i => (
             <div key={i} className="h-10 animate-pulse bg-surface-2 rounded-lg" />
           ))}
+          {batchProcessing && (
+            <p className="text-center text-xs text-fg-faint pt-2">Parsing statement… this may take a moment.</p>
+          )}
         </div>
       ) : records.length === 0 ? (
         <div className="py-16 text-center text-fg-faint text-sm">

@@ -72,10 +72,14 @@ export function useGetImportBatch(batchId: string) {
     queryKey: ['imports', batchId],
     queryFn: () => apiGet<ImportBatch>(`/imports/${batchId}`),
     enabled: !!batchId,
+    refetchInterval: (query) => {
+      const status = query.state.data?.status
+      return status === 'pending' || status === 'processing' ? 1500 : false
+    },
   })
 }
 
-export function useGetImportRecords(batchId: string, status?: RecordStatus) {
+export function useGetImportRecords(batchId: string, status?: RecordStatus, poll = false) {
   return useQuery({
     queryKey: ['imports', batchId, 'records', status],
     queryFn: () => {
@@ -83,6 +87,7 @@ export function useGetImportRecords(batchId: string, status?: RecordStatus) {
       return apiGet<RawImportRecord[]>(`/imports/${batchId}/records${qs}`)
     },
     enabled: !!batchId,
+    refetchInterval: poll ? 1500 : false,
   })
 }
 
