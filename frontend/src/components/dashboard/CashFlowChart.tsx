@@ -38,11 +38,17 @@ function formatLabel(dateStr: string, unit: 'day' | 'week' | 'month'): string {
   return d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })
 }
 
+// Truncate (not round) to 1 decimal so a displayed value never overstates
+// the real amount — e.g. ₹81,483 must read "₹81.4K", not "₹81.5K" or "₹81K".
+function truncate1(value: number, divisor: number): string {
+  return (Math.floor((value / divisor) * 10) / 10).toFixed(1)
+}
+
 export function formatINR(value: number) {
   const abs = Math.abs(value)
   const sign = value < 0 ? '-' : ''
-  if (abs >= 100_000) return `${sign}₹${(abs / 100_000).toFixed(1)}L`
-  if (abs >= 1_000) return `${sign}₹${(abs / 1_000).toFixed(0)}K`
+  if (abs >= 100_000) return `${sign}₹${truncate1(abs, 100_000)}L`
+  if (abs >= 1_000) return `${sign}₹${truncate1(abs, 1_000)}K`
   return `${sign}₹${abs.toFixed(0)}`
 }
 

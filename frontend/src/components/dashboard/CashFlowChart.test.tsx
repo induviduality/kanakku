@@ -114,10 +114,18 @@ describe('CashFlowChart helpers', () => {
   it('formatINR formats currency correctly', () => {
     expect(formatINR(50)).toBe('₹50')
     expect(formatINR(-50)).toBe('-₹50')
-    expect(formatINR(1500)).toBe('₹2K')
-    expect(formatINR(-2500)).toBe('-₹3K')
+    expect(formatINR(1500)).toBe('₹1.5K')
+    expect(formatINR(-2500)).toBe('-₹2.5K')
     expect(formatINR(150000)).toBe('₹1.5L')
     expect(formatINR(-250000)).toBe('-₹2.5L')
+  })
+
+  it('formatINR truncates rather than rounds, so it never overstates the amount', () => {
+    // 81,483 must read 81.4K, not 81.5K (rounding) or 81K (no decimal).
+    expect(formatINR(81483)).toBe('₹81.4K')
+    expect(formatINR(-81483)).toBe('-₹81.4K')
+    // Same for the lakh tier.
+    expect(formatINR(1249999)).toBe('₹12.4L')
   })
 
   it('CustomTooltip returns null if inactive or no payload', () => {
@@ -139,9 +147,9 @@ describe('CashFlowChart helpers', () => {
     expect(screen.getByText('May 1')).toBeInTheDocument()
     expect(screen.getByText('HDFC Savings')).toBeInTheDocument()
     expect(screen.getByText('ICICI Credit')).toBeInTheDocument()
-    expect(screen.getByText('₹50K')).toBeInTheDocument() // 50000
-    expect(screen.getByText('-₹2K')).toBeInTheDocument() // -1500
-    expect(screen.getByText('+₹12K')).toBeInTheDocument() // +12000
+    expect(screen.getByText('₹50.0K')).toBeInTheDocument() // 50000
+    expect(screen.getByText('-₹1.5K')).toBeInTheDocument() // -1500
+    expect(screen.getByText('+₹12.0K')).toBeInTheDocument() // +12000
     expect(screen.getByText('-₹500')).toBeInTheDocument() // -500
     expect(screen.queryByText('Hidden__net')).not.toBeInTheDocument()
   })

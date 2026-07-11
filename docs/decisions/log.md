@@ -512,3 +512,11 @@ Renamed `AccountBalanceItem.current_balance` → `.balance` (schema + frontend t
 **Discovered while validating:** `Transactions.test.tsx` (12 tests) and a wide swath of unrelated page tests (Categories, Tags, ImportReview, PiggyBankDrawer, BudgetForm — 64 failures total in the full suite) fail with `useToast must be used within ToastProvider` / `usePeriod must be used inside PeriodProvider`. Traced to an older commit (`734cb94`, predates this session) that added toast notifications and period-context usage to several pages without updating the shared `renderWithQuery` test helper to wrap `ToastProvider`/`PeriodProvider`. Confirmed via `git stash` that every file touched today is unaffected — reverting each in isolation reproduces the identical failure count. Not fixed (out of scope for today's asks); flagged to the user as a pre-existing test-infra gap worth a dedicated follow-up.
 
 **Affects:** `frontend/src/pages/Transactions.tsx`.
+
+## 2026-07-11 (7) — Cash flow chart: truncate instead of round when abbreviating amounts
+
+**Context:** User noticed the chart's ₹K/₹L abbreviations rounded off the underlying amount (e.g. ₹81,483 displayed as ₹81K, losing precision the axis/tooltip should convey) and asked that it not round — e.g. 81,483 should read at least 81.4K.
+
+**Decision:** `formatINR` in `CashFlowChart.tsx` now truncates toward zero to 1 decimal place instead of `.toFixed(0)`/`.toFixed(1)` (which round to nearest). A displayed abbreviated value now never overstates the real amount.
+
+**Affects:** `frontend/src/components/dashboard/CashFlowChart.tsx`. Updated existing test expectations to match (5 assertions changed for values that rounded up under the old logic); added a dedicated truncation regression test using the user's own example (81,483 → "81.4K").
