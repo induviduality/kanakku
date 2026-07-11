@@ -21,6 +21,17 @@ const TYPE_OPTIONS: TransactionType[] = ['expense', 'income', 'transfer', 'openi
 
 const LIABILITY_ACCOUNT_TYPES = new Set(['credit_card', 'loan'])
 
+// <input type="datetime-local"> has no timezone concept — it just displays
+// whatever "YYYY-MM-DDTHH:mm" it's given as literal wall-clock time. Slicing
+// a UTC ISO string (or new Date().toISOString()) into that shape is wrong
+// everywhere except UTC: it silently shifts the displayed — and, on submit,
+// the re-saved — time by the browser's UTC offset. Format in local time
+// instead so display and round-trip submission both stay correct.
+function toDatetimeLocalValue(date: Date): string {
+  const pad = (n: number) => String(n).padStart(2, '0')
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`
+}
+
 export default function TransactionForm({
   initial,
   onSubmit,
@@ -40,8 +51,8 @@ export default function TransactionForm({
   const [type, setType] = useState<TransactionType>(initial?.type ?? 'expense')
   const [transactedAt, setTransactedAt] = useState(
     initial?.transacted_at
-      ? initial.transacted_at.slice(0, 16)
-      : new Date().toISOString().slice(0, 16),
+      ? toDatetimeLocalValue(new Date(initial.transacted_at))
+      : toDatetimeLocalValue(new Date()),
   )
   const [amount, setAmount] = useState(initial?.amount ?? '')
   const [currency, setCurrency] = useState(initial?.currency ?? '')
@@ -74,7 +85,7 @@ export default function TransactionForm({
     if (initial) {
       setType(initial.type ?? 'expense')
       if (initial.transacted_at) {
-        setTransactedAt(initial.transacted_at.slice(0, 16))
+        setTransactedAt(toDatetimeLocalValue(new Date(initial.transacted_at)))
       }
       setAmount(initial.amount ?? '')
       setCurrency(initial.currency ?? '')

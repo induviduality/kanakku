@@ -182,10 +182,15 @@ export function usePatchTransaction() {
   return useMutation({
     mutationFn: ({ id, patch }: { id: string; patch: TransactionPatch }) =>
       apiPatch<Transaction>(`/transactions/${id}`, patch),
-    onSuccess: () => {
+    onSuccess: (_, { id }) => {
       qc.invalidateQueries({ queryKey: ['transactions'] })
       qc.invalidateQueries({ queryKey: ['transactions-infinite'] })
       qc.invalidateQueries({ queryKey: ['accounts'] })
+      // Single-transaction cache (['transaction', id]) — read by the edit page,
+      // TransactionDrawer, and split forms that resolve linked transactions by
+      // id. Without this, those kept serving the pre-patch snapshot (stale
+      // date/amount) until the 5-minute staleTime lapsed.
+      qc.invalidateQueries({ queryKey: ['transaction', id] })
     },
   })
 }
@@ -194,10 +199,11 @@ export function useDeleteTransaction() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: (id: string) => apiDelete(`/transactions/${id}`),
-    onSuccess: () => {
+    onSuccess: (_, id) => {
       qc.invalidateQueries({ queryKey: ['transactions'] })
       qc.invalidateQueries({ queryKey: ['transactions-infinite'] })
       qc.invalidateQueries({ queryKey: ['accounts'] })
+      qc.invalidateQueries({ queryKey: ['transaction', id] })
     },
   })
 }

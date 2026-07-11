@@ -15,6 +15,31 @@ describe('TransactionForm component', () => {
     expect(screen.getByLabelText(/description/i)).toBeInTheDocument()
   })
 
+  it('round-trips transacted_at without a timezone shift when the field is left untouched', async () => {
+    const originalTZ = process.env.TZ
+    process.env.TZ = 'Asia/Kolkata' // UTC+5:30 — any non-UTC offset would do
+    try {
+      const onSubmit = vi.fn().mockResolvedValue(undefined)
+      renderWithQuery(
+        <TransactionFormComponent
+          initial={{
+            type: 'opening_balance',
+            transacted_at: '2026-01-01T05:49:00.000Z',
+            amount: '81483.17',
+            account_id: ACCOUNTS_RESPONSE[0].id,
+          }}
+          onSubmit={onSubmit}
+        />,
+      )
+      await waitFor(() => screen.getByLabelText(/date & time/i))
+      await userEvent.click(screen.getByRole('button', { name: /^save$/i }))
+      await waitFor(() => expect(onSubmit).toHaveBeenCalled())
+      expect(onSubmit.mock.calls[0][0].transacted_at).toBe('2026-01-01T05:49:00.000Z')
+    } finally {
+      process.env.TZ = originalTZ
+    }
+  })
+
   it('renders type toggle with expense selected by default', async () => {
     renderWithQuery(<TransactionFormComponent onSubmit={vi.fn()} />)
     await waitFor(() => screen.getByRole('group', { name: /transaction type/i }))

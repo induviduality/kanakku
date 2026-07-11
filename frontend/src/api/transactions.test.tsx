@@ -24,8 +24,7 @@ vi.mock('../lib/api-client', () => ({
   apiDelete: (...args: any[]) => mockDelete(...args)
 }))
 
-function createWrapper() {
-  const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+function createWrapper(qc = new QueryClient({ defaultOptions: { queries: { retry: false } } })) {
   return function Wrapper({ children }: { children: React.ReactNode }) {
     return <QueryClientProvider client={qc}>{children}</QueryClientProvider>
   }
@@ -99,10 +98,38 @@ describe('transactions API hooks', () => {
   it('useDeleteTransaction deletes transaction', async () => {
     mockDelete.mockResolvedValue(null)
     const { result } = renderHook(() => useDeleteTransaction(), { wrapper: createWrapper() })
-    
+
     result.current.mutate('txn-1')
-    
+
     await waitFor(() => expect(result.current.isSuccess).toBe(true))
     expect(mockDelete).toHaveBeenCalledWith('/transactions/txn-1')
+  })
+
+  it('usePatchTransaction invalidates the single-transaction cache entry, not just the list', async () => {
+    const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    // Seed a stale per-id cache entry the way SplitForm/SplitDrawer/the edit
+    // page do via useTransaction(id) / useQueries(['transaction', id]).
+    qc.setQueryData(['transaction', 'txn-1'], { id: 'txn-1', amount: '10' })
+
+    mockPatch.mockResolvedValue({ id: 'txn-1', amount: '20' })
+    const { result } = renderHook(() => usePatchTransaction(), { wrapper: createWrapper(qc) })
+
+    result.current.mutate({ id: 'txn-1', patch: { amount: '20' } })
+    await waitFor(() => expect(result.current.isSuccess).toBe(true))
+
+    expect(qc.getQueryState(['transaction', 'txn-1'])?.isInvalidated).toBe(true)
+  })
+
+  it('useDeleteTransaction invalidates the single-transaction cache entry', async () => {
+    const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    qc.setQueryData(['transaction', 'txn-1'], { id: 'txn-1', deleted_at: null })
+
+    mockDelete.mockResolvedValue(null)
+    const { result } = renderHook(() => useDeleteTransaction(), { wrapper: createWrapper(qc) })
+
+    result.current.mutate('txn-1')
+    await waitFor(() => expect(result.current.isSuccess).toBe(true))
+
+    expect(qc.getQueryState(['transaction', 'txn-1'])?.isInvalidated).toBe(true)
   })
 })
