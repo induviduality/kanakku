@@ -30,6 +30,9 @@ function renderDashboard() {
       selection: { type: 'month', value: 0 },
       setSelection: vi.fn(),
       dashboardParams: { period: 'custom', start_date: '2026-04-01', end_date: '2026-04-30' },
+      rangeStart: '2026-04-01T00:00:00.000Z',
+      rangeEnd: '2026-04-30T23:59:59.999Z',
+      rangeEndExclusive: '2026-05-01T00:00:00.000Z',
       label: 'April 2026',
       shortLabel: 'Apr 2026'
     }}>

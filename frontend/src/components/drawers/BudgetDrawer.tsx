@@ -83,12 +83,12 @@ function toTransaction(item: BudgetTransactionItem): Transaction {
 }
 
 export function BudgetDrawer({ budgetId, onClose }: Props) {
-  const { dashboardParams } = usePeriod()
+  const { dashboardParams, rangeStart, rangeEnd } = usePeriod()
   const { data: budget, isLoading } = useGetBudget(budgetId ?? '')
   const { data: txnsData, isLoading: txnsLoading } = useGetBudgetTransactions(
     budgetId ?? '',
-    dashboardParams.start_date,
-    dashboardParams.end_date,
+    dashboardParams.start_date ? rangeStart : undefined,
+    dashboardParams.end_date ? rangeEnd : undefined,
   )
   const [selectedTxn, setSelectedTxn] = useState<Transaction | null>(null)
 

@@ -5,6 +5,7 @@ import {
   resolvePeriod,
   toIsoDate,
   toLocalEndOfDayISO,
+  toLocalExclusiveEndISO,
   toLocalStartOfDayISO,
   type PeriodSelection,
 } from './period'
@@ -15,11 +16,15 @@ interface PeriodCtx {
   dashboardParams: DashboardParams
   // Correct UTC instants for the period's local start-of-day/end-of-day —
   // use these (not dashboardParams.start_date/end_date + a literal 'Z') for
-  // any query that filters by full timestamp, e.g. GET /transactions
-  // from/to. dashboardParams.start_date/end_date remain bare "YYYY-MM-DD"
-  // for endpoints that take date-only params.
+  // any query that filters by full timestamp. dashboardParams.start_date/
+  // end_date remain bare "YYYY-MM-DD" for display or date-only params.
   rangeStart: string
+  // Inclusive end-of-day (23:59:59.999) — for endpoints using `<= end`
+  // (transactions.py).
   rangeEnd: string
+  // Exclusive end (start of the next local day) — for endpoints using
+  // `< end` (dashboard.py, budgets.py).
+  rangeEndExclusive: string
   label: string
   shortLabel: string
 }
@@ -43,6 +48,7 @@ export function PeriodProvider({ children }: { children: React.ReactNode }) {
       dashboardParams,
       rangeStart: toLocalStartOfDayISO(resolved.start),
       rangeEnd: toLocalEndOfDayISO(resolved.end),
+      rangeEndExclusive: toLocalExclusiveEndISO(resolved.end),
       label: resolved.label,
       shortLabel: resolved.shortLabel,
     }}>

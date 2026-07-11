@@ -167,18 +167,28 @@ def _current_period_window(b: Budget) -> tuple[date | None, date | None]:
 async def _compute_current_spent(
     b: Budget,
     session: AsyncSession,
-    period_start: date | None = None,
-    period_end: date | None = None,
+    period_start: datetime | None = None,
+    period_end: datetime | None = None,
 ) -> Decimal:
     """Return total expense amount for the given period window.
 
     If period_start/period_end are provided they are used directly (period-filter
-    mode). Otherwise the current active period is derived from the recurrence rule.
+    mode) — both must already be correct, absolute UTC instants (the frontend
+    computes them from the user's local calendar day boundaries; this function
+    has no way to know the user's timezone, so it must not derive UTC-midnight
+    from date components itself — see docs/decisions/log.md 2026-07-11 (11)).
+    Otherwise the current active period is derived from the recurrence rule
+    (whole-calendar-day granularity is fine there, since it's anchored to the
+    budget's own start_date/DATE column, not a user-supplied instant).
     """
     if period_start is not None or period_end is not None:
         win_start, win_end = period_start, period_end
     else:
-        win_start, win_end = _current_period_window(b)
+        d_start, d_end = _current_period_window(b)
+        win_start = datetime(d_start.year, d_start.month, d_start.day, tzinfo=UTC) if d_start else None
+        win_end = (
+            datetime(d_end.year, d_end.month, d_end.day, 23, 59, 59, tzinfo=UTC) if d_end else None
+        )
 
     def _date_conds() -> list[Any]:
         conds: list[Any] = [
@@ -186,14 +196,9 @@ async def _compute_current_spent(
             Transaction.deleted_at.is_(None),
         ]
         if win_start:
-            conds.append(
-                Transaction.transacted_at >= datetime(win_start.year, win_start.month, win_start.day, tzinfo=UTC)
-            )
+            conds.append(Transaction.transacted_at >= win_start)
         if win_end:
-            conds.append(
-                Transaction.transacted_at
-                <= datetime(win_end.year, win_end.month, win_end.day, 23, 59, 59, tzinfo=UTC)
-            )
+            conds.append(Transaction.transacted_at <= win_end)
         return conds
 
     # 1. Explicit links
@@ -239,8 +244,8 @@ async def _compute_current_spent(
 async def _batch_spent(
     budgets: list[Budget],
     session: AsyncSession,
-    period_start: date | None = None,
-    period_end: date | None = None,
+    period_start: datetime | None = None,
+    period_end: datetime | None = None,
 ) -> dict[uuid.UUID, Decimal]:
     """Return {budget_id: period_spent} for each budget."""
     totals: dict[uuid.UUID, Decimal] = {}
@@ -293,7 +298,15 @@ async def create_budget(
 async def list_budgets(
     include_inactive: bool = Query(False),
     from_date: date | None = Query(None),
-    to_date: date | None = Query(None),
+    # spent_from/spent_to are the same period boundary as from_date, but as
+    # correct absolute UTC instants (the frontend derives them from the
+    # user's local calendar day) — needed for comparisons against real
+    # timestamptz columns (activated_at, transacted_at), where a bare date
+    # can't be converted to an instant without assuming a timezone. from_date
+    # stays a bare date for the end_date comparison below, since
+    # Budget.end_date is itself a plain DATE column with no time component.
+    spent_from: datetime | None = Query(None),
+    spent_to: datetime | None = Query(None),
     user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ) -> list[BudgetResponse]:
@@ -307,10 +320,9 @@ async def list_budgets(
 
     # Period filter: only budgets that were active during [from_date, to_date].
     # activated_at = when the budget was turned on; end_date = when it stopped.
-    if to_date:
-        to_dt = datetime(to_date.year, to_date.month, to_date.day, 23, 59, 59, tzinfo=UTC)
+    if spent_to:
         q = q.where(
-            sa.or_(Budget.activated_at.is_(None), Budget.activated_at <= to_dt)
+            sa.or_(Budget.activated_at.is_(None), Budget.activated_at <= spent_to)
         )
     if from_date:
         q = q.where(
@@ -319,7 +331,7 @@ async def list_budgets(
 
     budgets = (await session.execute(q)).scalars().all()
 
-    spent_map = await _batch_spent(list(budgets), session, from_date, to_date)
+    spent_map = await _batch_spent(list(budgets), session, spent_from, spent_to)
 
     result = []
     for b in budgets:
@@ -483,8 +495,11 @@ async def delete_budget(
 @router.get("/{budget_id}/transactions", response_model=BudgetTransactionsResponse)
 async def list_budget_transactions(
     budget_id: uuid.UUID,
-    from_date: date | None = Query(None, alias="from"),
-    to_date: date | None = Query(None, alias="to"),
+    # Correct absolute UTC instants, not bare dates — see the note on
+    # list_budgets's spent_from/spent_to for why (docs/decisions/log.md
+    # 2026-07-11 (11)).
+    from_date: datetime | None = Query(None, alias="from"),
+    to_date: datetime | None = Query(None, alias="to"),
     user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ) -> BudgetTransactionsResponse:
@@ -494,7 +509,11 @@ async def list_budget_transactions(
     if from_date is not None or to_date is not None:
         win_start, win_end = from_date, to_date
     else:
-        win_start, win_end = _current_period_window(b)
+        d_start, d_end = _current_period_window(b)
+        win_start = datetime(d_start.year, d_start.month, d_start.day, tzinfo=UTC) if d_start else None
+        win_end = (
+            datetime(d_end.year, d_end.month, d_end.day, 23, 59, 59, tzinfo=UTC) if d_end else None
+        )
 
     # Explicit links
     explicit_q = (
@@ -507,11 +526,9 @@ async def list_budget_transactions(
         )
     )
     if win_start:
-        ws_dt = datetime(win_start.year, win_start.month, win_start.day, tzinfo=UTC)
-        explicit_q = explicit_q.where(Transaction.transacted_at >= ws_dt)
+        explicit_q = explicit_q.where(Transaction.transacted_at >= win_start)
     if win_end:
-        we_dt = datetime(win_end.year, win_end.month, win_end.day, 23, 59, 59, tzinfo=UTC)
-        explicit_q = explicit_q.where(Transaction.transacted_at <= we_dt)
+        explicit_q = explicit_q.where(Transaction.transacted_at <= win_end)
 
     explicit_txns = (await session.execute(explicit_q)).scalars().all()
     explicit_ids = {t.id for t in explicit_txns}
@@ -534,9 +551,9 @@ async def list_budget_transactions(
             )
         )
         if win_start:
-            cat_q = cat_q.where(Transaction.transacted_at >= ws_dt)
+            cat_q = cat_q.where(Transaction.transacted_at >= win_start)
         if win_end:
-            cat_q = cat_q.where(Transaction.transacted_at <= we_dt)
+            cat_q = cat_q.where(Transaction.transacted_at <= win_end)
         cat_match_txns = list((await session.execute(cat_q)).scalars().all())
 
     items: list[BudgetTransactionItem] = []

@@ -163,13 +163,13 @@ function budgetMatchesPeriod(budget: Budget, fromDate?: string, toDate?: string)
 
 export default function Budgets() {
   // ── Period from global nav ───────────────────────────────────────────────
-  const { dashboardParams } = usePeriod()
+  const { dashboardParams, rangeStart, rangeEndExclusive } = usePeriod()
   const fromDate = dashboardParams.start_date
   const toDate   = dashboardParams.end_date
 
   // ── Data hooks ───────────────────────────────────────────────────────────
   const qc = useQueryClient()
-  const { data: budgets = [], isLoading } = useGetBudgets(true, fromDate, toDate)
+  const { data: budgets = [], isLoading } = useGetBudgets(true, fromDate, rangeStart, rangeEndExclusive)
   const createBudget  = useCreateBudget()
   const deleteBudget  = useDeleteBudget()
 
@@ -224,7 +224,7 @@ export default function Budgets() {
       setCreateOpen(false)
       if (budgetMatchesPeriod(newBudget, fromDate, toDate)) {
         qc.setQueryData(
-          ['budgets', { includeInactive: true, fromDate, toDate }],
+          ['budgets', { includeInactive: true, fromDate, spentFrom: rangeStart, spentTo: rangeEndExclusive }],
           (old: Budget[] | undefined) => (old ? [...old, newBudget] : [newBudget]),
         )
       }

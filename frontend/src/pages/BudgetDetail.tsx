@@ -41,12 +41,12 @@ function badge(linkType: 'explicit' | 'category_match') {
 
 export default function BudgetDetail() {
   const { budgetId } = useParams({ from: '/budgets/$budgetId' })
-  const { dashboardParams } = usePeriod()
+  const { dashboardParams, rangeStart, rangeEnd } = usePeriod()
   const { data: budget, isLoading: budgetLoading } = useGetBudget(budgetId)
   const { data: txnsData, isLoading: txnsLoading } = useGetBudgetTransactions(
     budgetId,
-    dashboardParams.start_date,
-    dashboardParams.end_date,
+    dashboardParams.start_date ? rangeStart : undefined,
+    dashboardParams.end_date ? rangeEnd : undefined,
   )
   const [selectedTxn, setSelectedTxn] = useState<Transaction | null>(null)
 

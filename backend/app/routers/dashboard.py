@@ -75,10 +75,19 @@ def _month_window(today: date) -> tuple[datetime, datetime]:
 def _period_window(
     period: DashboardPeriod,
     today: date,
-    start_date: date | None,
-    end_date: date | None,
+    start_date: datetime | None,
+    end_date: datetime | None,
 ) -> tuple[datetime, datetime]:
-    """Return (period_start, period_end) as UTC datetimes (end is exclusive)."""
+    """Return (period_start, period_end) as UTC datetimes (end is exclusive).
+
+    start_date/end_date (custom period only) are already correct, absolute
+    UTC instants — the frontend computes them from the user's local calendar
+    day boundaries (see period.ts's toLocalStartOfDayISO/toLocalExclusiveEndISO)
+    and sends them as-is. This function must not re-derive a UTC-midnight
+    instant from date components itself: it has no way to know the user's
+    timezone, so doing that would silently assume UTC (see docs/decisions/log.md
+    2026-07-11 (11) for the bug this caused when it did exactly that).
+    """
     if period == DashboardPeriod.month:
         return _month_window(today)
     if period == DashboardPeriod.quarter:
@@ -98,10 +107,7 @@ def _period_window(
     # custom
     if not start_date or not end_date:
         raise HTTPException(status_code=422, detail="start_date and end_date required for custom period")
-    return (
-        datetime(start_date.year, start_date.month, start_date.day, tzinfo=UTC),
-        datetime(end_date.year, end_date.month, end_date.day, tzinfo=UTC) + timedelta(days=1),
-    )
+    return start_date, end_date
 
 
 def _prev_window(
@@ -644,7 +650,7 @@ async def _cashflow_by_account(
                 Transaction.account_id,
                 bucket_col,
                 sa.func.sum(sa.case(
-                    (Transaction.type == TransactionType.income,  Transaction.amount),
+                    (Transaction.type.in_([TransactionType.income, TransactionType.opening_balance]), Transaction.amount),
                     else_=-Transaction.amount,
                 )).label("net"),
             )
@@ -653,7 +659,13 @@ async def _cashflow_by_account(
                 Transaction.deleted_at.is_(None),
                 Transaction.transacted_at >= period_start,
                 Transaction.transacted_at < period_end,
-                Transaction.type.in_([TransactionType.income, TransactionType.expense]),
+                # opening_balance included as a credit, same as compute_balances:
+                # an account created mid-period seeds its ledger with a real
+                # opening_balance transaction that must show up in that
+                # bucket's flow, or the money silently disappears from this
+                # chart (Step 1's "as of period_start" balance excludes it
+                # too, since it's dated after period_start by definition).
+                Transaction.type.in_([TransactionType.income, TransactionType.expense, TransactionType.opening_balance]),
                 Transaction.account_id.in_(acc_ids),
             )
             .group_by(Transaction.account_id, "bucket")
@@ -747,8 +759,8 @@ def _savings_rate(inflow: Decimal, outflow: Decimal) -> float | None:
 @router.get("/home", response_model=DashboardResponse)
 async def home_dashboard(
     period: DashboardPeriod = Query(DashboardPeriod.month),
-    start_date: date | None = Query(None),
-    end_date: date | None = Query(None),
+    start_date: datetime | None = Query(None),
+    end_date: datetime | None = Query(None),
     user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ) -> DashboardResponse:

@@ -77,15 +77,21 @@ export interface BudgetTransactionsResponse {
 export function useGetBudgets(
   includeInactive = false,
   fromDate?: string,
-  toDate?: string,
+  // spentFrom/spentTo must be correct absolute UTC instants (e.g. from
+  // usePeriod()'s rangeStart/rangeEndExclusive), not bare dates — they're
+  // compared against real timestamptz columns server-side. fromDate stays a
+  // bare "YYYY-MM-DD" date, compared against Budget.end_date (a DATE column).
+  spentFrom?: string,
+  spentTo?: string,
 ) {
   return useQuery({
-    queryKey: ['budgets', { includeInactive, fromDate, toDate }],
+    queryKey: ['budgets', { includeInactive, fromDate, spentFrom, spentTo }],
     queryFn: () => {
       const params = new URLSearchParams()
       if (includeInactive) params.set('include_inactive', 'true')
       if (fromDate) params.set('from_date', fromDate)
-      if (toDate) params.set('to_date', toDate)
+      if (spentFrom) params.set('spent_from', spentFrom)
+      if (spentTo) params.set('spent_to', spentTo)
       const qs = params.toString() ? `?${params.toString()}` : ''
       return apiGet<Budget[]>(`/budgets${qs}`)
     },

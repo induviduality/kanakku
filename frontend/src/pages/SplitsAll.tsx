@@ -4,6 +4,7 @@ import { Trash2 } from 'lucide-react'
 import { useListSplits, useDeleteSplit, type Split, type SplitShareStatus } from '../api/splits'
 import ConfirmDialog from '../components/ConfirmDialog'
 import { usePeriod } from '../lib/period-context'
+import { toIsoDate } from '../lib/period'
 import { EmptyState } from '../components/EmptyState'
 import { SplitDrawer } from '../components/drawers/SplitDrawer'
 
@@ -107,10 +108,13 @@ export default function SplitsAll({ mode }: Props) {
 
   const allSplits = data ?? []
 
+  // created_at is a full UTC timestamp — convert to local before comparing
+  // as a date, or a split near a day boundary is silently misplaced (see
+  // docs/decisions/log.md 2026-07-11 (11)).
   const start = dashboardParams.start_date ?? ''
   const end   = dashboardParams.end_date ?? ''
   const inPeriod = (s: Split) => {
-    const d = s.created_at.slice(0, 10)
+    const d = toIsoDate(new Date(s.created_at))
     return d >= start && d <= end
   }
 

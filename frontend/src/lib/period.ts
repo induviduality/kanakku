@@ -118,6 +118,12 @@ export function toLocalEndOfDayISO(d: Date): string {
   return new Date(d.getFullYear(), d.getMonth(), d.getDate(), 23, 59, 59, 999).toISOString()
 }
 
+// Exclusive upper bound (local midnight of the day AFTER d) — for endpoints
+// that filter with `< end` instead of `<= end` (dashboard.py, budgets.py).
+export function toLocalExclusiveEndISO(d: Date): string {
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1, 0, 0, 0, 0).toISOString()
+}
+
 export function defaultPeriod(): PeriodSelection {
   return { mode: 'month' }
 }

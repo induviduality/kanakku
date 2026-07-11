@@ -581,8 +581,19 @@ export const handlers = [
   // Dashboard — reflect selected period in the response so the UI reacts to picker changes
   http.get('/api/v1/dashboard/home', ({ request }) => {
     const url = new URL(request.url)
-    const startDate = url.searchParams.get('start_date') ?? DASHBOARD_RESPONSE.period_start
-    const endDate   = url.searchParams.get('end_date')   ?? DASHBOARD_RESPONSE.period_end
+    const rawStart = url.searchParams.get('start_date')
+    const rawEnd = url.searchParams.get('end_date')
+
+    // start_date/end_date are now full UTC instants with an EXCLUSIVE end
+    // (matching the real backend's contract — see docs/decisions/log.md
+    // 2026-07-11 (11)), not bare inclusive dates. Mirror the real backend's
+    // period_end = end_date - 1 day when a real request was made; the bare
+    // DASHBOARD_RESPONSE fallback (used when no period override is given)
+    // is already an inclusive date and needs no adjustment.
+    const startDate = rawStart ? rawStart.slice(0, 10) : DASHBOARD_RESPONSE.period_start
+    const endDate = rawEnd
+      ? new Date(new Date(rawEnd).getTime() - 86400000).toISOString().slice(0, 10)
+      : DASHBOARD_RESPONSE.period_end
 
     // Filter mock transactions to those within the requested window
     const filteredTxns = DASHBOARD_RESPONSE.recent_transactions

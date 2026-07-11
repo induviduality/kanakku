@@ -162,8 +162,12 @@ function asOfLabel(periodEndDateStr: string): string {
 // ── Main page ────────────────────────────────────────────────────────────────
 
 export default function Dashboard() {
-  const { dashboardParams, label } = usePeriod()
-  const { data, isLoading, isFetching, isError } = useGetDashboard(dashboardParams)
+  const { dashboardParams, label, rangeStart, rangeEndExclusive } = usePeriod()
+  const { data, isLoading, isFetching, isError } = useGetDashboard({
+    ...dashboardParams,
+    start_date: rangeStart,
+    end_date: rangeEndExclusive,
+  })
 
   if (isLoading) return <DashboardSkeleton />
   if (isError || !data) {

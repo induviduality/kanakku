@@ -68,8 +68,25 @@
 
 ## Pending
 - (none — task complete)
-- Flagged, not fixed: the identical UTC-vs-local bug independently exists in `dashboard.py`'s custom-period query params (bare `date`, no timezone) and in Budgets/Splits pages' date handling — same root cause, larger blast radius (multiple routers + frontend pages), left for the user to decide on as a dedicated follow-up.
-- Separately confirmed pre-existing, unrelated to this session: `test_dashboard.py`/`test_dashboard_net_expense.py` fail because the test fixture doesn't run Alembic migrations (missing `transaction_with_net_amount` view); `test_export.py`/`test_cli.py`/`test_import_archive.py`/`test_payment_methods.py`/`test_reports_query.py` have separate pre-existing issues. Worth a dedicated follow-up but out of scope here.
+
+# Ad-hoc Fix Sprint (2026-07-11, cont. 5) — Timezone Consistency: dashboard.py, budgets.py, Splits Pages — COMPLETE
+
+User's explicit ask: "timestamps timezone agnostic, converted right before it's returned from the API or converted to IST locally from the UI." Backend now never guesses a timezone from a bare date; the browser is the only place local-time conversion happens.
+
+## Completed Tasks
+- `dashboard.py::home_dashboard`'s `start_date`/`end_date` widened to `datetime`; `_period_window` custom branch no longer reconstructs a UTC instant from date components — DONE
+- `budgets.py`: `list_budgets` gained `spent_from`/`spent_to: datetime` (kept `from_date: date` for the one genuinely date-only comparison, `Budget.end_date`); `list_budget_transactions`'s `from`/`to` changed to `datetime` — DONE
+- `Splits.tsx`/`SplitsAll.tsx`: fixed client-side filters slicing a UTC timestamp's first 10 chars directly (extracts UTC date, not local) — now convert via `toIsoDate(new Date(...))` first — DONE
+- New `toLocalExclusiveEndISO` in `period.ts`; `usePeriod()` exposes `rangeStart`/`rangeEnd`/`rangeEndExclusive`; wired into `Dashboard.tsx`, `Budgets.tsx`, `BudgetDrawer.tsx`, `BudgetDetail.tsx` — DONE
+- Found + fixed while unblocking `test_dashboard.py`: `_cashflow_by_account`'s Step 2 never included `opening_balance`-type transactions, so an account created mid-period silently lost its opening balance from the per-account cashflow chart — DONE
+- Fixed `db_tables` test fixture: `Base.metadata.create_all` skips raw-SQL Alembic objects, so `transaction_with_net_amount` (view, migration 0027) never existed in the test DB — blocked 23 dashboard tests outright. Recreated the view by hand in the fixture — DONE
+- That fix surfaced 3 more pre-existing test bugs from last session's Phase 1 refactor (never caught, tests couldn't run before) — fixed all three — DONE
+- Full backend: 486 passed, 8 failed (all pre-existing/unrelated). Full frontend: 466 passed, 64 failed (exact pre-existing ToastProvider/PeriodProvider baseline, confirmed via `git stash` — zero new failures). `bun run build` clean — DONE
+
+## Pending
+- (none — task complete)
+- Still open, unrelated to timezones: `test_export.py`/`test_cli.py`/`test_import_archive.py`/`test_payment_methods.py`/`test_reports_query.py` pre-existing failures (multi-user `/auth/setup` 404 on second call, ARQ export jobs never leaving "pending" with no worker running, missing UPI-app validation, missing SQL-injection guard on `/reports/query`). Worth a dedicated follow-up.
+- The ToastProvider/PeriodProvider frontend test-infra gap (64 failures, traced to commit 734cb94) remains a good follow-up task on its own.
 
 # Ad-hoc Feature Sprint (2026-07-08) — Credit Card Remodel
 

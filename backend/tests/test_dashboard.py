@@ -93,7 +93,11 @@ async def test_dashboard_empty_state(authed) -> None:
     data = resp.json()
     assert data["total_spent_net"] == "0"
     assert data["total_income"] == "0"
-    assert data["recent_transactions"] == []
+    # Account creation seeds a real opening_balance Transaction row (see
+    # account_balance.py) so "empty" means no user-entered activity, not a
+    # literally empty transaction table.
+    assert len(data["recent_transactions"]) == 1
+    assert data["recent_transactions"][0]["type"] == "opening_balance"
     assert data["budgets_summary"] == []
     assert data["category_breakdown"] == []
     assert data["pending_splits_summary"]["count"] == 0
@@ -334,8 +338,12 @@ async def test_dashboard_account_balances_as_of_period_end(authed) -> None:
         "/api/v1/dashboard/home",
         params={
             "period": "custom",
-            "start_date": today.isoformat(),
-            "end_date": today.isoformat(),
+            # start_date/end_date are absolute UTC instants, not bare dates
+            # (the endpoint no longer guesses a timezone from a date-only
+            # value — see docs/decisions/log.md 2026-07-11 (11)). end_date is
+            # exclusive, so "today only" is [today 00:00, tomorrow 00:00).
+            "start_date": f"{today.isoformat()}T00:00:00Z",
+            "end_date": f"{tomorrow.isoformat()}T00:00:00Z",
         },
         headers=headers,
     )
