@@ -346,6 +346,19 @@ export default function Transactions() {
             </button>
           </div>
 
+          {showPagination && (
+            <select
+              value={urlPageSize}
+              onChange={(e) => changePageSize(Number(e.target.value))}
+              className="rounded border border-gray-300 px-2 py-2 text-sm text-gray-700 bg-white"
+              aria-label="Rows per page"
+            >
+              {PAGE_SIZE_OPTIONS.map((n) => (
+                <option key={n} value={n}>{n} per page</option>
+              ))}
+            </select>
+          )}
+
           <button
             onClick={() => setShowFilters((v) => !v)}
             className={`rounded-md px-3 py-2 text-sm font-medium border ${hasActiveFilters ? 'bg-indigo-50 border-indigo-400 text-indigo-700' : 'border-gray-300 text-gray-700 hover:bg-gray-50'}`}
@@ -677,17 +690,6 @@ export default function Transactions() {
               <span className="text-gray-500 px-1">
                 Page {urlPage} of {totalPages}
               </span>
-
-              <select
-                value={urlPageSize}
-                onChange={(e) => changePageSize(Number(e.target.value))}
-                className="rounded border border-gray-300 px-2 py-1.5 text-sm text-gray-700 bg-white"
-                aria-label="Rows per page"
-              >
-                {PAGE_SIZE_OPTIONS.map((n) => (
-                  <option key={n} value={n}>{n} per page</option>
-                ))}
-              </select>
 
               <button
                 onClick={goNext}
