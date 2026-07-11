@@ -63,6 +63,7 @@
 - Added `opening_balance`/`closing_balance` to `TransactionListResponse` and the Transactions page header, summed across the filtered (or all) accounts — DONE
 - Ran the real backend test suite against a running local Docker Postgres for the first time this session (previously blocked, no DATABASE_URL) — fixed 4 pre-existing test regressions from last session's Phase 1 balance refactor that had never actually executed against a DB — DONE
 - `test_transactions.py` (28 tests, incl. 2 new), `test_imports.py`, `test_accounts.py` all pass against the real DB — DONE
+- **Follow-up fix, same task**: user caught "Opening: 0.00" on a real account whose opening_balance transaction was dated exactly at the queried period's `from_date` — `compute_balances`'s `as_of` bound used strict `<` uniformly across income/expense/opening_balance, silently excluding an opening_balance transaction landing exactly on the boundary (the normal case for PDF imports, always dated at midnight). Fixed in the shared `account_balance.py` helper: opening_balance uses `<=`, income/expense keep `<`. Fixes the same latent bug in `dashboard.py`'s `_account_balances`/`_cashflow_by_account` for free. New regression test; 56 tests pass — DONE
 
 ## Pending
 - (none — task complete)

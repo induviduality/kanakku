@@ -1,6 +1,8 @@
 """Integration tests for /api/v1/transactions."""
 
+import uuid
 from datetime import UTC, datetime, timedelta
+from decimal import Decimal
 
 import pytest
 from httpx import AsyncClient
@@ -352,6 +354,50 @@ async def test_opening_and_closing_balance(authed) -> None:
     data = resp.json()
     assert data["opening_balance"] == "10000.00"
     assert data["closing_balance"] == "10600.00"
+
+
+async def test_opening_balance_dated_exactly_at_period_start_is_included(authed) -> None:
+    """Regression: a PDF-imported opening_balance transaction is dated at
+    midnight on the statement's first day — which is usually also the
+    period's `from` boundary the user filters by. A strict `<` bound on
+    that comparison silently excluded it from the period's opening balance,
+    making it look like the money never existed."""
+    import sqlalchemy as sa
+
+    from app.db.session import async_session_factory
+    from app.models.transaction import Transaction, TransactionType
+
+    client, headers, _ = authed
+    acc2_resp = await client.post(
+        "/api/v1/accounts",
+        json={"name": "Union Bank", "type": "bank", "currency": "INR", "opening_balance": "0"},
+        headers=headers,
+    )
+    acc2_id = acc2_resp.json()["id"]
+
+    async with async_session_factory() as session:
+        user_result = await session.execute(sa.text("SELECT id FROM users LIMIT 1"))
+        user_id = user_result.scalar_one()
+        session.add(Transaction(
+            user_id=user_id,
+            type=TransactionType.opening_balance,
+            transacted_at=datetime(2026, 1, 1, tzinfo=UTC),
+            amount=Decimal("81483.17"),
+            currency="INR",
+            account_id=uuid.UUID(acc2_id),
+        ))
+        await session.commit()
+
+    resp = await client.get(
+        "/api/v1/transactions",
+        params={
+            "account_id": acc2_id,
+            "from": "2026-01-01T00:00:00Z",
+            "to": "2026-01-31T23:59:59Z",
+        },
+        headers=headers,
+    )
+    assert resp.json()["opening_balance"] == "81483.17"
 
 
 async def test_filter_by_date_range(authed) -> None:

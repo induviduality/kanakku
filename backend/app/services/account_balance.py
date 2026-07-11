@@ -70,9 +70,26 @@ async def compute_balances(
     def _bound(stmt):
         return stmt.where(Transaction.transacted_at < as_of) if as_of is not None else stmt
 
+    def _ie_bound(stmt):
+        # opening_balance is a pre-period seed, not a flow event — it belongs
+        # to "as of" a boundary even when its timestamp lands exactly ON that
+        # boundary (the common case: a PDF-imported opening balance is dated
+        # at midnight on the statement's first day, which is usually also the
+        # period's from_date). income/expense keep the strict bound so a
+        # transaction dated exactly at a period's start isn't double-counted
+        # in both "opening" and that period's own flow totals.
+        if as_of is None:
+            return stmt
+        return stmt.where(
+            sa.or_(
+                sa.and_(Transaction.type == TransactionType.opening_balance, Transaction.transacted_at <= as_of),
+                sa.and_(Transaction.type != TransactionType.opening_balance, Transaction.transacted_at < as_of),
+            )
+        )
+
     ie_rows = (
         await session.execute(
-            _bound(
+            _ie_bound(
                 sa.select(
                     Transaction.account_id,
                     sa.func.sum(sa.case(
