@@ -552,10 +552,10 @@ export const DASHBOARD_RESPONSE = {
     },
   ],
   account_balances: [
-    { id: 'acc-1', name: 'HDFC Savings',     type: 'bank',        currency: 'INR', current_balance: '87430.00'  },
-    { id: 'acc-2', name: 'ICICI Savings',    type: 'bank',        currency: 'INR', current_balance: '23500.00'  },
-    { id: 'acc-3', name: 'Wallet (Cash)',     type: 'cash',        currency: 'INR', current_balance: '850.00'    },
-    { id: 'acc-4', name: 'HDFC Credit Card', type: 'credit_card', currency: 'INR', current_balance: '-12400.00' },
+    { id: 'acc-1', name: 'HDFC Savings',     type: 'bank',        currency: 'INR', balance: '87430.00'  },
+    { id: 'acc-2', name: 'ICICI Savings',    type: 'bank',        currency: 'INR', balance: '23500.00'  },
+    { id: 'acc-3', name: 'Wallet (Cash)',     type: 'cash',        currency: 'INR', balance: '850.00'    },
+    { id: 'acc-4', name: 'HDFC Credit Card', type: 'credit_card', currency: 'INR', balance: '-12400.00' },
   ],
   active_subscriptions: [
     {

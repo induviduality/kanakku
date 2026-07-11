@@ -488,10 +488,100 @@ async def _piggy_banks_summary(
     return result
 
 
+async def _balance_delta_since(
+    session: AsyncSession,
+    user_id: uuid.UUID,
+    acc_ids: list[uuid.UUID],
+    since: datetime,
+) -> dict[uuid.UUID, Decimal]:
+    """Net effect on each account's live balance from transactions dated on/after `since`.
+
+    Subtracting this from `current_balance` rolls the balance back to how it
+    stood just before `since`. Only income/expense/transfer count —
+    opening_balance is a one-time seed permanently baked into current_balance
+    and is excluded from all reports, so it's never part of this delta.
+    """
+    if not acc_ids:
+        return {}
+
+    ie_rows = (
+        await session.execute(
+            sa.select(
+                Transaction.account_id,
+                sa.func.sum(sa.case(
+                    (Transaction.type == TransactionType.income, Transaction.amount),
+                    else_=-Transaction.amount,
+                )).label("net"),
+            )
+            .where(
+                Transaction.user_id == user_id,
+                Transaction.deleted_at.is_(None),
+                Transaction.transacted_at >= since,
+                Transaction.type.in_([TransactionType.income, TransactionType.expense]),
+                Transaction.account_id.in_(acc_ids),
+            )
+            .group_by(Transaction.account_id)
+        )
+    ).all()
+
+    xfer_out_rows = (
+        await session.execute(
+            sa.select(
+                Transaction.account_id,
+                sa.func.sum(Transaction.amount).label("out"),
+            )
+            .where(
+                Transaction.user_id == user_id,
+                Transaction.deleted_at.is_(None),
+                Transaction.transacted_at >= since,
+                Transaction.type == TransactionType.transfer,
+                Transaction.account_id.in_(acc_ids),
+            )
+            .group_by(Transaction.account_id)
+        )
+    ).all()
+
+    xfer_in_rows = (
+        await session.execute(
+            sa.select(
+                Transaction.to_account_id,
+                # to_amount is only set for cross-currency transfers; a
+                # same-currency transfer (the common case) leaves it NULL and
+                # the destination is credited `amount` — mirrors
+                # _apply_transfer_balances's `(txn.to_amount or txn.amount)`.
+                sa.func.sum(sa.func.coalesce(Transaction.to_amount, Transaction.amount)).label("into"),
+            )
+            .where(
+                Transaction.user_id == user_id,
+                Transaction.deleted_at.is_(None),
+                Transaction.transacted_at >= since,
+                Transaction.type == TransactionType.transfer,
+                Transaction.to_account_id.in_(acc_ids),
+            )
+            .group_by(Transaction.to_account_id)
+        )
+    ).all()
+
+    ie_map  = {r.account_id: r.net or Decimal("0") for r in ie_rows}
+    out_map = {r.account_id: r.out or Decimal("0") for r in xfer_out_rows}
+    in_map  = {r.to_account_id: r.into or Decimal("0") for r in xfer_in_rows}
+
+    return {
+        acc_id: ie_map.get(acc_id, Decimal("0")) - out_map.get(acc_id, Decimal("0")) + in_map.get(acc_id, Decimal("0"))
+        for acc_id in acc_ids
+    }
+
+
 async def _account_balances(
     session: AsyncSession,
     user_id: uuid.UUID,
+    as_of: datetime,
 ) -> list[AccountBalanceItem]:
+    """Balance per account as of the end of the selected period (or "now" if
+    the period hasn't ended yet — there's nothing dated beyond today to roll
+    back, so the delta is simply zero and this naturally reduces to the live
+    current_balance).
+    """
     accounts = (
         await session.execute(
             sa.select(Account).where(
@@ -502,13 +592,16 @@ async def _account_balances(
         )
     ).scalars().all()
 
+    acc_ids = [a.id for a in accounts]
+    delta = await _balance_delta_since(session, user_id, acc_ids, as_of)
+
     return [
         AccountBalanceItem(
             id=a.id,
             name=a.name,
             type=a.type,
             currency=a.currency,
-            current_balance=a.current_balance,
+            balance=a.current_balance - delta.get(a.id, Decimal("0")),
         )
         for a in accounts
     ]
@@ -625,75 +718,11 @@ async def _cashflow_by_account(
 
     # ── Step 1: opening balance at period_start ──────────────────────────────
     # opening = current_balance − net_change(period_start → ∞)
-    # net_change per account for income/expense
-    ie_open = (
-        await session.execute(
-            sa.select(
-                Transaction.account_id,
-                sa.func.sum(sa.case(
-                    (Transaction.type == TransactionType.income,  Transaction.amount),
-                    else_=-Transaction.amount,
-                )).label("net"),
-            )
-            .where(
-                Transaction.user_id == user_id,
-                Transaction.deleted_at.is_(None),
-                Transaction.transacted_at >= period_start,
-                Transaction.type.in_([TransactionType.income, TransactionType.expense]),
-                Transaction.account_id.in_(acc_ids),
-            )
-            .group_by(Transaction.account_id)
-        )
-    ).all()
-
-    # transfers out (source account loses money)
-    xfer_out_open = (
-        await session.execute(
-            sa.select(
-                Transaction.account_id,
-                sa.func.sum(Transaction.amount).label("out"),
-            )
-            .where(
-                Transaction.user_id == user_id,
-                Transaction.deleted_at.is_(None),
-                Transaction.transacted_at >= period_start,
-                Transaction.type == TransactionType.transfer,
-                Transaction.account_id.in_(acc_ids),
-            )
-            .group_by(Transaction.account_id)
-        )
-    ).all()
-
-    # transfers in (destination account gains money)
-    xfer_in_open = (
-        await session.execute(
-            sa.select(
-                Transaction.to_account_id,
-                sa.func.sum(Transaction.to_amount).label("into"),
-            )
-            .where(
-                Transaction.user_id == user_id,
-                Transaction.deleted_at.is_(None),
-                Transaction.transacted_at >= period_start,
-                Transaction.type == TransactionType.transfer,
-                Transaction.to_account_id.in_(acc_ids),
-            )
-            .group_by(Transaction.to_account_id)
-        )
-    ).all()
-
-    ie_open_map   = {r.account_id: r.net or Decimal("0")  for r in ie_open}
-    xfer_out_map  = {r.account_id: r.out or Decimal("0")  for r in xfer_out_open}
-    xfer_in_map   = {r.to_account_id: r.into or Decimal("0") for r in xfer_in_open}
-
-    opening: dict[uuid.UUID, Decimal] = {}
-    for acc_id in acc_ids:
-        net_after = (
-            ie_open_map.get(acc_id, Decimal("0"))
-            - xfer_out_map.get(acc_id, Decimal("0"))
-            + xfer_in_map.get(acc_id, Decimal("0"))
-        )
-        opening[acc_id] = acc_map[acc_id].current_balance - net_after
+    delta_since_start = await _balance_delta_since(session, user_id, acc_ids, period_start)
+    opening: dict[uuid.UUID, Decimal] = {
+        acc_id: acc_map[acc_id].current_balance - delta_since_start.get(acc_id, Decimal("0"))
+        for acc_id in acc_ids
+    }
 
     # ── Step 2: net change per (account, bucket) within the period ───────────
     bucket_col = sa.func.date_trunc(trunc_unit, Transaction.transacted_at).label("bucket")
@@ -745,7 +774,9 @@ async def _cashflow_by_account(
             sa.select(
                 Transaction.to_account_id,
                 bucket_col,
-                sa.func.sum(Transaction.to_amount).label("into"),
+                # Same-currency transfers (the common case) leave to_amount
+                # NULL and credit `amount` instead — see _balance_delta_since.
+                sa.func.sum(sa.func.coalesce(Transaction.to_amount, Transaction.amount)).label("into"),
             )
             .where(
                 Transaction.user_id == user_id,
@@ -824,12 +855,12 @@ async def home_dashboard(
     recent = await _recent_transactions(session, user.id, period_start, period_end)
     splits = await _pending_splits_summary(session, user.id)
     pigs = await _piggy_banks_summary(session, user.id)
-    accounts = await _account_balances(session, user.id)
+    accounts = await _account_balances(session, user.id, period_end)
     subs = await _active_subscriptions(session, user.id)
     cashflow = await _cashflow_buckets(session, user.id, period_start, period_end, period)
     cashflow_by_account = await _cashflow_by_account(session, user.id, period_start, period_end, period)
 
-    total_balance = sum((Decimal(a.current_balance) for a in accounts), Decimal("0"))
+    total_balance = sum((Decimal(a.balance) for a in accounts), Decimal("0"))
 
     return DashboardResponse(
         month=today.strftime("%Y-%m"),

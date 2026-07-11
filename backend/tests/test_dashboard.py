@@ -1,5 +1,5 @@
 """Integration tests for GET /api/v1/dashboard/home."""
-from datetime import date
+from datetime import date, timedelta
 
 import pytest
 from httpx import AsyncClient
@@ -102,7 +102,7 @@ async def test_dashboard_empty_state(authed) -> None:
     assert data["piggy_banks_summary"] == []
     # account shows up in balances
     assert len(data["account_balances"]) == 1
-    assert data["account_balances"][0]["current_balance"] == "10000.00"
+    assert data["account_balances"][0]["balance"] == "10000.00"
 
 
 async def test_dashboard_month_format(authed) -> None:
@@ -271,6 +271,86 @@ async def test_dashboard_account_balances(authed) -> None:
     assert len(balances) == 1
     assert balances[0]["id"] == acc_id
     assert balances[0]["name"] == "Savings"
+
+
+async def test_dashboard_same_currency_transfer_credits_destination_balance(authed) -> None:
+    """A same-currency transfer (the normal case — frontend never sends
+    to_amount) must still credit the destination account in both
+    account_balances and the cashflow_by_account running balance. Regression
+    for a bug where `SUM(to_amount)` silently dropped every transfer-in
+    because to_amount is NULL unless the transfer is cross-currency."""
+    client, headers, acc1_id = authed
+    acc2_id = await _account(client, headers, "Savings2")
+    today = date.today()
+    this_month = f"{today.year}-{today.month:02d}-10T10:00:00Z"
+
+    resp = await client.post(
+        "/api/v1/transactions",
+        json={
+            "type": "transfer",
+            "transacted_at": this_month,
+            "amount": "5000.00",
+            "account_id": acc1_id,
+            "to_account_id": acc2_id,
+        },
+        headers=headers,
+    )
+    assert resp.status_code == 201
+
+    resp = await client.get("/api/v1/dashboard/home", headers=headers)
+    data = resp.json()
+
+    balances = {b["id"]: b["balance"] for b in data["account_balances"]}
+    assert balances[acc1_id] == "5000.00"   # 10000 - 5000
+    assert balances[acc2_id] == "15000.00"  # 10000 + 5000 (not just 10000)
+
+    acc2_buckets = [b for b in data["cashflow_by_account"] if b["account_id"] == acc2_id]
+    assert acc2_buckets, "destination account should appear in cashflow_by_account"
+    assert acc2_buckets[-1]["balance"] == "15000.00"
+
+
+async def test_dashboard_account_balances_as_of_period_end(authed) -> None:
+    """account_balances reflects the balance at the END of the selected period,
+    not the account's live current_balance — a later transaction shouldn't
+    leak into an earlier period's snapshot."""
+    client, headers, acc_id = authed
+    today = date.today()
+    if today.month == 1:
+        last_month_year, last_month_num = today.year - 1, 12
+    else:
+        last_month_year, last_month_num = today.year, today.month - 1
+    last_month_start = date(last_month_year, last_month_num, 1)
+    if last_month_num == 12:
+        last_month_end = date(last_month_year, 12, 31)
+    else:
+        last_month_end = date(last_month_year, last_month_num + 1, 1) - timedelta(days=1)
+
+    # Opening balance is 10000.00. +5000 income last month → 15000.00 as of
+    # end of last month. Then -300 expense this month → 14700.00 live.
+    await _txn(client, headers, acc_id, "5000.00", "income", f"{last_month_start.isoformat()}T10:00:00Z")
+    await _txn(client, headers, acc_id, "300.00", "expense", f"{today.year}-{today.month:02d}-01T10:00:00Z")
+
+    # Custom period covering only last month: balance should be the
+    # end-of-last-month snapshot, unaffected by this month's expense.
+    resp = await client.get(
+        "/api/v1/dashboard/home",
+        params={
+            "period": "custom",
+            "start_date": last_month_start.isoformat(),
+            "end_date": last_month_end.isoformat(),
+        },
+        headers=headers,
+    )
+    data = resp.json()
+    balances = {b["id"]: b["balance"] for b in data["account_balances"]}
+    assert balances[acc_id] == "15000.00"
+
+    # Current month (default): nothing dated beyond today, so this reduces
+    # to the live current_balance.
+    resp = await client.get("/api/v1/dashboard/home", headers=headers)
+    data = resp.json()
+    balances = {b["id"]: b["balance"] for b in data["account_balances"]}
+    assert balances[acc_id] == "14700.00"
 
 
 async def test_dashboard_piggy_banks_summary(authed) -> None:

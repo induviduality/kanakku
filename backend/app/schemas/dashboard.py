@@ -54,7 +54,9 @@ class AccountBalanceItem(BaseModel):
     name: str
     type: AccountType
     currency: str
-    current_balance: Decimal
+    # Balance as of the end of the selected dashboard period (or "now" for a
+    # period still in progress) — not the account's live current_balance.
+    balance: Decimal
 
 
 class ActiveSubscriptionItem(BaseModel):

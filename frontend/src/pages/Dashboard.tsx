@@ -148,6 +148,17 @@ function BalanceCard({ totalBalance }: { totalBalance: number }) {
   )
 }
 
+// Account balances reflect the end of the selected period — or "now" if that
+// period is still in progress (period_end is in the future). Label it "today"
+// in that case rather than a misleading future date.
+function asOfLabel(periodEndDateStr: string): string {
+  const end = new Date(`${periodEndDateStr}T00:00:00`)
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  if (end >= today) return 'today'
+  return end.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })
+}
+
 // ── Main page ────────────────────────────────────────────────────────────────
 
 export default function Dashboard() {
@@ -286,7 +297,7 @@ export default function Dashboard() {
       </Section>
 
       {/* Row 5 — account balances */}
-      <Section title="Account Balances" linkTo="/accounts">
+      <Section title={`Account Balances — as of ${asOfLabel(data.period_end)}`} linkTo="/accounts">
         {data.account_balances.length === 0 ? (
           <p className="text-sm text-fg-muted">No accounts yet.</p>
         ) : (
@@ -294,8 +305,8 @@ export default function Dashboard() {
             {data.account_balances.map(a => (
               <div key={a.id} className="kk-card py-3 px-4">
                 <p className="text-xs text-fg-faint truncate">{a.name}</p>
-                <p className={`text-base font-bold kk-mono mt-1 ${parseFloat(a.current_balance) < 0 ? 'text-negative-dim' : 'text-fg'}`}>
-                  ₹{parseFloat(a.current_balance).toLocaleString('en-IN')}
+                <p className={`text-base font-bold kk-mono mt-1 ${parseFloat(a.balance) < 0 ? 'text-negative-dim' : 'text-fg'}`}>
+                  ₹{parseFloat(a.balance).toLocaleString('en-IN')}
                 </p>
               </div>
             ))}

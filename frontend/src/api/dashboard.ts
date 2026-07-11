@@ -47,7 +47,8 @@ export interface AccountBalanceItem {
   name: string
   type: string
   currency: string
-  current_balance: string
+  /** Balance as of the end of the selected period (or "now" if still in progress) — not the account's live balance. */
+  balance: string
 }
 
 export interface ActiveSubscriptionItem {

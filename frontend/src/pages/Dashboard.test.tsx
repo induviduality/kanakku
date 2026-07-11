@@ -70,9 +70,12 @@ describe('Dashboard page', () => {
     await waitFor(() => expect(screen.getByText('Swiggy')).toBeInTheDocument())
   })
   
-  it('renders account balances', async () => {
+  it('renders account balances as of the period end date', async () => {
     renderDashboard()
-    await waitFor(() => screen.getByText('Account Balances'))
+    // renderDashboard's PeriodContext override uses end_date: '2026-04-30' —
+    // a fixed past date, so the "as of" label should show that date rather
+    // than "today".
+    await waitFor(() => screen.getByText(/Account Balances — as of 30 Apr 2026/))
     expect(screen.getByText('HDFC Savings')).toBeInTheDocument()
   })
 
