@@ -3,10 +3,12 @@
 import io
 import json
 import tarfile
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from httpx import AsyncClient
+
+from tests._helpers import register_second_user
 
 
 async def _setup(client: AsyncClient, email: str = "exporter@example.com") -> dict:
@@ -15,6 +17,18 @@ async def _setup(client: AsyncClient, email: str = "exporter@example.com") -> di
     )
     assert resp.status_code == 201
     return {"Authorization": f"Bearer {resp.json()['access_token']}"}
+
+
+def _force_redis_unavailable():
+    """Force POST /export's Redis enqueue attempt to fail so it falls back
+    to running inline. Needed because this test's premise is "Redis is
+    unreachable" — relying on the real dev/CI environment actually lacking
+    one is unreliable (this sandbox has a live Redis at REDIS_URL, which
+    would otherwise let the job enqueue for real and hang at "pending"
+    since no worker is running it during the test)."""
+    mock_arq = MagicMock()
+    mock_arq.create_pool = AsyncMock(side_effect=ConnectionError("no redis in test"))
+    return patch("app.routers.export.arq", mock_arq)
 
 
 @pytest.mark.usefixtures("db_tables")
@@ -38,7 +52,8 @@ async def test_trigger_export_returns_job(client: AsyncClient) -> None:
 async def test_trigger_export_falls_back_inline(client: AsyncClient) -> None:
     """When Redis is unavailable the job runs inline and status becomes done."""
     headers = await _setup(client)
-    resp = await client.post("/api/v1/export", headers=headers)
+    with _force_redis_unavailable():
+        resp = await client.post("/api/v1/export", headers=headers)
     assert resp.status_code == 202
     data = resp.json()
     assert data["status"] == "done"
@@ -67,7 +82,8 @@ async def test_get_export_status_not_found(client: AsyncClient) -> None:
 async def test_download_export_archive(client: AsyncClient) -> None:
     """A completed export can be downloaded as a valid tar.gz with manifest.json."""
     headers = await _setup(client)
-    create_resp = await client.post("/api/v1/export", headers=headers)
+    with _force_redis_unavailable():
+        create_resp = await client.post("/api/v1/export", headers=headers)
     assert create_resp.json()["status"] == "done"
     job_id = create_resp.json()["id"]
 
@@ -103,7 +119,9 @@ async def test_export_unauthenticated(client: AsyncClient) -> None:
 async def test_export_contains_only_own_data(client: AsyncClient) -> None:
     """Export for user A does not contain data belonging to user B."""
     headers_a = await _setup(client, email="user_a@example.com")
-    headers_b = await _setup(client, email="user_b@example.com")
+    # This app only allows one /auth/setup call ever (single-user by
+    # design) — a second user has to come through the invite flow.
+    headers_b = await register_second_user(client, headers_a, email="user_b@example.com")
 
     # Create an account for user B
     await client.post(
@@ -113,7 +131,8 @@ async def test_export_contains_only_own_data(client: AsyncClient) -> None:
     )
 
     # Export as user A
-    create_resp = await client.post("/api/v1/export", headers=headers_a)
+    with _force_redis_unavailable():
+        create_resp = await client.post("/api/v1/export", headers=headers_a)
     job_id = create_resp.json()["id"]
     dl = await client.get(f"/api/v1/export/{job_id}/download", headers=headers_a)
 

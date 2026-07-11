@@ -66,15 +66,26 @@ async def test_update_rejected_by_validation(client: AsyncClient) -> None:
 
 
 @pytest.mark.usefixtures("db_tables")
-async def test_missing_user_id_rejected(client: AsyncClient) -> None:
+async def test_missing_user_id_auto_scoped(client: AsyncClient) -> None:
+    """A query with no explicit user_id filter isn't rejected — the AST
+    rewrite in _inject_user_id_filter injects `table.user_id = :user_id`
+    automatically for every table that carries one (_validate_sql only
+    rejects non-SELECT and multi-statement input). This is safer than
+    requiring the caller to remember the filter themselves: it can't be
+    forgotten. Regression guard for the actual security property — a query
+    against a table with a user_id column never returns another user's rows,
+    even when the caller's SQL doesn't mention user_id at all."""
     headers = await _setup(client)
+    await _account(client, headers)
     resp = await client.post(
         "/api/v1/reports/query",
         json={"sql": "SELECT * FROM accounts"},
         headers=headers,
     )
-    assert resp.status_code == 400
-    assert "user_id" in resp.json()["detail"]
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["row_count"] == 1
+    assert data["rows"][0]["name"] == "Test Bank"
 
 
 @pytest.mark.usefixtures("db_tables")

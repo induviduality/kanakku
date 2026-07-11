@@ -85,8 +85,26 @@ User's explicit ask: "timestamps timezone agnostic, converted right before it's 
 
 ## Pending
 - (none — task complete)
-- Still open, unrelated to timezones: `test_export.py`/`test_cli.py`/`test_import_archive.py`/`test_payment_methods.py`/`test_reports_query.py` pre-existing failures (multi-user `/auth/setup` 404 on second call, ARQ export jobs never leaving "pending" with no worker running, missing UPI-app validation, missing SQL-injection guard on `/reports/query`). Worth a dedicated follow-up.
 - The ToastProvider/PeriodProvider frontend test-infra gap (64 failures, traced to commit 734cb94) remains a good follow-up task on its own.
+
+# Ad-hoc Fix Sprint (2026-07-11, cont. 6) — Fixed the Remaining 8 Test Failures — COMPLETE
+
+User pushed back on leaving these flagged as "pre-existing/out of scope" and asked to actually investigate. Found the export/import feature was completely broken in production, not just test staleness.
+
+## Completed Tasks
+- `export_worker.py::_EXPORT_TABLES` had a `llm_activity_logs`/`llm_activity_log` (plural/singular) table-name typo — every real export failed outright before producing anything. Fixed, including the duplicate in both import paths' remap sets — DONE
+- Both import paths (`cli.py`, `routers/export.py`) called `session.begin()` after the session had already auto-begun a transaction from an earlier query — import failed unconditionally. Fixed by removing the redundant `begin()` and committing/rolling back explicitly — DONE
+- Export flattens UUID/Decimal/date/datetime to strings for JSON; import never reversed it, so asyncpg rejected every such column. New `deserialize_row()` in `export_worker.py` uses each column's real ORM type (`Base.metadata`) to coerce correctly — DONE
+- `user_settings` (one row per user, auto-created at signup) always collided on import for any existing target user — fixed by deleting the target's row first — DONE
+- Restored `PaymentMethodCreate`'s "upi_app required when type is upi" validation, accidentally deleted in an unrelated commit (`467bc3b`) — confirmed via `git show` — DONE
+- Updated `reports/query`'s missing-user_id test to assert the actual (better) behavior: automatic AST-level `user_id` injection, not rejection — DONE
+- Fixed 2 tests calling `/auth/setup` twice (rejected by design, single-user app) — switched to the `register_second_user` invite-flow helper — DONE
+- Made Redis-dependent tests deterministic with `_force_redis_unavailable()` instead of relying on the real environment lacking Redis (this sandbox has a live one) — DONE
+- Fixed `test_roundtrip_export_import`'s remaining 409 — not a bug, the UUID-conflict guard correctly blocking re-import while source data is still live in the same DB; updated the test to delete source data first, matching the feature's real intended use (migrating to a fresh install) — DONE
+- Full backend suite: **494 passed, 0 failed, 7 skipped** — every test passes — DONE
+
+## Pending
+- (none — task complete)
 
 # Ad-hoc Feature Sprint (2026-07-08) — Credit Card Remodel
 

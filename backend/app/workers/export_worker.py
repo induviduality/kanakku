@@ -15,6 +15,7 @@ from decimal import Decimal
 import sqlalchemy as sa
 
 import app.db.session as _db_session
+from app.db.base import Base
 from app.models.export_job import ExportJob, ExportJobStatus
 
 logger = logging.getLogger(__name__)
@@ -92,7 +93,7 @@ _EXPORT_TABLES: list[tuple[str, str]] = [
         "SELECT rw.* FROM report_widgets rw "
         "JOIN report_dashboards rd ON rd.id = rw.dashboard_id WHERE rd.user_id = :user_id",
     ),
-    ("llm_activity_logs", "SELECT * FROM llm_activity_logs WHERE user_id = :user_id"),
+    ("llm_activity_log", "SELECT * FROM llm_activity_log WHERE user_id = :user_id"),
 ]
 
 
@@ -108,6 +109,44 @@ def _serialize(v: object) -> object:
 
 def _row_to_dict(row: sa.engine.Row) -> dict[str, object]:  # type: ignore[type-arg]
     return {k: _serialize(v) for k, v in row._mapping.items()}
+
+
+def deserialize_row(table_name: str, row: dict[str, object]) -> dict[str, object]:
+    """Undo _serialize before re-inserting an archived row on import.
+
+    JSON has no UUID/Decimal/date/datetime types, so export flattens all of
+    them to strings. asyncpg (unlike psycopg2) requires the exact Python
+    type for these when binding a raw INSERT parameter — a string literal
+    for a timestamptz/date/numeric/uuid column raises a DataError, not an
+    implicit cast. Uses the table's own ORM-mapped column types (all export
+    tables are registered under Base.metadata) rather than guessing from
+    string shape.
+    """
+    table = Base.metadata.tables.get(table_name)
+    if table is None:
+        return row
+    coerced: dict[str, object] = {}
+    for k, v in row.items():
+        col = table.columns.get(k)
+        if v is None or not isinstance(v, str) or col is None:
+            coerced[k] = v
+            continue
+        try:
+            py_type = col.type.python_type
+        except NotImplementedError:
+            coerced[k] = v
+            continue
+        if py_type is uuid.UUID:
+            coerced[k] = uuid.UUID(v)
+        elif py_type is Decimal:
+            coerced[k] = Decimal(v)
+        elif py_type is datetime:
+            coerced[k] = datetime.fromisoformat(v)
+        elif py_type is date:
+            coerced[k] = date.fromisoformat(v)
+        else:
+            coerced[k] = v
+    return coerced
 
 
 async def export_archive(ctx: dict[str, object], job_id: str, user_id: str) -> None:

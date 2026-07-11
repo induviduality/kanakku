@@ -7,6 +7,9 @@ import tarfile
 import pytest
 from httpx import AsyncClient
 
+from tests._helpers import register_second_user
+from tests.test_export import _force_redis_unavailable
+
 
 async def _setup(client: AsyncClient, email: str = "importer@example.com") -> dict:
     resp = await client.post(
@@ -40,14 +43,35 @@ async def test_roundtrip_export_import(client: AsyncClient) -> None:
     )
 
     # Export
-    export_resp = await client.post("/api/v1/export", headers=headers)
+    with _force_redis_unavailable():
+        export_resp = await client.post("/api/v1/export", headers=headers)
     assert export_resp.json()["status"] == "done"
     job_id = export_resp.json()["id"]
     dl = await client.get(f"/api/v1/export/{job_id}/download", headers=headers)
     archive_bytes = dl.content
 
-    # Import into a fresh second user (set up via a fresh client call)
-    headers_b = await _setup(client, email="dest@example.com")
+    # Import is meant for migrating to a fresh install, not co-existing with
+    # the still-live source data — /import-archive rejects a row whose id
+    # already exists anywhere in the table (a real safety feature, not a
+    # bug: without it, importing your own export back into the same live
+    # database would silently duplicate/collide primary keys). Hard-delete
+    # the source account to simulate "this data no longer lives here",
+    # matching the feature's actual intended use case.
+    import sqlalchemy as sa
+
+    from app.db.session import async_session_factory
+    async with async_session_factory() as session:
+        await session.execute(sa.text(
+            "DELETE FROM transactions WHERE account_id IN "
+            "(SELECT id FROM accounts WHERE name = 'Export Bank')"
+        ))
+        await session.execute(sa.text("DELETE FROM accounts WHERE name = 'Export Bank'"))
+        await session.commit()
+
+    # Import into a fresh second user. This app only allows one /auth/setup
+    # call ever (single-user by design) — a second user has to come through
+    # the invite flow.
+    headers_b = await register_second_user(client, headers, email="dest@example.com")
     resp = await client.post(
         "/api/v1/import-archive",
         files={"file": ("archive.tar.gz", archive_bytes, "application/gzip")},

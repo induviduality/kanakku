@@ -14,6 +14,8 @@ class PaymentMethodCreate(BaseModel):
 
     @model_validator(mode="after")
     def validate_upi_app(self) -> "PaymentMethodCreate":
+        if self.type == PaymentMethodType.upi and not self.upi_app:
+            raise ValueError("upi_app is required when type is upi")
         if self.type != PaymentMethodType.upi and self.upi_app is not None:
             raise ValueError("upi_app is only allowed when type is upi")
         return self

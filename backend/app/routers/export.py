@@ -26,7 +26,7 @@ from app.dependencies import get_current_user
 from app.models.export_job import ExportJob, ExportJobStatus
 from app.models.user import User
 from app.schemas.export import ExportJobResponse
-from app.workers.export_worker import _EXPORT_TABLES, SCHEMA_VERSION
+from app.workers.export_worker import _EXPORT_TABLES, SCHEMA_VERSION, deserialize_row
 
 try:
     import arq
@@ -132,7 +132,7 @@ _IMPORT_TABLE_ORDER = [t for t, _ in _EXPORT_TABLES]
 _USER_ID_TABLES = {
     "user_settings", "accounts", "categories", "payees", "tags",
     "subscriptions", "budgets", "piggy_banks", "transactions", "splits",
-    "import_batches", "report_dashboards", "llm_activity_logs",
+    "import_batches", "report_dashboards", "llm_activity_log",
 }
 
 
@@ -203,44 +203,60 @@ async def import_archive(
                     if str(row.get("user_id")) == archived_user_id:
                         row["user_id"] = target_user_id
 
-    # Insert all rows in one transaction; detect UUID conflicts
+    # Insert all rows in one transaction; detect UUID conflicts.
+    # No explicit session.begin() here: the earlier COUNT(*) guard query
+    # already auto-began a transaction on this session (SQLAlchemy 2.0
+    # async sessions autobegin on first use), so calling session.begin()
+    # again would raise "A transaction is already begun on this Session."
     inserted_counts: dict[str, int] = {}
     try:
-        async with session.begin():
-            for table_name in _IMPORT_TABLE_ORDER:
-                rows = table_data.get(table_name, [])
-                if not rows:
-                    inserted_counts[table_name] = 0
-                    continue
+        # user_settings has exactly one row per user, auto-created at signup
+        # — the importing user already has one, so inserting the archived
+        # row would always collide on the user_id primary key. Replace it.
+        if table_data.get("user_settings"):
+            await session.execute(
+                sa.text("DELETE FROM user_settings WHERE user_id = :uid"),
+                {"uid": current_user.id},
+            )
 
-                # Check for UUID conflicts on tables that have an 'id' column
-                if rows and "id" in rows[0]:
-                    ids = [r["id"] for r in rows if "id" in r]
-                    conflict = await session.execute(
-                        sa.text(f"SELECT id FROM {table_name} WHERE id = ANY(:ids)"),
-                        {"ids": ids},
+        for table_name in _IMPORT_TABLE_ORDER:
+            rows = table_data.get(table_name, [])
+            if not rows:
+                inserted_counts[table_name] = 0
+                continue
+
+            # Check for UUID conflicts on tables that have an 'id' column
+            if rows and "id" in rows[0]:
+                ids = [uuid.UUID(r["id"]) for r in rows if "id" in r]
+                conflict = await session.execute(
+                    sa.text(f"SELECT id FROM {table_name} WHERE id = ANY(:ids)"),
+                    {"ids": ids},
+                )
+                conflicts = conflict.fetchall()
+                if conflicts:
+                    conflict_ids = [str(r[0]) for r in conflicts]
+                    raise HTTPException(
+                        status_code=409,
+                        detail=f"UUID conflict in {table_name}: {conflict_ids[:3]}",
                     )
-                    conflicts = conflict.fetchall()
-                    if conflicts:
-                        conflict_ids = [str(r[0]) for r in conflicts]
-                        raise HTTPException(
-                            status_code=409,
-                            detail=f"UUID conflict in {table_name}: {conflict_ids[:3]}",
-                        )
 
-                for row in rows:
-                    cols = ", ".join(row.keys())
-                    placeholders = ", ".join(f":{k}" for k in row.keys())
-                    await session.execute(
-                        sa.text(f"INSERT INTO {table_name} ({cols}) VALUES ({placeholders})"),
-                        row,
-                    )
+            for row in rows:
+                coerced = deserialize_row(table_name, row)
+                cols = ", ".join(coerced.keys())
+                placeholders = ", ".join(f":{k}" for k in coerced.keys())
+                await session.execute(
+                    sa.text(f"INSERT INTO {table_name} ({cols}) VALUES ({placeholders})"),
+                    coerced,
+                )
 
-                inserted_counts[table_name] = len(rows)
+            inserted_counts[table_name] = len(rows)
 
+        await session.commit()
     except HTTPException:
+        await session.rollback()
         raise
     except Exception as exc:
+        await session.rollback()
         logger.exception("Import archive failed")
         raise HTTPException(status_code=422, detail=f"Import failed: {exc}") from exc
 

@@ -122,7 +122,7 @@ async def _import_archive(email: str, input_path: str) -> None:
     import sqlalchemy as sa
     from sqlalchemy.ext.asyncio import async_sessionmaker
 
-    from app.workers.export_worker import _EXPORT_TABLES, SCHEMA_VERSION
+    from app.workers.export_worker import _EXPORT_TABLES, SCHEMA_VERSION, deserialize_row
 
     engine = _get_engine()
     factory = async_sessionmaker(engine, expire_on_commit=False)
@@ -153,7 +153,7 @@ async def _import_archive(email: str, input_path: str) -> None:
         user_id_tables = {
             "user_settings", "accounts", "categories", "payees", "tags",
             "subscriptions", "budgets", "piggy_banks", "transactions", "splits",
-            "import_batches", "report_dashboards", "llm_activity_logs",
+            "import_batches", "report_dashboards", "llm_activity_log",
         }
         if archived_uid != target_uid:
             for tname, rows in table_data.items():
@@ -162,21 +162,35 @@ async def _import_archive(email: str, input_path: str) -> None:
                         if str(row.get("user_id")) == archived_uid:
                             row["user_id"] = target_uid
 
+        # user_settings has exactly one row per user, auto-created at signup
+        # (_create_user above, and /auth/setup on the HTTP side) — the target
+        # user already has one, so inserting the archived row would always
+        # collide on the user_id primary key. Replace it instead.
+        await session.execute(
+            sa.text("DELETE FROM user_settings WHERE user_id = :uid"),
+            {"uid": user.id},
+        )
+
+        # No explicit session.begin(): _find_user's SELECT above already
+        # auto-began a transaction on this session (SQLAlchemy 2.0 async
+        # sessions autobegin on first use), so calling session.begin() again
+        # would raise "A transaction is already begun on this Session."
         inserted: dict[str, int] = {}
-        async with session.begin():
-            for table_name in import_order:
-                rows = table_data.get(table_name, [])
-                if not rows:
-                    inserted[table_name] = 0
-                    continue
-                for row in rows:
-                    cols = ", ".join(row.keys())
-                    placeholders = ", ".join(f":{k}" for k in row.keys())
-                    await session.execute(
-                        sa.text(f"INSERT INTO {table_name} ({cols}) VALUES ({placeholders})"),
-                        row,
-                    )
-                inserted[table_name] = len(rows)
+        for table_name in import_order:
+            rows = table_data.get(table_name, [])
+            if not rows:
+                inserted[table_name] = 0
+                continue
+            for row in rows:
+                coerced = deserialize_row(table_name, row)
+                cols = ", ".join(coerced.keys())
+                placeholders = ", ".join(f":{k}" for k in coerced.keys())
+                await session.execute(
+                    sa.text(f"INSERT INTO {table_name} ({cols}) VALUES ({placeholders})"),
+                    coerced,
+                )
+            inserted[table_name] = len(rows)
+        await session.commit()
 
     total = sum(inserted.values())
     print(f"Imported {total} records into user {email}")
