@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { useQueries } from '@tanstack/react-query'
+import { useQueries, useQueryClient } from '@tanstack/react-query'
 import { Plus, X } from 'lucide-react'
 import { DrawerSection } from './Drawer'
 import Autocomplete from './Autocomplete'
@@ -67,6 +67,7 @@ interface Props {
 }
 
 export function SplitForm({ initialSplit, onClose, onSuccess }: Props) {
+  const queryClient = useQueryClient()
   const { data: payees } = usePayees()
   const { data: existingSplits } = useListSplits()
   const createPayee = useCreatePayee()
@@ -82,6 +83,11 @@ export function SplitForm({ initialSplit, onClose, onSuccess }: Props) {
     const own = initialSplit.shares.find(s => s.payee_id === null)
     return own ? own.amount : ''
   })
+  // Edit mode with no own share on the split implies the user excluded
+  // themselves already; default the checkbox to match.
+  const [excludeMe, setExcludeMe] = useState(
+    () => !!initialSplit && !initialSplit.shares.some(s => s.payee_id === null),
+  )
   const [shares, setShares] = useState<PayeeShare[]>(() => {
     if (!initialSplit) return []
     return initialSplit.shares
@@ -152,7 +158,7 @@ export function SplitForm({ initialSplit, onClose, onSuccess }: Props) {
   const totalExpense = useMemo(() =>
     selectedExpenseIds.reduce((sum, id) => sum + n(txnMap[id]?.amount), 0)
   , [selectedExpenseIds, txnMap])
-  const myShareNum       = n(myShare)
+  const myShareNum       = excludeMe ? 0 : n(myShare)
   const payeeSharesTotal = shares.reduce((s, p) => s + n(p.amount), 0)
   const allocated        = myShareNum + payeeSharesTotal
   const balance          = allocated - totalExpense
@@ -194,6 +200,21 @@ export function SplitForm({ initialSplit, onClose, onSuccess }: Props) {
   }
   function removeShare(key: string) {
     setShares(prev => prev.filter(p => p.key !== key))
+  }
+  function updateSettlements(key: string, newIds: string[]) {
+    setShares(prev => prev.map(p => {
+      if (p.key !== key) return p
+      if (p.touched) return { ...p, settlementIds: newIds }
+      // Amount owed mirrors the linked payments until the user manually edits it.
+      // Read straight from the query cache (not the local txnMap) — the picker
+      // primes a just-picked id's cache entry synchronously, before this
+      // component's own useQueries has re-run to pick it up.
+      const settledSum = newIds.reduce((s, id) => {
+        const cached = txnMap[id] ?? queryClient.getQueryData<Transaction>(['transaction', id])
+        return s + n(cached?.amount)
+      }, 0)
+      return { ...p, settlementIds: newIds, amount: settledSum.toFixed(2) }
+    }))
   }
   function removeExpense(id: string) {
     setSelectedExpenseIds(prev => prev.filter(x => x !== id))
@@ -300,17 +321,29 @@ export function SplitForm({ initialSplit, onClose, onSuccess }: Props) {
           </div>
         )}
 
-        <button
-          type="button"
-          onClick={() => setPickerOpen(v => !v)}
-          className={`inline-flex items-center gap-1 text-xs text-accent hover:underline ${selectedExpenseIds.length > 0 ? 'mt-2' : ''}`}
-        >
-          <Plus className="h-3.5 w-3.5" />
-          {pickerOpen ? 'Done adding' : 'Add expense'}
-        </button>
+        {!pickerOpen && (
+          <button
+            type="button"
+            onClick={() => setPickerOpen(true)}
+            className={`inline-flex items-center gap-1 text-xs text-accent hover:underline ${selectedExpenseIds.length > 0 ? 'mt-2' : ''}`}
+          >
+            <Plus className="h-3.5 w-3.5" />
+            Add expense
+          </button>
+        )}
 
         {pickerOpen && (
-          <div className="mt-2">
+          <div className="mt-2 space-y-2">
+            <div className="flex items-center justify-between">
+              <p className="text-xs font-medium text-fg-muted">Select expenses</p>
+              <button
+                type="button"
+                onClick={() => setPickerOpen(false)}
+                className="text-xs text-fg-muted hover:underline"
+              >
+                Done
+              </button>
+            </div>
             <TransactionPicker
               type="expense"
               multiple
@@ -327,24 +360,37 @@ export function SplitForm({ initialSplit, onClose, onSuccess }: Props) {
         <div className="space-y-3">
           {/* Your share — always first, non-removable */}
           <div className="kk-panel space-y-2">
-            <p className="text-xs font-medium text-fg-muted">Your share</p>
-            <div className="flex items-end gap-2">
-              <div className="flex-1">
+            <div className="flex items-center justify-between">
+              <p className="text-xs font-medium text-fg-muted">Your share</p>
+              <label className="flex cursor-pointer items-center gap-1.5 text-xs text-fg-muted">
                 <input
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  value={myShare}
-                  onChange={e => setMyShare(e.target.value)}
-                  placeholder="0.00"
-                  aria-label="Your share amount"
-                  className="kk-input"
+                  type="checkbox"
+                  checked={excludeMe}
+                  onChange={e => setExcludeMe(e.target.checked)}
+                  className="accent-accent"
                 />
-              </div>
-              <button type="button" onClick={myShareRemainder} className="kk-btn-ghost shrink-0 text-xs">
-                Use remainder
-              </button>
+                I'm not part of this split
+              </label>
             </div>
+            {!excludeMe && (
+              <div className="flex items-end gap-2">
+                <div className="flex-1">
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={myShare}
+                    onChange={e => setMyShare(e.target.value)}
+                    placeholder="0.00"
+                    aria-label="Your share amount"
+                    className="kk-input"
+                  />
+                </div>
+                <button type="button" onClick={myShareRemainder} className="kk-btn-ghost shrink-0 text-xs">
+                  Use remainder
+                </button>
+              </div>
+            )}
           </div>
 
           {/* Payee cards */}
@@ -397,7 +443,7 @@ export function SplitForm({ initialSplit, onClose, onSuccess }: Props) {
                   <p className="mb-1 text-xs text-fg-muted">Payments received</p>
                   <div className="rounded-lg border border-border bg-surface overflow-hidden">
                     {p.settlementIds.map(id =>
-                      txnRow(id, () => updateShare(p.key, { settlementIds: p.settlementIds.filter(x => x !== id) }), '+'),
+                      txnRow(id, () => updateSettlements(p.key, p.settlementIds.filter(x => x !== id)), '+'),
                     )}
                   </div>
                 </div>
@@ -420,7 +466,7 @@ export function SplitForm({ initialSplit, onClose, onSuccess }: Props) {
                     type="income"
                     multiple
                     value={p.settlementIds}
-                    onChange={(ids) => updateShare(p.key, { settlementIds: ids as string[] })}
+                    onChange={(ids) => updateSettlements(p.key, ids as string[])}
                     excludeIds={[
                       ...usedIncomeIds,
                       ...shares.flatMap(s => s.settlementIds),

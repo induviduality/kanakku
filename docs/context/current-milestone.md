@@ -3,9 +3,12 @@
 ## Completed Tasks
 - Fixed linked-transaction amount resolution (₹0 bug for picks outside the 3-month pool): per-id `useQueries` in SplitForm + query-cache priming in TransactionPicker — DONE
 - SplitForm UI revamp: unified selected-expense list with total footer, collapsible picker, resolved settlement rows, touched-gated validation errors, allocation hint — DONE
+- Amount-owed auto-fill from linked payments (reads query cache, not stale local txnMap, to avoid a one-render lag) — DONE
+- Standalone "Done" button next to the expense picker (was relabeling "Add expense") — DONE
+- "I'm not part of this split" checkbox to hide/zero Your share — DONE
 
 ## Pending
-- Visual browser verification (blocked on login — dev seed user not active on local instance)
+- Visual browser verification (user confirmed docker redeploy picked up the code; no explicit visual sign-off received yet)
 
 # Ad-hoc Feature Sprint (2026-07-08) — Credit Card Remodel
 

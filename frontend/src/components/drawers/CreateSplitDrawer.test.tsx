@@ -39,6 +39,32 @@ describe('CreateSplitDrawer', () => {
     await waitFor(() => expect(submit).toBeEnabled())
   })
 
+  it('hides Your share amount and excludes it from allocation when "not part of this split" is checked', async () => {
+    const user = userEvent.setup()
+    renderWithQuery(<CreateSplitDrawer open onClose={vi.fn()} />)
+
+    await waitFor(() => screen.getByText('Gym membership'))
+    await user.click(screen.getByText('Gym membership'))
+    await user.type(screen.getByLabelText('Your share amount'), '2500')
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Create Split' })).toBeEnabled())
+
+    await user.click(screen.getByText("I'm not part of this split"))
+    expect(screen.queryByLabelText('Your share amount')).not.toBeInTheDocument()
+    // No payee shares yet, so allocation drops to 0 and submit is disabled again.
+    expect(screen.getByRole('button', { name: 'Create Split' })).toBeDisabled()
+
+    await user.click(screen.getByText("I'm not part of this split"))
+    expect(screen.getByLabelText('Your share amount')).toHaveValue(2500)
+  })
+
+  it('shows a standalone Done button next to the picker instead of relabeling Add expense', async () => {
+    renderWithQuery(<CreateSplitDrawer open onClose={vi.fn()} />)
+    await waitFor(() => screen.getByText('Gym membership'))
+    // Picker is open by default in create mode.
+    expect(screen.queryByRole('button', { name: 'Add expense' })).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Done' })).toBeInTheDocument()
+  })
+
   it('excludes already-split expenses from the picker', async () => {
     renderWithQuery(<CreateSplitDrawer open onClose={vi.fn()} />)
     await waitFor(() => screen.getByText('Gym membership'))
@@ -138,6 +164,32 @@ describe('CreateSplitDrawer', () => {
     await waitFor(() => screen.getByText('Gym membership'))
     await user.click(screen.getByRole('button', { name: /add payee/i }))
     expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+  })
+
+  it('auto-fills amount owed from a linked payment when the field is untouched', async () => {
+    const user = userEvent.setup()
+    renderWithQuery(<CreateSplitDrawer open onClose={vi.fn()} />)
+
+    await waitFor(() => screen.getByText('Gym membership'))
+    await user.click(screen.getByText('Gym membership'))
+
+    await user.click(screen.getByRole('button', { name: /add payee/i }))
+    await user.type(screen.getByRole('combobox'), 'Rahul')
+    await user.click(await screen.findByRole('option', { name: 'Rahul' }))
+
+    // Amount owed left blank — link a payment without typing an amount first.
+    await user.click(screen.getByRole('button', { name: /link payments/i }))
+    await waitFor(() => screen.getByText('May salary'))
+    await user.click(screen.getByText('May salary'))
+
+    await waitFor(() => expect(screen.getByLabelText('Amount owed')).toHaveValue(85000))
+    // Allocated total reacts to the auto-filled amount, not just the input.
+    expect(screen.getByText('₹85,000 / ₹2,500')).toBeInTheDocument()
+
+    // Unlinking brings it back down to the remaining linked total.
+    await user.click(screen.getByRole('button', { name: 'Unlink payment' }))
+    await waitFor(() => expect(screen.getByLabelText('Amount owed')).toHaveValue(0))
+    expect(screen.getByText('₹0 / ₹2,500')).toBeInTheDocument()
   })
 
   it('shows an inline error when linked payments exceed the share amount', async () => {

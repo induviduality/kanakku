@@ -893,4 +893,8 @@ Replaced the 50-row capped native `<select>` / checkbox pickers in split settlem
 
 ## Completed Tasks
 - Fixed ₹0-amount bug when linking transactions found via the picker's year/all-time search tiers: SplitForm resolves every referenced transaction per-id (`useQueries` on `['transaction', id]`), TransactionPicker primes that cache on select. Removed the 90-day pool dependency entirely.
+- Amount owed auto-fills from linked payments while untouched (reads `queryClient.getQueryData` to avoid a one-render-stale `txnMap` read); manual edits disable the sync so further links don't clobber a typed value.
+- Expense picker toggle split into two controls: "+ Add expense" (closed state) and a right-aligned "Done" button next to a "Select expenses" header (open state) — no longer one button relabeling itself.
+- "I'm not part of this split" checkbox next to "Your share": hides the amount input and forces the contribution to 0 without discarding the typed value; edit mode defaults it to checked when the loaded split has no own share.
+- 4 new regression tests (year-tier resolution, pristine payee card, auto-fill + allocation reactivity, standalone Done button) — 26/26 CreateSplitDrawer + SplitDrawer tests pass.
 - SplitForm UI revamp: selected expenses always shown as a row list with a "Total to split" footer (create + edit unified); picker collapses behind Add expense; settlement rows show date/label/amount with unlink; payee-card validation errors only appear after the card is touched; balance bar gains "₹X left to allocate / over-allocated" hint; Notes moved below shares. 2 new regression tests (year-tier amount resolution, pristine payee card shows no errors) — DONE

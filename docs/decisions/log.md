@@ -458,3 +458,23 @@ The format: date, title, context, decision, alternatives, what it affects.
 - Widening the pool window to all-time — unbounded fetch, still capped by page size.
 
 **Affects:** `frontend/src/components/SplitForm.tsx`, `frontend/src/components/TransactionPicker.tsx`.
+
+## 2026-07-11 (2) — Amount-owed auto-fill reads settlement amounts from the query cache, not the local txnMap
+
+**Context:** Follow-up to the same-day split-drawer fix. Linking a payment via "+ Link payments" should auto-fill the payee's "Amount owed" field (previously it stayed at whatever was typed/blank, forcing users to manually copy the linked payment's amount). The naive fix — sum `txnMap[id]?.amount` for the newly linked ids inside the `settlementIds` state update — read stale data: `txnMap` is built from `useQueries` keyed off `shares` from the *previous* render, so the just-picked transaction's amount isn't in it yet on the render where `onChange` fires.
+
+**Decision:** `updateSettlements` reads each newly-linked id via `queryClient.getQueryData(['transaction', id])` (falling back to `txnMap` for ids already resolved) instead of `txnMap` alone. TransactionPicker's `handleSelect` already primes that cache entry synchronously before calling `onChange`, so the freshly-picked amount is available immediately. Auto-fill only applies while the amount field is untouched (`PayeeShare.touched`); a manual edit turns off the sync so linking further payments won't clobber a user-entered value.
+
+**Alternatives considered:**
+- Passing the full `Transaction` object through `TransactionPicker`'s `onChange` — bigger API change across all picker consumers for one caller's need.
+- `useEffect` reacting to `settlementIds` changes and recomputing from `txnMap` — same staleness problem, just deferred one render; still lags behind the synchronous cache write.
+
+**Affects:** `frontend/src/components/SplitForm.tsx`.
+
+## 2026-07-11 (3) — Split form UI: standalone Done button, and "I'm not part of this split" checkbox
+
+**Context:** User feedback on the same-day revamp: (1) the expense picker's toggle button relabeled itself between "Add expense" and "Done adding" in the same slot, which read as one ambiguous control; (2) no way to exclude yourself entirely from a split (e.g. you're just facilitating a payment between two other people) without leaving "Your share" at a confusing 0.
+
+**Decision:** Split the toggle into two controls — "+ Add expense" only shows when the picker is closed; once open, a "Select expenses" header row with a right-aligned "Done" button (same pattern as the existing "Link settlement" panel) closes it. Added an `excludeMe` checkbox next to the "Your share" label; when checked, the amount input is hidden entirely and `myShareNum` is forced to 0 regardless of any previously typed value (which is preserved in state and restored if unchecked). Edit mode defaults the checkbox to checked when the loaded split has no `payee_id: null` share.
+
+**Affects:** `frontend/src/components/SplitForm.tsx`.
