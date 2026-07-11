@@ -325,8 +325,9 @@ async def test_replace_existing_updates_account_balance(authed) -> None:
     acc = (await client.get(f"/api/v1/accounts/{account_id}", headers=headers)).json()
     assert acc["current_balance"] == "9675.00"  # 10000 opening - 325 (not 300)
 
-    old_txn = (await client.get(f"/api/v1/transactions/{old_txn_id}", headers=headers)).json()
-    assert old_txn["deleted_at"] is not None
+    # GET excludes soft-deleted transactions by default.
+    old_txn_resp = await client.get(f"/api/v1/transactions/{old_txn_id}", headers=headers)
+    assert old_txn_resp.status_code == 404
 
 
 async def test_confirm_force_flag_confirms_duplicates(authed) -> None:

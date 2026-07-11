@@ -54,8 +54,19 @@
 
 ## Pending
 - **Phase 2** (separate task, later): once the user has spot-checked computed balances against the frozen legacy column values and their real bank statements, drop the now-unused `accounts.current_balance` column in a follow-up migration.
-- Real pytest run against a test DB — everything here is syntax + import-resolution verified only, not executed.
 - User's existing production drift (the numbers found during investigation) resolves itself automatically the moment this deploys — no manual `UPDATE` needed, since balance is no longer a stored value to fix.
+
+# Ad-hoc Fix Sprint (2026-07-11, cont. 4) — Transactions Summary: Transfer Credit/Debit + Opening/Closing Balance — COMPLETE
+
+## Completed Tasks
+- Fixed `list_transactions`'s inflow/outflow summary excluding transfers even when the view is filtered to a specific account (where a transfer in/out of that account is a real credit/debit) — added direction-aware transfer legs to `total_inflow`/`total_outflow` when `account_id` filters the view — DONE
+- Added `opening_balance`/`closing_balance` to `TransactionListResponse` and the Transactions page header, summed across the filtered (or all) accounts — DONE
+- Ran the real backend test suite against a running local Docker Postgres for the first time this session (previously blocked, no DATABASE_URL) — fixed 4 pre-existing test regressions from last session's Phase 1 balance refactor that had never actually executed against a DB — DONE
+- `test_transactions.py` (28 tests, incl. 2 new), `test_imports.py`, `test_accounts.py` all pass against the real DB — DONE
+
+## Pending
+- (none — task complete)
+- Separately confirmed pre-existing, unrelated to this session: `test_dashboard.py`/`test_dashboard_net_expense.py` fail because the test fixture doesn't run Alembic migrations (missing `transaction_with_net_amount` view); `test_export.py`/`test_cli.py`/`test_import_archive.py`/`test_payment_methods.py`/`test_reports_query.py` have separate pre-existing issues. Worth a dedicated follow-up but out of scope here.
 
 # Ad-hoc Feature Sprint (2026-07-08) — Credit Card Remodel
 

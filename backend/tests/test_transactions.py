@@ -1,5 +1,7 @@
 """Integration tests for /api/v1/transactions."""
 
+from datetime import UTC, datetime, timedelta
+
 import pytest
 from httpx import AsyncClient
 
@@ -219,7 +221,7 @@ async def test_list_returns_own_transactions(authed) -> None:
         json={"type": "expense", "transacted_at": "2026-01-15T10:00:00Z", "amount": "100.00", "account_id": acc_id},
         headers=headers,
     )
-    resp = await client.get("/api/v1/transactions", headers=headers)
+    resp = await client.get("/api/v1/transactions", params={"type": "expense"}, headers=headers)
     assert resp.status_code == 200
     assert len(resp.json()["items"]) == 1
 
@@ -233,7 +235,7 @@ async def test_list_excludes_deleted_by_default(authed) -> None:
     )
     txn_id = resp.json()["id"]
     await client.delete(f"/api/v1/transactions/{txn_id}", headers=headers)
-    resp = await client.get("/api/v1/transactions", headers=headers)
+    resp = await client.get("/api/v1/transactions", params={"type": "expense"}, headers=headers)
     assert len(resp.json()["items"]) == 0
 
 
@@ -268,10 +270,88 @@ async def test_filter_by_account(authed) -> None:
         json={"type": "expense", "transacted_at": "2026-01-15T10:00:00Z", "amount": "200.00", "account_id": acc2_id},
         headers=headers,
     )
-    resp = await client.get("/api/v1/transactions", params={"account_id": acc_id}, headers=headers)
+    resp = await client.get(
+        "/api/v1/transactions", params={"account_id": acc_id, "type": "expense"}, headers=headers
+    )
     items = resp.json()["items"]
     assert len(items) == 1
     assert items[0]["account_id"] == acc_id
+
+
+async def test_summary_counts_transfer_as_credit_debit_when_account_filtered(authed) -> None:
+    """A transfer into/out of the filtered account is a real credit/debit on
+    that account's ledger (like a bank statement), even though transfers net
+    to zero across the whole portfolio and are excluded from the unfiltered
+    total_inflow/total_outflow."""
+    client, headers, acc_id = authed
+    acc2_id = await _create_account(client, headers, "Other")
+
+    # Transfer OUT of acc_id — should count as outflow when filtered to acc_id.
+    await client.post(
+        "/api/v1/transactions",
+        json={
+            "type": "transfer", "transacted_at": "2026-01-15T10:00:00Z",
+            "amount": "500.00", "account_id": acc_id, "to_account_id": acc2_id,
+        },
+        headers=headers,
+    )
+    # Transfer IN to acc_id — should count as inflow when filtered to acc_id.
+    await client.post(
+        "/api/v1/transactions",
+        json={
+            "type": "transfer", "transacted_at": "2026-01-16T10:00:00Z",
+            "amount": "300.00", "account_id": acc2_id, "to_account_id": acc_id,
+        },
+        headers=headers,
+    )
+
+    resp = await client.get("/api/v1/transactions", params={"account_id": acc_id}, headers=headers)
+    data = resp.json()
+    assert data["total_outflow"] == "500.00"
+    assert data["total_inflow"] == "300.00"
+
+    # Unfiltered view: transfers net to zero across the whole portfolio.
+    resp = await client.get("/api/v1/transactions", headers=headers)
+    data = resp.json()
+    assert data["total_outflow"] == "0.00"
+    assert data["total_inflow"] == "0.00"
+
+
+async def test_opening_and_closing_balance(authed) -> None:
+    # The account's opening_balance transaction is dated "now" at creation
+    # time (see accounts.py), so the test window must start after that.
+    client, headers, acc_id = authed  # opening_balance 10000.00
+    tomorrow = datetime.now(UTC) + timedelta(days=1)
+    day_after = tomorrow + timedelta(days=1)
+    await client.post(
+        "/api/v1/transactions",
+        json={
+            "type": "income", "transacted_at": tomorrow.isoformat(),
+            "amount": "1000.00", "account_id": acc_id,
+        },
+        headers=headers,
+    )
+    await client.post(
+        "/api/v1/transactions",
+        json={
+            "type": "expense", "transacted_at": day_after.isoformat(),
+            "amount": "400.00", "account_id": acc_id,
+        },
+        headers=headers,
+    )
+
+    resp = await client.get(
+        "/api/v1/transactions",
+        params={
+            "account_id": acc_id,
+            "from": tomorrow.isoformat(),
+            "to": (day_after + timedelta(days=1)).isoformat(),
+        },
+        headers=headers,
+    )
+    data = resp.json()
+    assert data["opening_balance"] == "10000.00"
+    assert data["closing_balance"] == "10600.00"
 
 
 async def test_filter_by_date_range(authed) -> None:
@@ -304,13 +384,15 @@ async def test_cursor_pagination(authed) -> None:
                   "amount": "100.00", "account_id": acc_id},
             headers=headers,
         )
-    page1 = (await client.get("/api/v1/transactions", params={"limit": 3}, headers=headers)).json()
+    page1 = (await client.get(
+        "/api/v1/transactions", params={"limit": 3, "type": "expense"}, headers=headers
+    )).json()
     assert len(page1["items"]) == 3
     assert page1["next_cursor"] is not None
 
     page2 = (await client.get(
         "/api/v1/transactions",
-        params={"limit": 3, "cursor": page1["next_cursor"]},
+        params={"limit": 3, "cursor": page1["next_cursor"], "type": "expense"},
         headers=headers,
     )).json()
     assert len(page2["items"]) == 2

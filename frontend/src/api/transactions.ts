@@ -55,6 +55,8 @@ export interface TransactionListResponse {
   total: number
   total_inflow: string
   total_outflow: string
+  opening_balance: string
+  closing_balance: string
 }
 
 export interface TransactionCreate {

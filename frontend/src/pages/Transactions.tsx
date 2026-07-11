@@ -235,6 +235,9 @@ export default function Transactions() {
   const total = txnData?.total ?? 0
   const totalInflow = parseFloat(txnData?.total_inflow ?? '0')
   const totalOutflow = parseFloat(txnData?.total_outflow ?? '0')
+  const openingBalance = parseFloat(txnData?.opening_balance ?? '0')
+  const closingBalance = parseFloat(txnData?.closing_balance ?? '0')
+  const hasDateFilter = !!(activeFilters.from || activeFilters.to)
   const nextCursor = txnData?.next_cursor ?? null
   const totalPages = Math.max(1, Math.ceil(total / urlPageSize))
   const showPagination = total > urlPageSize || urlPage > 1
@@ -476,6 +479,12 @@ export default function Transactions() {
                 <>
                   <span className="text-green-600">+{totalInflow.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
                   <span className="text-red-600">−{totalOutflow.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                </>
+              )}
+              {hasDateFilter && (
+                <>
+                  <span>Opening: {openingBalance.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                  <span>Closing: {closingBalance.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
                 </>
               )}
             </div>

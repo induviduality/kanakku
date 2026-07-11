@@ -27,7 +27,7 @@ from app.schemas.transaction import (
     TransactionPatch,
     TransactionResponse,
 )
-from app.services.account_balance import get_account_or_404 as _get_account_or_404
+from app.services.account_balance import compute_balances, get_account_or_404 as _get_account_or_404
 
 router = APIRouter(prefix="/transactions", tags=["transactions"])
 
@@ -429,84 +429,135 @@ async def list_transactions(
 
     if not include_deleted:
         base_where.append(Transaction.deleted_at.is_(None))
+
+    # Filters shared by every aggregate (count, inflow, outflow, transfer legs) —
+    # captured before `type` and the account direction OR-clause are layered on,
+    # since inflow/outflow need to apply those two differently per leg.
+    common_where = list(base_where)
+
     if type is not None:
         base_where.append(Transaction.type == type)
 
     # account_id: match source OR destination (covers transfers where account is destination)
+    filter_account_ids: list[uuid.UUID] | None = None
     if account_id is not None:
-        account_ids = [uuid.UUID(x.strip()) for x in account_id.split(',') if x.strip()]
-        if len(account_ids) == 1:
-            aid = account_ids[0]
+        filter_account_ids = [uuid.UUID(x.strip()) for x in account_id.split(',') if x.strip()]
+        if len(filter_account_ids) == 1:
+            aid = filter_account_ids[0]
             base_where.append(or_(Transaction.account_id == aid, Transaction.to_account_id == aid))
-        elif len(account_ids) > 1:
+        elif len(filter_account_ids) > 1:
             base_where.append(
-                or_(Transaction.account_id.in_(account_ids), Transaction.to_account_id.in_(account_ids))
+                or_(Transaction.account_id.in_(filter_account_ids), Transaction.to_account_id.in_(filter_account_ids))
             )
 
-    if payee_id is not None:
-        payee_ids = [uuid.UUID(x.strip()) for x in payee_id.split(',') if x.strip()]
-        if len(payee_ids) == 1:
-            base_where.append(Transaction.payee_id == payee_ids[0])
-        elif len(payee_ids) > 1:
-            base_where.append(Transaction.payee_id.in_(payee_ids))
+    for extra_where in (base_where, common_where):
+        if payee_id is not None:
+            payee_ids = [uuid.UUID(x.strip()) for x in payee_id.split(',') if x.strip()]
+            if len(payee_ids) == 1:
+                extra_where.append(Transaction.payee_id == payee_ids[0])
+            elif len(payee_ids) > 1:
+                extra_where.append(Transaction.payee_id.in_(payee_ids))
 
-    if from_date is not None:
-        base_where.append(Transaction.transacted_at >= from_date)
-    if to_date is not None:
-        base_where.append(Transaction.transacted_at <= to_date)
-    if q is not None:
-        base_where.append(Transaction.description.ilike(f"%{q}%"))
-    if category_id is not None:
-        base_where.append(
-            Transaction.id.in_(
-                select(transaction_categories.c.transaction_id).where(
-                    transaction_categories.c.category_id == category_id
-                )
-            )
-        )
-    if tag_id is not None:
-        tag_ids = [uuid.UUID(x.strip()) for x in tag_id.split(',') if x.strip()]
-        if len(tag_ids) == 1:
-            base_where.append(
+        if from_date is not None:
+            extra_where.append(Transaction.transacted_at >= from_date)
+        if to_date is not None:
+            extra_where.append(Transaction.transacted_at <= to_date)
+        if q is not None:
+            extra_where.append(Transaction.description.ilike(f"%{q}%"))
+        if category_id is not None:
+            extra_where.append(
                 Transaction.id.in_(
-                    select(transaction_tags.c.transaction_id).where(
-                        transaction_tags.c.tag_id == tag_ids[0]
+                    select(transaction_categories.c.transaction_id).where(
+                        transaction_categories.c.category_id == category_id
                     )
                 )
             )
-        elif len(tag_ids) > 1:
-            base_where.append(
+        if tag_id is not None:
+            tag_ids = [uuid.UUID(x.strip()) for x in tag_id.split(',') if x.strip()]
+            if len(tag_ids) == 1:
+                extra_where.append(
+                    Transaction.id.in_(
+                        select(transaction_tags.c.transaction_id).where(
+                            transaction_tags.c.tag_id == tag_ids[0]
+                        )
+                    )
+                )
+            elif len(tag_ids) > 1:
+                extra_where.append(
+                    Transaction.id.in_(
+                        select(transaction_tags.c.transaction_id).where(
+                            transaction_tags.c.tag_id.in_(tag_ids)
+                        )
+                    )
+                )
+        if budget_id is not None:
+            extra_where.append(
                 Transaction.id.in_(
-                    select(transaction_tags.c.transaction_id).where(
-                        transaction_tags.c.tag_id.in_(tag_ids)
+                    select(transaction_budgets.c.transaction_id).where(
+                        transaction_budgets.c.budget_id == budget_id
                     )
                 )
             )
-    if budget_id is not None:
-        base_where.append(
-            Transaction.id.in_(
-                select(transaction_budgets.c.transaction_id).where(
-                    transaction_budgets.c.budget_id == budget_id
-                )
-            )
-        )
 
     # Total count (no cursor, no limit)
     count_stmt = select(func.count()).select_from(Transaction).where(*base_where)
     total: int = (await session.execute(count_stmt)).scalar_one()
 
-    # Inflow/outflow totals — transfers excluded (net-zero between own accounts)
+    # Inflow/outflow totals.
+    # With no account filter, transfers net to zero across the whole portfolio
+    # (money just moves between the user's own accounts) so they're excluded.
+    # But once the view is narrowed to specific accounts, a transfer into or
+    # out of THOSE accounts is a real credit/debit on that account's ledger —
+    # exactly what a bank statement's "Total Debits"/"Total Credits" show — so
+    # it must be counted or the summary undercounts both sides.
     inflow_row = await session.execute(
-        select(func.coalesce(func.sum(Transaction.amount), Decimal("0")))
+        select(func.coalesce(func.sum(Transaction.amount), Decimal("0.00")))
         .where(*base_where, Transaction.type == TransactionType.income)
     )
     total_inflow: Decimal = inflow_row.scalar_one()
 
     outflow_row = await session.execute(
-        select(func.coalesce(func.sum(Transaction.amount), Decimal("0")))
+        select(func.coalesce(func.sum(Transaction.amount), Decimal("0.00")))
         .where(*base_where, Transaction.type == TransactionType.expense)
     )
     total_outflow: Decimal = outflow_row.scalar_one()
+
+    if filter_account_ids and (type is None or type == TransactionType.transfer):
+        transfer_in_row = await session.execute(
+            select(func.coalesce(func.sum(func.coalesce(Transaction.to_amount, Transaction.amount)), Decimal("0.00")))
+            .where(
+                *common_where,
+                Transaction.type == TransactionType.transfer,
+                Transaction.to_account_id.in_(filter_account_ids),
+            )
+        )
+        total_inflow += transfer_in_row.scalar_one()
+
+        transfer_out_row = await session.execute(
+            select(func.coalesce(func.sum(Transaction.amount), Decimal("0.00")))
+            .where(
+                *common_where,
+                Transaction.type == TransactionType.transfer,
+                Transaction.account_id.in_(filter_account_ids),
+            )
+        )
+        total_outflow += transfer_out_row.scalar_one()
+
+    # Opening/closing balance, summed across whichever accounts the view is
+    # scoped to (the filtered set, or every account the user owns) — mirrors
+    # a bank statement's "Opening Balance ... Closing Balance" line.
+    balance_account_ids = filter_account_ids
+    if balance_account_ids is None:
+        acc_rows = await session.execute(
+            select(Account.id).where(Account.user_id == current_user.id, Account.deleted_at.is_(None))
+        )
+        balance_account_ids = list(acc_rows.scalars().all())
+
+    opening_balance = Decimal("0.00")
+    if from_date is not None and balance_account_ids:
+        opening_balances = await compute_balances(session, balance_account_ids, current_user.id, as_of=from_date)
+        opening_balance = sum(opening_balances.values(), Decimal("0.00"))
+    closing_balance = opening_balance + total_inflow - total_outflow
 
     stmt = select(Transaction).where(*base_where)
 
@@ -565,6 +616,8 @@ async def list_transactions(
         total=total,
         total_inflow=total_inflow,
         total_outflow=total_outflow,
+        opening_balance=opening_balance,
+        closing_balance=closing_balance,
     )
 
 

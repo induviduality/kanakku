@@ -104,3 +104,5 @@ class TransactionListResponse(BaseModel):
     total: int
     total_inflow: Decimal
     total_outflow: Decimal
+    opening_balance: Decimal
+    closing_balance: Decimal

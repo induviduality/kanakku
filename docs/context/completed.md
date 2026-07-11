@@ -932,3 +932,12 @@ Replaced the 50-row capped native `<select>` / checkbox pickers in split settlem
 
 ## Pending
 - Phase 2: drop the now-unused `accounts.current_balance` column in a follow-up migration once the user has verified computed balances match reality.
+
+# Ad-hoc Fix Sprint (2026-07-11, cont. 4) — Transactions Summary: Transfer Credit/Debit + Opening/Closing Balance
+
+## Completed Tasks
+- Root-caused user's June Union Bank statement-vs-app mismatch: `list_transactions`'s inflow/outflow summary excluded transfers unconditionally, but that's only correct when viewing the whole portfolio — filtered to one account, a transfer in/out of it is a real credit/debit. Fixed: when `account_id` filters the view, transfer legs are now added to `total_inflow`/`total_outflow` in the direction relative to the filtered account(s).
+- Added `opening_balance`/`closing_balance` to `TransactionListResponse`, summed across the filtered (or all) accounts — `opening_balance = compute_balances(as_of=from_date)`, `closing_balance = opening_balance + total_inflow - total_outflow`, mirroring the bank statement's own identity. Wired into the Transactions page header.
+- First real pytest run against a running local Docker Postgres this session (found `infra-db-1` already up with a `kanakku_test` DB) — caught that last session's Phase 1 account-balance refactor (`d780d07`) had never actually been executed against a database. Fixed 4 resulting pre-existing test regressions (bare transaction-count assertions broken by the now-real `opening_balance` transaction row; one test asserting `deleted_at` on a 404 response).
+- Confirmed (and explicitly left alone, out of scope) pre-existing unrelated failures: `test_dashboard.py`/`test_dashboard_net_expense.py` fail because the test fixture builds schema via `Base.metadata.create_all`, which skips Alembic-only objects like the `transaction_with_net_amount` view; `test_export.py`, `test_cli.py`, `test_import_archive.py`, `test_payment_methods.py`, `test_reports_query.py` have separate pre-existing issues unrelated to any file touched this session.
+- `test_transactions.py`, `test_imports.py`, `test_accounts.py` (55 tests) pass against the real DB.
