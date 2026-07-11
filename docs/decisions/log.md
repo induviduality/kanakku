@@ -478,3 +478,15 @@ The format: date, title, context, decision, alternatives, what it affects.
 **Decision:** Split the toggle into two controls — "+ Add expense" only shows when the picker is closed; once open, a "Select expenses" header row with a right-aligned "Done" button (same pattern as the existing "Link settlement" panel) closes it. Added an `excludeMe` checkbox next to the "Your share" label; when checked, the amount input is hidden entirely and `myShareNum` is forced to 0 regardless of any previously typed value (which is preserved in state and restored if unchecked). Edit mode defaults the checkbox to checked when the loaded split has no `payee_id: null` share.
 
 **Affects:** `frontend/src/components/SplitForm.tsx`.
+
+## 2026-07-11 (4) — Transaction edit: local-time datetime-local handling + per-id cache invalidation
+
+**Context:** Investigating a report of "opening_balance duplicate" error led to discovering the account/transaction referenced didn't exist in the DB at all (stale frontend reference, not a backend bug — no code change needed there). The user's real complaint was that editing a transaction's date "doesn't cascade" — most noticeable on opening_balance transactions since those get corrected after the fact.
+
+**Decision:** Two independent bugs, both in the transaction edit path:
+1. `TransactionForm.tsx` built the `<input type="datetime-local">` value via `initial.transacted_at.slice(0, 16)` on the raw UTC ISO string, and formatted new transactions via `new Date().toISOString().slice(0, 16)`. `datetime-local` has no timezone — it displays the string as literal wall-clock. For any user not in UTC, this both displayed the wrong time and, on submit (even with the field untouched), silently shifted the stored instant by the browser's UTC offset. Fixed with a `toDatetimeLocalValue(date: Date)` helper that reads local Date components (`getFullYear`/`getHours`/etc.) instead of slicing an ISO string.
+2. `usePatchTransaction`/`useDeleteTransaction` in `api/transactions.ts` invalidated `['transactions']` (plural list) but never `['transaction', id]` (singular detail key) — a *different* noun, so React Query's prefix-based invalidation never touched it. `SplitForm.tsx`, `SplitDrawer.tsx`, `SplitDetail.tsx`, and the transaction edit page (`useTransaction`) all read that singular key directly, so they kept serving the pre-edit snapshot for up to the 5-minute `staleTime`. Fixed by also invalidating `['transaction', id]` in both mutations' `onSuccess`.
+
+An Explore-agent audit of the rest of `frontend/src/api/` confirmed this mismatched-noun pattern is unique to transactions — every other file's singular detail key shares the plural key's prefix (e.g. `['budgets', id]` vs `['budgets']`), so cascading invalidation already worked there.
+
+**Affects:** `frontend/src/components/forms/TransactionForm.tsx`, `frontend/src/api/transactions.ts`.

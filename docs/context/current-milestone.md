@@ -10,6 +10,18 @@
 ## Pending
 - Visual browser verification (user confirmed docker redeploy picked up the code; no explicit visual sign-off received yet)
 
+# Ad-hoc Fix Sprint (2026-07-11, cont.) — Transaction Edit Correctness
+
+## Completed Tasks
+- Fixed timezone shift on transaction date edits: `TransactionForm`'s datetime-local field now formats/parses via local `Date` components instead of slicing the raw UTC ISO string (`toDatetimeLocalValue` helper) — DONE
+- Fixed stale per-transaction cache: `usePatchTransaction`/`useDeleteTransaction` now invalidate `['transaction', id]` (singular) in addition to `['transactions']` (plural list) — the edit page, SplitForm, SplitDrawer, and SplitDetail all read the singular key directly — DONE
+- Confirmed (via Explore-agent audit) this mismatched-noun cache-invalidation bug is unique to transactions.ts; no other api/ file needs the same fix — DONE
+- 3 new regression tests (timezone round-trip in TransactionForm, cache invalidation for both mutations in transactions.test.tsx)
+
+## Next
+- Dashboard: Account balances section should show balance as of the end of the selected period (or today, if the current month is selected) instead of the live current balance
+- Transactions page: move the "Show X per page" control up next to the filter button, to its left
+
 # Ad-hoc Feature Sprint (2026-07-08) — Credit Card Remodel
 
 ## Completed Tasks
