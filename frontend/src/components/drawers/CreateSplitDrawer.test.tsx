@@ -3,6 +3,7 @@ import { screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { http, HttpResponse } from 'msw'
 import { server } from '../../test/server'
+import { TRANSACTIONS_RESPONSE } from '../../test/handlers'
 import { renderWithQuery } from '../../test/render-utils'
 import { CreateSplitDrawer } from './CreateSplitDrawer'
 
@@ -80,6 +81,63 @@ describe('CreateSplitDrawer', () => {
     const payee = captured.shares.find((s: any) => s.payee_id === 'payee-rahul')
     expect(own.amount).toBe('1500.00')
     expect(payee.amount).toBe('1000.00')
+  })
+
+  it('applies the amount of a transaction found via the year-long search tier', async () => {
+    const user = userEvent.setup()
+    // A transaction older than the 3-month window — only reachable via search.
+    const oldTxn = {
+      ...TRANSACTIONS_RESPONSE.items[0],
+      id: 'txn-jan-movie',
+      type: 'expense',
+      transacted_at: '2026-01-06T10:00:00Z',
+      amount: '1925.30',
+      description: 'District movie ticket',
+      payee_id: null,
+      is_split: false,
+      split_id: null,
+    }
+    server.use(
+      http.get('/api/v1/transactions', ({ request }) => {
+        const url = new URL(request.url)
+        const type = url.searchParams.get('type')
+        const from = url.searchParams.get('from')
+        const q = url.searchParams.get('q')?.toLowerCase()
+        let items = [...TRANSACTIONS_RESPONSE.items, oldTxn]
+        if (type) items = items.filter((t) => t.type === type)
+        if (from) items = items.filter((t) => t.transacted_at >= from)
+        if (q) items = items.filter((t) => (t.description ?? '').toLowerCase().includes(q))
+        return HttpResponse.json({ items, total: items.length, next_cursor: null })
+      }),
+      http.get('/api/v1/transactions/:id', ({ params }) => {
+        const found = [...TRANSACTIONS_RESPONSE.items, oldTxn].find((t) => t.id === params.id)
+        if (!found) return HttpResponse.json({ detail: 'Not found' }, { status: 404 })
+        return HttpResponse.json(found)
+      }),
+    )
+
+    renderWithQuery(<CreateSplitDrawer open onClose={vi.fn()} />)
+
+    await waitFor(() => screen.getByText('Gym membership'))
+    await user.type(screen.getByPlaceholderText('Search transactions…'), 'district')
+    await user.click(await screen.findByText('District movie ticket'))
+
+    // Selected row + total reflect the picked transaction's amount
+    await waitFor(() => expect(screen.getByText('Total to split')).toBeInTheDocument())
+    expect(screen.getAllByText(/1,925\.3/).length).toBeGreaterThan(0)
+
+    // "Use remainder" fills the resolved amount, making the form submittable
+    await user.click(screen.getByRole('button', { name: 'Use remainder' }))
+    expect(screen.getByLabelText('Your share amount')).toHaveValue(1925.3)
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Create Split' })).toBeEnabled())
+  })
+
+  it('does not show validation errors on a freshly added payee card', async () => {
+    const user = userEvent.setup()
+    renderWithQuery(<CreateSplitDrawer open onClose={vi.fn()} />)
+    await waitFor(() => screen.getByText('Gym membership'))
+    await user.click(screen.getByRole('button', { name: /add payee/i }))
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
   })
 
   it('shows an inline error when linked payments exceed the share amount', async () => {

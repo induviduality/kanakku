@@ -446,3 +446,15 @@ The format: date, title, context, decision, alternatives, what it affects.
 - ARQ job for import — adds queue latency with no benefit; the atomic DB transaction blocks anyway
 
 **Affects:** `app/models/export_job.py`, `app/routers/export.py`, `0019_export_jobs.py`.
+
+## 2026-07-11 — Split form resolves transactions per-id; TransactionPicker primes the query cache
+
+**Context:** The Create/Edit Split drawer computed totals and labels from its own 90-day / 200-item transaction pools. The TransactionPicker searches up to a year (tier 2) or all time (tier 3), so a transaction picked from search results outside the pool window resolved to nothing: total showed ₹0, "Use remainder" filled 0, and linked settlements rendered as a raw UUID slice with +₹0.
+
+**Decision:** SplitForm now resolves every referenced transaction (selected expenses + all linked settlements) individually via `useQueries` on `['transaction', id]` — no date-window pool at all. TransactionPicker calls `queryClient.setQueryData(['transaction', id], txn)` on select, so the just-picked row is served from cache instantly (no extra fetch, works for every picker consumer). Edit-mode pre-selected ids are covered by the same queries.
+
+**Alternatives considered:**
+- Passing the full Transaction object up through onChange — changes the picker's public API and still leaves edit-mode initial ids unresolved.
+- Widening the pool window to all-time — unbounded fetch, still capped by page size.
+
+**Affects:** `frontend/src/components/SplitForm.tsx`, `frontend/src/components/TransactionPicker.tsx`.

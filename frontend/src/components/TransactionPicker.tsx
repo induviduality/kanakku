@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
 import { useTransactions, type Transaction } from '../api/transactions'
 import { useAccounts } from '../api/accounts'
 import { usePayees } from '../api/payees'
@@ -36,6 +37,7 @@ export function TransactionPicker({
   const [query, setQuery] = useState('')
   const [debouncedQuery, setDebouncedQuery] = useState('')
   const [tier, setTier] = useState<Tier>('local')
+  const queryClient = useQueryClient()
 
   // Debounce query input
   useEffect(() => {
@@ -132,14 +134,18 @@ export function TransactionPicker({
   // Selection helpers
   const selectedIds = Array.isArray(value) ? value : value ? [value] : []
 
-  function handleSelect(id: string) {
+  function handleSelect(t: Transaction) {
+    // Prime the per-transaction cache so consumers can resolve the picked
+    // transaction's amount/label even when it falls outside their own pools
+    // (e.g. tier-2/tier-3 search results older than 3 months).
+    queryClient.setQueryData(['transaction', t.id], t)
     if (multiple) {
-      const next = selectedIds.includes(id)
-        ? selectedIds.filter((x) => x !== id)
-        : [...selectedIds, id]
+      const next = selectedIds.includes(t.id)
+        ? selectedIds.filter((x) => x !== t.id)
+        : [...selectedIds, t.id]
       onChange(next)
     } else {
-      onChange(id)
+      onChange(t.id)
     }
   }
 
@@ -177,7 +183,7 @@ export function TransactionPicker({
             }
             payeeName={t.payee_id ? (payeeMap[t.payee_id] ?? undefined) : undefined}
             isSelected={selectedIds.includes(t.id)}
-            onClick={() => handleSelect(t.id)}
+            onClick={() => handleSelect(t)}
             showCheckbox={multiple}
           />
         ))}

@@ -10,7 +10,7 @@ import {
   type Split,
   type SplitShareCreate,
 } from '../api/splits'
-import { useTransactions, type Transaction } from '../api/transactions'
+import { type Transaction } from '../api/transactions'
 import { apiGet } from '../lib/api-client'
 import { usePayees, useCreatePayee } from '../api/payees'
 import { TransactionPicker } from './TransactionPicker'
@@ -40,16 +40,22 @@ function txnLabel(
   return 'Transaction'
 }
 
+function txnDate(t: Transaction): string {
+  return new Date(t.transacted_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })
+}
+
 interface PayeeShare {
   key: string
   payeeId: string | null
   amount: string
+  /** Errors are only shown once the user has interacted with this card. */
+  touched: boolean
   linkOpen: boolean
   settlementIds: string[]
 }
 
 function newPayeeShare(): PayeeShare {
-  return { key: crypto.randomUUID(), payeeId: null, amount: '', linkOpen: false, settlementIds: [] }
+  return { key: crypto.randomUUID(), payeeId: null, amount: '', touched: false, linkOpen: false, settlementIds: [] }
 }
 
 // ── Component ────────────────────────────────────────────────────────────────
@@ -61,19 +67,14 @@ interface Props {
 }
 
 export function SplitForm({ initialSplit, onClose, onSuccess }: Props) {
-  const threeMonthsAgo = useMemo(() => {
-    const d = new Date(); d.setDate(d.getDate() - 90); return d.toISOString().split('T')[0]
-  }, [])
-
-  const { data: expensePool } = useTransactions({ type: 'expense', from: threeMonthsAgo }, 200)
-  const { data: incomePool }  = useTransactions({ type: 'income',  from: threeMonthsAgo }, 200)
-  const { data: payees }      = usePayees()
+  const { data: payees } = usePayees()
   const { data: existingSplits } = useListSplits()
   const createPayee = useCreatePayee()
   const createSplit = useCreateSplit()
   const updateSplit = useUpdateSplit()
 
-  const [pickerOpen, setPickerOpen] = useState(false)
+  // Picker opens by default when creating (nothing selected yet), collapsed when editing.
+  const [pickerOpen, setPickerOpen] = useState(() => !initialSplit)
   const [notes, setNotes] = useState(() => initialSplit?.notes ?? '')
   const [selectedExpenseIds, setSelectedExpenseIds] = useState<string[]>(() => initialSplit?.expense_transaction_ids ?? [])
   const [myShare, setMyShare] = useState(() => {
@@ -89,6 +90,7 @@ export function SplitForm({ initialSplit, onClose, onSuccess }: Props) {
         key: crypto.randomUUID(),
         payeeId: s.payee_id,
         amount: s.amount,
+        touched: true,
         linkOpen: false,
         settlementIds: s.settlements.map(st => st.transaction_id),
       }))
@@ -120,79 +122,46 @@ export function SplitForm({ initialSplit, onClose, onSuccess }: Props) {
     return s
   }, [existingSplits, initialSplit])
 
-  const expenseTxns = expensePool?.items ?? []
-  const expenseMap = useMemo(() => {
-    const m: Record<string, Transaction> = {}
-    for (const t of expenseTxns) m[t.id] = t
-    return m
-  }, [expenseTxns])
-
-  const incomeMap = useMemo(() => {
-    const m: Record<string, Transaction> = {}
-    for (const t of incomePool?.items ?? []) m[t.id] = t
-    return m
-  }, [incomePool])
-
-  // Fetch pre-selected expense transactions individually (handles IDs outside the pool window)
-  const initialExpenseIds = initialSplit?.expense_transaction_ids ?? []
-  const preselectedExpenseQueries = useQueries({
-    queries: initialExpenseIds.map(id => ({
+  // ── Transaction resolution ─────────────────────────────────────────────────
+  // Resolve every referenced transaction by id. The picker primes the
+  // ['transaction', id] cache on select, so these queries usually hit cache;
+  // fetching per id also covers pre-selected ids from edit mode. This is the
+  // single source of truth — no date-window pool, so transactions picked from
+  // "last year" / "all time" search results always resolve correctly.
+  const referencedIds = useMemo(
+    () => [...new Set([...selectedExpenseIds, ...shares.flatMap(s => s.settlementIds)])],
+    [selectedExpenseIds, shares],
+  )
+  const txnQueries = useQueries({
+    queries: referencedIds.map(id => ({
       queryKey: ['transaction', id] as const,
       queryFn: () => apiGet<Transaction>(`/transactions/${id}`),
       staleTime: 5 * 60 * 1000,
     })),
   })
-  const preselectedExpenseMap = useMemo(() => {
+  const txnMap = useMemo(() => {
     const m: Record<string, Transaction> = {}
-    for (const q of preselectedExpenseQueries) {
+    for (const q of txnQueries) {
       if (q.data) m[q.data.id] = q.data
     }
     return m
-  }, [preselectedExpenseQueries])
+  }, [txnQueries])
+  const isResolving = txnQueries.some(q => q.isLoading)
 
-  // Fetch pre-selected settlement income transactions individually
-  const initialSettlementIds = useMemo(() => {
-    if (!initialSplit) return []
-    return [...new Set(initialSplit.shares.flatMap(s => s.settlements.map(st => st.transaction_id)))]
-  }, [initialSplit])
-  const preselectedIncomeQueries = useQueries({
-    queries: initialSettlementIds.map(id => ({
-      queryKey: ['transaction', id] as const,
-      queryFn: () => apiGet<Transaction>(`/transactions/${id}`),
-      staleTime: 5 * 60 * 1000,
-    })),
-  })
-  const preselectedIncomeMap = useMemo(() => {
-    const m: Record<string, Transaction> = {}
-    for (const q of preselectedIncomeQueries) {
-      if (q.data) m[q.data.id] = q.data
-    }
-    return m
-  }, [preselectedIncomeQueries])
-
-  // Merge pool data with individually fetched pre-selected data
-  const mergedExpenseMap = useMemo(() => ({ ...preselectedExpenseMap, ...expenseMap }), [preselectedExpenseMap, expenseMap])
-  const mergedIncomeMap  = useMemo(() => ({ ...preselectedIncomeMap,  ...incomeMap  }), [preselectedIncomeMap,  incomeMap])
-
-  const isLoadingPreselected = preselectedExpenseQueries.some(q => q.isLoading)
-
-  // ── Derived totals ───────────────────────────────────────────────────────
+  // ── Derived totals ─────────────────────────────────────────────────────────
   const totalExpense = useMemo(() =>
-    selectedExpenseIds.reduce((sum, id) => {
-      const t = mergedExpenseMap[id]
-      return sum + (t ? n(t.amount) : 0)
-    }, 0)
-  , [selectedExpenseIds, mergedExpenseMap])
+    selectedExpenseIds.reduce((sum, id) => sum + n(txnMap[id]?.amount), 0)
+  , [selectedExpenseIds, txnMap])
   const myShareNum       = n(myShare)
   const payeeSharesTotal = shares.reduce((s, p) => s + n(p.amount), 0)
   const allocated        = myShareNum + payeeSharesTotal
   const balance          = allocated - totalExpense
 
   function settledTotal(p: PayeeShare): number {
-    return p.settlementIds.reduce((s, id) => s + n(mergedIncomeMap[id]?.amount), 0)
+    return p.settlementIds.reduce((s, id) => s + n(txnMap[id]?.amount), 0)
   }
 
-  // ── Validation ───────────────────────────────────────────────────────────
+  // ── Validation ─────────────────────────────────────────────────────────────
   const payeeError: Record<string, string> = {}
   const seenPayees = new Set<string>()
   for (const p of shares) {
@@ -217,21 +186,24 @@ export function SplitForm({ initialSplit, onClose, onSuccess }: Props) {
   errors.push(...Object.values(payeeError))
 
   const isPending = createSplit.isPending || updateSplit.isPending
-  const canSubmit = errors.length === 0 && !isPending && !isLoadingPreselected
+  const canSubmit = errors.length === 0 && !isPending && !isResolving
 
-  // ── Mutators ─────────────────────────────────────────────────────────────
+  // ── Mutators ───────────────────────────────────────────────────────────────
   function updateShare(key: string, patch: Partial<PayeeShare>) {
     setShares(prev => prev.map(p => (p.key === key ? { ...p, ...patch } : p)))
   }
   function removeShare(key: string) {
     setShares(prev => prev.filter(p => p.key !== key))
   }
+  function removeExpense(id: string) {
+    setSelectedExpenseIds(prev => prev.filter(x => x !== id))
+  }
   function myShareRemainder() {
     setMyShare(Math.max(0, totalExpense - payeeSharesTotal).toFixed(2))
   }
   function payeeRemainder(key: string) {
     const others = shares.filter(p => p.key !== key).reduce((s, p) => s + n(p.amount), 0)
-    updateShare(key, { amount: Math.max(0, totalExpense - myShareNum - others).toFixed(2) })
+    updateShare(key, { amount: Math.max(0, totalExpense - myShareNum - others).toFixed(2), touched: true })
   }
 
   async function handleInlineCreatePayee(name: string) {
@@ -275,99 +247,82 @@ export function SplitForm({ initialSplit, onClose, onSuccess }: Props) {
   const payeeOptions = (payees ?? []).map(p => ({ id: p.id, label: p.name }))
   const allocatedPct = totalExpense > 0 ? Math.min(1, allocated / totalExpense) : 0
   const balanceOk    = Math.abs(balance) <= EPS && selectedExpenseIds.length > 0
+  const remaining    = Math.max(0, totalExpense - allocated)
+
+  // Shared row renderer for a resolved (or still loading) transaction.
+  function txnRow(id: string, onRemove: () => void, sign: '' | '+' = '') {
+    const txn = txnMap[id]
+    return (
+      <div key={id} className="flex items-center justify-between gap-3 px-3 py-2.5 border-b border-border last:border-0">
+        {txn ? (
+          <div className="flex min-w-0 flex-1 items-baseline gap-2">
+            <span className="shrink-0 text-xs text-fg-muted tabular-nums">{txnDate(txn)}</span>
+            <span className="min-w-0 truncate text-sm text-fg">{txnLabel(txn, payeeMap)}</span>
+          </div>
+        ) : (
+          <div className="min-w-0 flex-1">
+            <div className="h-3.5 w-36 animate-pulse rounded bg-surface-3" />
+          </div>
+        )}
+        <div className="flex shrink-0 items-center gap-2">
+          {txn && (
+            <span className={`kk-mono text-sm ${sign === '+' ? 'text-positive-dim' : 'text-fg'}`}>
+              {sign}₹{inr(n(txn.amount))}
+            </span>
+          )}
+          <button
+            type="button"
+            onClick={onRemove}
+            className="rounded p-1 text-fg-muted hover:text-negative-dim"
+            aria-label={sign === '+' ? 'Unlink payment' : 'Remove expense'}
+          >
+            <X className="h-3.5 w-3.5" />
+          </button>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-6 p-5">
-      {/* 1 — Notes */}
-      <DrawerSection label="Notes">
-        <input
-          type="text"
-          value={notes}
-          onChange={e => setNotes(e.target.value)}
-          placeholder="e.g. Goa trip dinner, May 28"
-          aria-label="Notes"
-          className="kk-input"
-        />
-      </DrawerSection>
-
-      {/* 2 — Expenses */}
+      {/* 1 — Expenses */}
       <DrawerSection label="Expenses">
-        {/* Edit mode: linked expense rows + add button */}
-        {initialSplit && (
-          <>
-            <div className="rounded-lg border border-border bg-surface overflow-hidden">
-              {selectedExpenseIds.length === 0 ? (
-                <p className="px-3 py-3 text-center text-xs text-fg-muted">No expenses linked yet.</p>
-              ) : selectedExpenseIds.map(id => {
-                const txn = mergedExpenseMap[id]
-                const date = txn ? new Date(txn.transacted_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' }) : ''
-                const label = txn ? txnLabel(txn, payeeMap) : `Expense ${id.slice(0, 8)}…`
-                return (
-                  <div key={id} className="flex items-center justify-between gap-3 px-3 py-2.5 border-b border-border last:border-0">
-                    <div className="min-w-0 flex-1">
-                      {txn ? (
-                        <>
-                          <p className="text-sm text-fg truncate">{label}</p>
-                          <p className="text-xs text-fg-muted">{date}</p>
-                        </>
-                      ) : (
-                        <div className="space-y-1.5">
-                          <div className="h-3.5 w-36 animate-pulse rounded bg-surface-3" />
-                          <div className="h-3 w-20 animate-pulse rounded bg-surface-3" />
-                        </div>
-                      )}
-                    </div>
-                    <div className="flex items-center gap-2 shrink-0">
-                      {txn && <span className="text-sm kk-mono">₹{inr(n(txn.amount))}</span>}
-                      <button
-                        type="button"
-                        onClick={() => setSelectedExpenseIds(prev => prev.filter(x => x !== id))}
-                        className="rounded p-1 text-fg-muted hover:text-negative-dim"
-                        aria-label="Remove expense"
-                      >
-                        <X className="h-3.5 w-3.5" />
-                      </button>
-                    </div>
-                  </div>
-                )
-              })}
+        {/* Selected expenses — always visible, in both create and edit mode */}
+        {selectedExpenseIds.length > 0 && (
+          <div className="rounded-lg border border-border bg-surface overflow-hidden">
+            {selectedExpenseIds.map(id => txnRow(id, () => removeExpense(id)))}
+            <div className="flex items-center justify-between bg-surface-2 px-3 py-2 text-xs">
+              <span className="text-fg-muted">Total to split</span>
+              <span className="kk-mono font-medium text-fg">
+                {isResolving ? '…' : `₹${inr(totalExpense)}`}
+              </span>
             </div>
-            <button
-              type="button"
-              onClick={() => setPickerOpen(v => !v)}
-              className="mt-2 inline-flex items-center gap-1 text-xs text-accent hover:underline"
-            >
-              <Plus className="h-3.5 w-3.5" />
-              {pickerOpen ? 'Close' : 'Add expense'}
-            </button>
-          </>
+          </div>
         )}
 
-        {/* Picker: always shown in create mode, toggled in edit mode */}
-        {(!initialSplit || pickerOpen) && (
-          <div className={initialSplit ? 'mt-2' : ''}>
+        <button
+          type="button"
+          onClick={() => setPickerOpen(v => !v)}
+          className={`inline-flex items-center gap-1 text-xs text-accent hover:underline ${selectedExpenseIds.length > 0 ? 'mt-2' : ''}`}
+        >
+          <Plus className="h-3.5 w-3.5" />
+          {pickerOpen ? 'Done adding' : 'Add expense'}
+        </button>
+
+        {pickerOpen && (
+          <div className="mt-2">
             <TransactionPicker
               type="expense"
               multiple
               value={selectedExpenseIds}
               onChange={(ids) => setSelectedExpenseIds(ids as string[])}
-              excludeIds={
-                initialSplit
-                  ? [...alreadySplitExpenseIds, ...selectedExpenseIds]
-                  : alreadySplitExpenseIds
-              }
+              excludeIds={[...alreadySplitExpenseIds, ...selectedExpenseIds]}
             />
           </div>
         )}
-
-        {selectedExpenseIds.length > 0 && (
-          <p className="mt-2 text-xs text-fg-muted">
-            Total: <span className="kk-mono text-fg">₹{inr(totalExpense)}</span>
-          </p>
-        )}
       </DrawerSection>
 
-      {/* 3 — Shares */}
+      {/* 2 — Shares */}
       <DrawerSection label="Shares">
         <div className="space-y-3">
           {/* Your share — always first, non-removable */}
@@ -425,7 +380,7 @@ export function SplitForm({ initialSplit, onClose, onSuccess }: Props) {
                     step="0.01"
                     min="0"
                     value={p.amount}
-                    onChange={e => updateShare(p.key, { amount: e.target.value })}
+                    onChange={e => updateShare(p.key, { amount: e.target.value, touched: true })}
                     placeholder="0.00"
                     aria-label="Amount owed"
                     className="kk-input"
@@ -438,26 +393,13 @@ export function SplitForm({ initialSplit, onClose, onSuccess }: Props) {
 
               {/* Linked settlements list */}
               {p.settlementIds.length > 0 && (
-                <div className="rounded-md border border-border bg-surface-2 px-3 py-1">
-                  {p.settlementIds.map(id => {
-                    const t = mergedIncomeMap[id]
-                    return (
-                      <div key={id} className="flex items-center justify-between gap-2 py-1.5 border-b border-border last:border-0">
-                        <span className="min-w-0 truncate text-xs text-fg">
-                          {t ? txnLabel(t, payeeMap) : id.slice(0, 8)}
-                        </span>
-                        <span className="kk-mono text-xs text-positive-dim shrink-0">+₹{inr(n(t?.amount))}</span>
-                        <button
-                          type="button"
-                          onClick={() => updateShare(p.key, { settlementIds: p.settlementIds.filter(x => x !== id) })}
-                          className="text-xs text-negative-dim hover:underline shrink-0"
-                          aria-label="Unlink transaction"
-                        >
-                          ×
-                        </button>
-                      </div>
-                    )
-                  })}
+                <div>
+                  <p className="mb-1 text-xs text-fg-muted">Payments received</p>
+                  <div className="rounded-lg border border-border bg-surface overflow-hidden">
+                    {p.settlementIds.map(id =>
+                      txnRow(id, () => updateShare(p.key, { settlementIds: p.settlementIds.filter(x => x !== id) }), '+'),
+                    )}
+                  </div>
                 </div>
               )}
 
@@ -465,7 +407,7 @@ export function SplitForm({ initialSplit, onClose, onSuccess }: Props) {
               {p.linkOpen ? (
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
-                    <p className="text-xs font-medium text-fg-muted">Link settlement</p>
+                    <p className="text-xs font-medium text-fg-muted">Link a payment they made back to you</p>
                     <button
                       type="button"
                       onClick={() => updateShare(p.key, { linkOpen: false })}
@@ -481,7 +423,7 @@ export function SplitForm({ initialSplit, onClose, onSuccess }: Props) {
                     onChange={(ids) => updateShare(p.key, { settlementIds: ids as string[] })}
                     excludeIds={[
                       ...usedIncomeIds,
-                      ...shares.filter(s => s.key !== p.key).flatMap(s => s.settlementIds),
+                      ...shares.flatMap(s => s.settlementIds),
                     ]}
                   />
                 </div>
@@ -496,7 +438,7 @@ export function SplitForm({ initialSplit, onClose, onSuccess }: Props) {
                 </button>
               )}
 
-              {payeeError[p.key] && (
+              {payeeError[p.key] && p.touched && (
                 <p role="alert" className="text-xs text-negative-dim">{payeeError[p.key]}</p>
               )}
             </div>
@@ -512,7 +454,7 @@ export function SplitForm({ initialSplit, onClose, onSuccess }: Props) {
         </button>
       </DrawerSection>
 
-      {/* 4 — Balance indicator (only shown once an expense is selected) */}
+      {/* 3 — Balance indicator (only shown once an expense is selected) */}
       {selectedExpenseIds.length > 0 && (
         <div className="space-y-1.5">
           <div className="flex items-center justify-between text-xs">
@@ -529,6 +471,13 @@ export function SplitForm({ initialSplit, onClose, onSuccess }: Props) {
               style={{ width: `${allocatedPct * 100}%` }}
             />
           </div>
+          {!balanceOk && !isResolving && (
+            <p className="text-xs text-fg-muted">
+              {allocated > totalExpense
+                ? `Over-allocated by ₹${inr(allocated - totalExpense)}.`
+                : `₹${inr(remaining)} left to allocate.`}
+            </p>
+          )}
           <div className="flex items-center justify-between text-xs">
             <span className="text-fg-muted">Your net expense</span>
             <span className="kk-mono font-medium text-negative-dim">₹{inr(myShareNum)}</span>
@@ -537,6 +486,18 @@ export function SplitForm({ initialSplit, onClose, onSuccess }: Props) {
       )}
 
       {submitError && <p role="alert" className="text-sm text-negative-dim">{submitError}</p>}
+
+      {/* 4 — Notes */}
+      <DrawerSection label="Notes">
+        <input
+          type="text"
+          value={notes}
+          onChange={e => setNotes(e.target.value)}
+          placeholder="e.g. Goa trip dinner, May 28"
+          aria-label="Notes"
+          className="kk-input"
+        />
+      </DrawerSection>
 
       {/* 5 — CTA */}
       <div className="flex gap-3 pt-2">

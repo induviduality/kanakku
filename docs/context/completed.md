@@ -888,3 +888,9 @@ Replaced the 50-row capped native `<select>` / checkbox pickers in split settlem
 - infra/docker-compose.yml (postgres, backend, frontend, caddy)
 - infra/Caddyfile (reverse proxy skeleton)
 - infra/env.example (all env vars from TDD 4.10)
+
+# Ad-hoc Fix Sprint (2026-07-11) — Create/Edit Split Drawer Revamp
+
+## Completed Tasks
+- Fixed ₹0-amount bug when linking transactions found via the picker's year/all-time search tiers: SplitForm resolves every referenced transaction per-id (`useQueries` on `['transaction', id]`), TransactionPicker primes that cache on select. Removed the 90-day pool dependency entirely.
+- SplitForm UI revamp: selected expenses always shown as a row list with a "Total to split" footer (create + edit unified); picker collapses behind Add expense; settlement rows show date/label/amount with unlink; payee-card validation errors only appear after the card is touched; balance bar gains "₹X left to allocate / over-allocated" hint; Notes moved below shares. 2 new regression tests (year-tier amount resolution, pristine payee card shows no errors) — DONE

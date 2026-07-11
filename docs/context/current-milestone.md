@@ -1,3 +1,12 @@
+# Ad-hoc Fix Sprint (2026-07-11) — Create/Edit Split Drawer Revamp
+
+## Completed Tasks
+- Fixed linked-transaction amount resolution (₹0 bug for picks outside the 3-month pool): per-id `useQueries` in SplitForm + query-cache priming in TransactionPicker — DONE
+- SplitForm UI revamp: unified selected-expense list with total footer, collapsible picker, resolved settlement rows, touched-gated validation errors, allocation hint — DONE
+
+## Pending
+- Visual browser verification (blocked on login — dev seed user not active on local instance)
+
 # Ad-hoc Feature Sprint (2026-07-08) — Credit Card Remodel
 
 ## Completed Tasks
