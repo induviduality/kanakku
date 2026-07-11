@@ -6,14 +6,14 @@ import userEvent from '@testing-library/user-event'
 import { server } from '../test/server'
 import { http, HttpResponse } from 'msw'
 
-const navigateMock = vi.fn()
+const historyBackMock = vi.fn()
 let mockSearch: Record<string, string> = {}
 
 vi.mock('@tanstack/react-router', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@tanstack/react-router')>()
   return {
     ...actual,
-    useNavigate: () => navigateMock,
+    useRouter: () => ({ history: { back: historyBackMock } }),
     useSearch: () => mockSearch,
   }
 })
@@ -55,7 +55,7 @@ describe('TransactionForm page', () => {
     const backBtn = screen.getByRole('button', { name: /back/i })
     await user.click(backBtn)
     
-    expect(navigateMock).toHaveBeenCalledWith({ to: '/transactions' })
+    expect(historyBackMock).toHaveBeenCalled()
   })
 
   it('submits new transaction', async () => {
@@ -83,7 +83,7 @@ describe('TransactionForm page', () => {
     await user.click(submitBtn)
     
     await waitFor(() => {
-      expect(navigateMock).toHaveBeenCalledWith({ to: '/transactions' })
+      expect(historyBackMock).toHaveBeenCalled()
     })
   })
 
@@ -109,7 +109,7 @@ describe('TransactionForm page', () => {
     await user.click(submitBtn)
     
     await waitFor(() => {
-      expect(navigateMock).toHaveBeenCalledWith({ to: '/transactions' })
+      expect(historyBackMock).toHaveBeenCalled()
     })
   })
 })

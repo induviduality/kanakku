@@ -13,6 +13,7 @@ import uuid
 from datetime import UTC, datetime
 from decimal import Decimal
 from typing import Annotated
+from zoneinfo import ZoneInfo
 
 import arq
 import sqlalchemy as sa
@@ -31,6 +32,7 @@ from app.models.import_batch import (
 )
 from app.models.transaction import Transaction, TransactionType
 from app.models.user import User
+from app.models.user_settings import UserSettings
 from app.schemas.imports import ImportBatchResponse, RawImportRecordPatch, RawImportRecordResponse
 
 router = APIRouter(prefix="/imports", tags=["imports"])
@@ -217,11 +219,12 @@ async def confirm_records(
     result = await session.execute(query)
     records = list(result.scalars().all())
 
+    tz_name = await _get_user_timezone(session, batch.user_id)
     confirmed = 0
     for record in records:
         if record.status == RecordStatus.duplicate and not body.force:
             continue
-        txn = _record_to_transaction(record, batch)
+        txn = _record_to_transaction(record, batch, tz_name)
         if txn is None:
             continue
         session.add(txn)
@@ -305,7 +308,8 @@ async def replace_existing(
             old_txn.deleted_at = datetime.now(UTC)
 
     # Confirm the import record as a new transaction
-    txn = _record_to_transaction(record, batch)
+    tz_name = await _get_user_timezone(session, batch.user_id)
+    txn = _record_to_transaction(record, batch, tz_name)
     if txn is not None:
         session.add(txn)
         await session.flush()
@@ -351,15 +355,38 @@ async def _get_record_or_404(
     return record
 
 
-def _record_to_transaction(record: RawImportRecord, batch: ImportBatch) -> Transaction | None:
-    """Convert a RawImportRecord's parsed_json into a Transaction."""
+async def _get_user_timezone(session: AsyncSession, user_id: uuid.UUID) -> str:
+    result = await session.execute(
+        sa.select(UserSettings.timezone).where(UserSettings.user_id == user_id)
+    )
+    return result.scalar_one_or_none() or "UTC"
+
+
+def _record_to_transaction(
+    record: RawImportRecord, batch: ImportBatch, tz_name: str
+) -> Transaction | None:
+    """Convert a RawImportRecord's parsed_json into a Transaction.
+
+    A bank statement's date (e.g. "Opening Balance as of 01 Jan 2026") is a
+    calendar date with no time-of-day, meant in the user's own local
+    timezone — not UTC. Attaching tzinfo=UTC directly to that date treats
+    "01 Jan 2026" as midnight UTC, which for any timezone ahead of UTC (e.g.
+    IST, UTC+5:30) is ~5.5h later than the user's real local midnight. That
+    was enough to push an opening_balance transaction dated exactly on a
+    period boundary to the wrong side of it — see docs/decisions/log.md
+    2026-07-11 (14). tz_name comes from the user's own UserSettings.timezone.
+    """
     data = record.parsed_json
     if not data:
         return None
 
     try:
         raw_date = str(data.get("date", ""))
-        transacted_at = datetime.strptime(raw_date, "%Y-%m-%d").replace(tzinfo=UTC)
+        transacted_at = (
+            datetime.strptime(raw_date, "%Y-%m-%d")
+            .replace(tzinfo=ZoneInfo(tz_name))
+            .astimezone(UTC)
+        )
         amount = Decimal(str(data.get("amount", "0")))
         txn_type_str = str(data.get("type", "expense")).lower()
         txn_type = {

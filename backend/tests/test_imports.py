@@ -256,6 +256,32 @@ async def test_confirm_updates_account_balance(authed) -> None:
     assert acc["current_balance"] == "9650.00"  # 10000 opening - 350 expense
 
 
+async def test_confirm_localizes_date_to_user_timezone(authed) -> None:
+    """Regression: a statement's date-only field ("2025-01-15") was attached
+    tzinfo=UTC directly, treating it as midnight UTC. For any timezone ahead
+    of UTC (the default UserSettings.timezone is Asia/Kolkata, UTC+5:30)
+    that's ~5.5h after the user's real local midnight — enough to push a
+    transaction dated exactly on a period boundary to the wrong side of it.
+    Must localize to the user's own configured timezone instead."""
+    client, headers, account_id = authed
+    batch_id, record_id = await _create_batch_with_record(client, headers, account_id)
+
+    resp = await client.post(
+        f"/api/v1/imports/{batch_id}/confirm",
+        json={"record_ids": [record_id]},
+        headers=headers,
+    )
+    confirm_data = resp.json()
+    assert confirm_data["total_confirmed"] == 1
+
+    txns = (await client.get(
+        "/api/v1/transactions", params={"account_id": account_id}, headers=headers,
+    )).json()["items"]
+    swiggy = next(t for t in txns if t["description"] == "SWIGGY")
+    # 2025-01-15 local midnight in Asia/Kolkata (UTC+5:30) == 2025-01-14T18:30:00Z
+    assert swiggy["transacted_at"] == "2025-01-14T18:30:00Z"
+
+
 async def test_replace_existing_updates_account_balance(authed) -> None:
     """Regression: replace_existing soft-deleted the old transaction and added
     the new one without ever touching account balance, so it stayed frozen

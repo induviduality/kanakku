@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useNavigate, useSearch } from '@tanstack/react-router'
+import { useRouter, useSearch } from '@tanstack/react-router'
 import TransactionFormComponent from '../components/forms/TransactionForm'
 import {
   useCreateTransaction,
@@ -10,7 +10,11 @@ import {
 } from '../api/transactions'
 
 export default function TransactionFormPage() {
-  const navigate = useNavigate()
+  // This page is only ever entered from the Transactions list (its filter/
+  // sort/pagination state lives in that page's own URL search params), so
+  // go back via history instead of pushing a fresh '/transactions' — a
+  // fresh push drops whatever filters were active.
+  const router = useRouter()
   // editId passed via search param: /transactions/new?editId=<uuid>
   const search = useSearch({ strict: false }) as Record<string, string>
   const editId = search?.editId as string | undefined
@@ -31,7 +35,7 @@ export default function TransactionFormPage() {
       result = { id: txn.id }
     }
     setDone(true)
-    navigate({ to: '/transactions' })
+    router.history.back()
     return result
   }
 
@@ -42,7 +46,7 @@ export default function TransactionFormPage() {
     <main className="p-6 max-w-lg mx-auto">
       <div className="mb-6 flex items-center gap-3">
         <button
-          onClick={() => navigate({ to: '/transactions' })}
+          onClick={() => router.history.back()}
           className="text-sm text-gray-500 hover:text-gray-700"
         >
           ← Back

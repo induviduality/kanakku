@@ -106,6 +106,15 @@ User pushed back on leaving these flagged as "pre-existing/out of scope" and ask
 ## Pending
 - (none — task complete)
 
+# Ad-hoc Fix Sprint (2026-07-12) — PDF Import Timezone Bug + Filter Persistence — COMPLETE
+
+## Completed Tasks
+- Root-caused "Opening: 0.00" still showing for ALL accounts on the Year view: `imports.py::_record_to_transaction` hardcoded `tzinfo=UTC` on a bank statement's date-only field, landing the opening_balance transaction 5.5h (IST) after the correct period boundary. Fixed using the user's own `UserSettings.timezone` via `ZoneInfo` — backend stays timezone-agnostic (uses the user's configured value, doesn't hardcode one), per the user's explicit principle. New regression test; 495 backend tests pass — DONE
+- Fixed transaction filters resetting when editing a transaction and returning to the list: `TransactionFormPage` pushed a bare `/transactions` URL on Back/Save, discarding active filters. Switched to `router.history.back()` since that page is only ever entered from the Transactions list — restores the exact previous URL (filters/sort/pagination) automatically — DONE
+
+## Pending
+- (none — task complete)
+
 # Ad-hoc Feature Sprint (2026-07-08) — Credit Card Remodel
 
 ## Completed Tasks
