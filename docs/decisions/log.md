@@ -1,5 +1,46 @@
 # Decision Log
 
+## 2026-07-23 — Added frontend/.dockerignore: local .env.local was being baked into built images
+
+**Context:** Discovered while browser-validating the bugs below: the frontend `Dockerfile` does `COPY . .` with no `.dockerignore`, so the developer's own `frontend/.env.local` (which sets `VITE_MOCK_API=true` for local `bun dev` — full UI development against MSW mock fixtures, no backend) got copied into the Docker build context and Vite picked it up, silently baking mock-mode into what's meant to be a real deployment image. The built container served fabricated fixture data (fake account/transaction IDs like `acc-1`) instead of hitting the real API — a real, ready-to-deploy production risk, found because it made a `docker compose build frontend` produce a bundle indistinguishable from prod at a glance but not actually talking to the backend.
+
+**Decision:** Added `frontend/.dockerignore` excluding `node_modules`, `dist`, `coverage`, and all `.env*` files. Build-time config continues to arrive only through the explicit `ARG`/`ENV` values already declared in the Dockerfile (`VITE_DEV_MODE`, `VITE_DEV_EMAIL`, `VITE_DEV_PASSWORD`) — none of which include `VITE_MOCK_API`, so mock mode can no longer leak into a built image regardless of what's in a developer's local `.env.local`.
+
+**Affects:** `frontend/.dockerignore` (new)
+
+## 2026-07-23 — Import confirm: surface unparseable records via a new `failed` RecordStatus instead of silently dropping them
+
+**Context:** Fable review (2026-07-12 #6) found `confirm_records` silently skipped any record `_record_to_transaction` couldn't parse (malformed date/amount, often introduced by the inline-edit UI writing free text into `parsed_json`) — no error, no toast, no count anywhere; the record just stayed invisible in the pending count forever.
+
+**Decision:** `_record_to_transaction` now returns `(Transaction | None, reason: str | None)` instead of just `Transaction | None`. Added `RecordStatus.failed` (migration `0030`, `ALTER TYPE ... ADD VALUE`) — on parse failure, `confirm_records` sets the record's status to `failed` and stores the reason in `parsed_json['_import_error']` rather than leaving it `pending` with no trace. `replace_existing` (the single-record duplicate-resolve path) now builds the replacement transaction *before* soft-deleting the matched existing transaction(s), raising a 422 with the reason on failure instead of the previous bug where a parse failure left the user with neither the old transaction (soft-deleted) nor a new one. Frontend: `ImportReview.tsx` gained a fifth "Failed" tab showing the reason inline per record; editing a failed record's values now also flips its status back to `pending` (re-queuing it for the next Confirm click) since there's no separate "retry" action.
+
+**Alternatives considered:**
+- Return skipped-record info in the `POST /confirm` response body instead of a new status — considered, but a transient response is lost on refresh/navigation and doesn't give a durable place to see "what's still broken"; a real status persists and gets its own tab, matching how pending/duplicate/rejected already work.
+
+**Affects:** `backend/app/routers/imports.py`, `backend/app/models/import_batch.py`, `backend/alembic/versions/0030_record_status_failed.py`, `frontend/src/api/imports.ts`, `frontend/src/pages/ImportReview.tsx`
+
+## 2026-07-23 — Splits: unsettled splits are all-time; settled splits match every linked expense transaction's month
+
+**Context:** Fable review (2026-07-12 #7/#8), sharpened by explicit user-specified semantics: a split created in Feb for a Jan expense that's still unpaid in July must keep showing up as unsettled in every period's view until it settles — debt doesn't expire just because the calendar page turned. Once settled, it should only appear in the period(s) matching its actual expense transaction date(s); for a multi-expense bundle split (e.g. a Jan expense + a Feb expense split together), that means the settled split shows in *both* Jan and Feb views, not just the earliest one. Separately, `SplitsAll.tsx` (the `/splits/pending` and `/splits/history` view-all pages) was still filtering/displaying by `split.created_at`, the same class of bug fixed in `Splits.tsx` on 2026-06-21 but missed on these pages.
+
+**Decision:** Backend: `SplitResponse` gained `expense_dates: list[datetime]` — every linked expense transaction's own `transacted_at`, not just `min(dates)` (which `expense_date` still exposes, unchanged, for display). `_load_expense_ids_and_date` now returns all three. Frontend: both `Splits.tsx` and `SplitsAll.tsx` now compute visibility as `isUnsettled(split) ? true : split.expense_dates.some(d => dateInPeriod(d))` — pending splits ignore the period filter entirely (`/splits/pending` shows "All time" instead of the period badge, since it isn't period-scoped), settled/forgiven splits match any of their expense months. `SplitsAll`'s date display switched from `created_at` to `expense_date`, matching `Splits.tsx`'s existing `SplitCard`.
+
+**Alternatives considered:**
+- Keep a single `expense_date` (earliest) and only fix the pending-visibility rule — rejected per explicit user requirement that a multi-expense bundle split must appear in every one of its expense months once settled, which is impossible to derive from a single earliest-date field.
+
+**Affects:** `backend/app/routers/splits.py` (`_load_expense_ids_and_date`, `_build_response`), `backend/app/schemas/split.py`, `frontend/src/api/splits.ts`, `frontend/src/pages/Splits.tsx`, `frontend/src/pages/SplitsAll.tsx`
+
+## 2026-07-23 — Idle auto-logout after 20 minutes; AuthGuard mounted (was dead code)
+
+**Context:** Fable review (2026-07-12 #9) found `AuthGuard` — built specifically to subscribe to auth-state changes and bounce to `/login` on a token clear (e.g. after a failed refresh) — was never imported anywhere outside its own test; route protection only ran once, in the router's `beforeLoad`, at navigation time. A refresh-token expiry mid-session left the UI silently frozen with dead buttons until the user happened to navigate. The user separately asked for an explicit inactivity timeout: sign out after 20 minutes with no interaction.
+
+**Decision:** `AuthGuard` is now mounted in `AppLayout.tsx`, wrapping all non-guest routes (guest paths — `/login`, `/setup`, `/accept-invite` — are intentionally excluded, since `isAuthenticated()` is expected to be false there). New `useIdleLogout()` hook (`lib/useIdleLogout.ts`) listens for `mousedown`/`mousemove`/`keydown`/`wheel`/`touchstart`/`scroll` on `window`, resets a 20-minute timer on each, and on expiry calls `clearAuth()` (immediate, synchronous — the UI reacts via `AuthGuard`'s existing subscription) then best-effort fires `POST /auth/logout` to revoke the refresh token server-side (not awaited before clearing local state, so a slow/failed request never delays the actual sign-out). Both are mounted together in a small `AuthenticatedShell` wrapper so the idle timer only runs for authenticated routes.
+
+**Alternatives considered:**
+- Reset the idle timer from React Query's global activity (e.g. `onSuccess` of any query) instead of raw DOM events — rejected; a background poll (e.g. `refetchInterval` on the import batch/piggy bank endpoints) would count as "activity" even though the user stepped away, defeating the point of an idle timer.
+
+**Affects:** `frontend/src/lib/useIdleLogout.ts` (new), `frontend/src/components/AppLayout.tsx`
+
 ## 2026-07-23 — Split edit (PUT): preserve partial-settlement amounts and forgiveness across delete-and-recreate
 
 **Context:** Fable review (2026-07-12 #3) found that editing a split via `PUT /splits/{id}` — a delete-and-recreate operation — silently destroyed two things: (1) `SplitForm` never sent `forgiven_amount`, so any forgiveness set via the dedicated Forgive flow reset to zero on save; (2) the recreate step always inserted `SplitShareSettlement.amount = transaction.amount` (the full income transaction amount), inflating any partial settlement (set via `POST /settle {amount}`) back to full on every edit.

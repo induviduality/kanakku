@@ -20,6 +20,7 @@ const TABS: { status: RecordStatus; label: string }[] = [
   { status: 'confirmed', label: 'Confirmed' },
   { status: 'rejected',  label: 'Rejected' },
   { status: 'duplicate', label: 'Duplicate' },
+  { status: 'failed',    label: 'Failed' },
 ]
 
 const CONFIDENCE_CLS: Record<string, string> = {
@@ -227,8 +228,17 @@ function RecordRow({
   const [type, setType] = useState(parsedField(record, 'type') || 'expense')
 
   function saveEdit() {
+    const { _import_error, ...rest } = record.parsed_json ?? {}
+    void _import_error
     patchMutation.mutate(
-      { recordId: record.id, patch: { parsed_json: { ...record.parsed_json, description, amount, type } } },
+      {
+        recordId: record.id,
+        patch: {
+          parsed_json: { ...rest, description, amount, type },
+          // Re-queue a fixed-up failed record so it's picked up by Confirm again.
+          ...(record.status === 'failed' && { status: 'pending' }),
+        },
+      },
       {
         onSuccess: () => setEditing(false),
         onError: () => toast('Failed to save changes. Please try again.', 'error'),
@@ -248,13 +258,16 @@ function RecordRow({
     )
   }
 
-  const isPending = record.status === 'pending' || record.status === 'duplicate'
+  const isFailed = record.status === 'failed'
+  const isPending = record.status === 'pending' || record.status === 'duplicate' || isFailed
+  const isSelectable = record.status === 'pending' || record.status === 'duplicate'
   const txnType = parsedField(record, 'type') || 'expense'
+  const importError = parsedField(record, '_import_error')
 
   return (
-    <tr className="border-b border-border/50 hover:bg-surface-2/40 transition-colors">
+    <tr className={`border-b border-border/50 hover:bg-surface-2/40 transition-colors ${isFailed ? 'bg-negative/5' : ''}`}>
       <td className="px-3 py-2.5">
-        {isPending && (
+        {isSelectable && (
           <input
             type="checkbox"
             aria-label={`select record ${record.id}`}
@@ -287,13 +300,20 @@ function RecordRow({
             className="kk-input h-7 text-xs w-full"
           />
         ) : (
-          <span
-            className={`text-fg truncate block ${isPending ? 'cursor-text' : ''}`}
-            onDoubleClick={() => isPending && setEditingName(true)}
-            title={isPending ? 'Double-click to edit name' : undefined}
-          >
-            {parsedField(record, 'description') || '—'}
-          </span>
+          <>
+            <span
+              className={`text-fg truncate block ${isPending ? 'cursor-text' : ''}`}
+              onDoubleClick={() => isPending && setEditingName(true)}
+              title={isPending ? 'Double-click to edit name' : undefined}
+            >
+              {parsedField(record, 'description') || '—'}
+            </span>
+            {isFailed && importError && (
+              <span className="text-xs text-negative-dim block mt-0.5" role="alert">
+                {importError}
+              </span>
+            )}
+          </>
         )}
       </td>
       <td className="px-3 py-2.5 text-right">
@@ -434,6 +454,7 @@ export default function ImportReview() {
   if (!batch) return <p className="p-8 text-negative-dim text-center">Import batch not found.</p>
 
   const hasDuplicates = activeTab === 'duplicate'
+  const isFailedTab = activeTab === 'failed'
   const isPendingTab = activeTab === 'pending' || hasDuplicates
   const pendingRemaining = batch.total_parsed - batch.total_confirmed - batch.total_rejected
 
@@ -549,6 +570,15 @@ export default function ImportReview() {
         <div className="mb-4 rounded-lg border border-warning/30 bg-warning/5 px-4 py-3 text-xs text-warning-dim">
           These transactions may already exist in your records. Use <strong>Resolve</strong> on each row
           to choose how to handle it, or use bulk actions above to force-confirm or reject all at once.
+        </div>
+      )}
+
+      {/* Failed info banner */}
+      {isFailedTab && records.length > 0 && (
+        <div className="mb-4 rounded-lg border border-negative/30 bg-negative/5 px-4 py-3 text-xs text-negative-dim">
+          These records couldn't be turned into transactions when you last clicked Confirm — the reason
+          is shown under each one. Double-click the name (or use <strong>Edit</strong>) to fix the values,
+          save, then go to the <strong>Pending</strong> tab and Confirm again.
         </div>
       )}
 

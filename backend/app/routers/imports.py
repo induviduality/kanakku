@@ -224,8 +224,13 @@ async def confirm_records(
     for record in records:
         if record.status == RecordStatus.duplicate and not body.force:
             continue
-        txn = _record_to_transaction(record, batch, tz_name)
+        txn, error = _record_to_transaction(record, batch, tz_name)
         if txn is None:
+            # Mark it (and remember why) instead of silently leaving it
+            # pending — the previous behavior made records vanish from the
+            # Confirm flow with no error, no toast, no count anywhere.
+            record.status = RecordStatus.failed
+            record.parsed_json = {**(record.parsed_json or {}), "_import_error": error}
             continue
         session.add(txn)
         await session.flush()
@@ -295,6 +300,15 @@ async def replace_existing(
     if record.status != RecordStatus.duplicate:
         raise HTTPException(status_code=422, detail="Record is not a duplicate")
 
+    # Build the replacement transaction first and bail out before touching
+    # anything if the record can't be parsed — otherwise a failure here would
+    # soft-delete the existing transaction below and leave the user with
+    # neither the old nor the new one.
+    tz_name = await _get_user_timezone(session, batch.user_id)
+    txn, error = _record_to_transaction(record, batch, tz_name)
+    if txn is None:
+        raise HTTPException(status_code=422, detail=error or "Could not import this record")
+
     # Soft-delete specified transactions (must belong to this user)
     if body.transaction_ids:
         res = await session.execute(
@@ -307,15 +321,11 @@ async def replace_existing(
         for old_txn in res.scalars().all():
             old_txn.deleted_at = datetime.now(UTC)
 
-    # Confirm the import record as a new transaction
-    tz_name = await _get_user_timezone(session, batch.user_id)
-    txn = _record_to_transaction(record, batch, tz_name)
-    if txn is not None:
-        session.add(txn)
-        await session.flush()
-        record.status = RecordStatus.confirmed
-        record.transaction_id = txn.id
-        batch.total_confirmed = (batch.total_confirmed or 0) + 1
+    session.add(txn)
+    await session.flush()
+    record.status = RecordStatus.confirmed
+    record.transaction_id = txn.id
+    batch.total_confirmed = (batch.total_confirmed or 0) + 1
 
     await session.commit()
     await session.refresh(batch)
@@ -364,7 +374,7 @@ async def _get_user_timezone(session: AsyncSession, user_id: uuid.UUID) -> str:
 
 def _record_to_transaction(
     record: RawImportRecord, batch: ImportBatch, tz_name: str
-) -> Transaction | None:
+) -> tuple[Transaction | None, str | None]:
     """Convert a RawImportRecord's parsed_json into a Transaction.
 
     A bank statement's date (e.g. "Opening Balance as of 01 Jan 2026") is a
@@ -375,10 +385,14 @@ def _record_to_transaction(
     was enough to push an opening_balance transaction dated exactly on a
     period boundary to the wrong side of it — see docs/decisions/log.md
     2026-07-11 (14). tz_name comes from the user's own UserSettings.timezone.
+
+    Returns (transaction, None) on success, or (None, reason) on failure —
+    the caller is responsible for surfacing the reason rather than silently
+    dropping the record (see docs/decisions/log.md 2026-07-23, review bug #6).
     """
     data = record.parsed_json
     if not data:
-        return None
+        return None, "No parsed data on this record"
 
     try:
         raw_date = str(data.get("date", ""))
@@ -396,7 +410,7 @@ def _record_to_transaction(
         description = str(data.get("description", ""))
 
         if batch.account_id is None:
-            return None
+            return None, "Batch has no account selected"
 
         return Transaction(
             user_id=batch.user_id,
@@ -407,6 +421,6 @@ def _record_to_transaction(
             description=description,
             account_id=batch.account_id,
             import_record_id=record.id,
-        )
-    except Exception:
-        return None
+        ), None
+    except Exception as exc:
+        return None, f"Could not parse this record: {exc}"

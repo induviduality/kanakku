@@ -5,7 +5,7 @@ import { apiGet, apiPatch, apiPost } from '../lib/api-client'
 export type ImportSource = 'pdf' | 'manual'
 export type ImportBatchStatus = 'pending' | 'processing' | 'completed' | 'failed'
 export type VerificationStatus = 'verified' | 'discrepancy' | 'indeterminate'
-export type RecordStatus = 'pending' | 'confirmed' | 'rejected' | 'duplicate'
+export type RecordStatus = 'pending' | 'confirmed' | 'rejected' | 'duplicate' | 'failed'
 export type RecordConfidence = 'high' | 'medium' | 'low'
 export type RecordMatchType = 'new' | 'duplicate' | 'low_confidence'
 

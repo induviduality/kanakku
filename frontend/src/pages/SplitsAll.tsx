@@ -50,7 +50,7 @@ function SplitRow({ split, onSelect, onDelete }: { split: Split; onSelect: (id: 
           </p>
           <p className="text-xs text-fg-faint mt-0.5">
             {split.shares.length} {split.shares.length === 1 ? 'share' : 'shares'} &middot;{' '}
-            {new Date(split.created_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
+            {new Date(split.expense_date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
           </p>
         </div>
         <div className="flex items-center gap-2 shrink-0">
@@ -89,7 +89,7 @@ export default function SplitsAll({ mode }: Props) {
   const title      = mode === 'pending' ? 'Unsettled Splits' : 'All Splits'
   const emptyTitle = mode === 'pending' ? 'No unsettled splits' : 'No splits in this period'
   const emptyDesc  = mode === 'pending'
-    ? `All splits in ${shortLabel} are settled.`
+    ? "You're all caught up — nothing owed or pending across any split."
     : 'Splits are created from the transaction detail page.'
 
   if (isLoading) {
@@ -108,27 +108,34 @@ export default function SplitsAll({ mode }: Props) {
 
   const allSplits = data ?? []
 
-  // created_at is a full UTC timestamp — convert to local before comparing
-  // as a date, or a split near a day boundary is silently misplaced (see
-  // docs/decisions/log.md 2026-07-11 (11)).
+  const isUnsettled = (s: Split) =>
+    s.shares.some(sh => sh.payee_id !== null && sh.status === 'pending')
+
+  // Pending debt isn't period-scoped: a split stays visible on the pending
+  // view from creation until it's settled, regardless of which period is
+  // selected (docs/decisions/log.md 2026-07-23 #8). A settled/forgiven split
+  // instead matches every period that any of its expense transactions falls
+  // in — a multi-expense bundle split can span more than one month (#7/#8).
   const start = dashboardParams.start_date ?? ''
   const end   = dashboardParams.end_date ?? ''
   const inPeriod = (s: Split) => {
-    const d = toIsoDate(new Date(s.created_at))
-    return d >= start && d <= end
+    if (isUnsettled(s)) return true
+    return s.expense_dates.some(d => {
+      const iso = toIsoDate(new Date(d))
+      return iso >= start && iso <= end
+    })
   }
 
-  const periodSplits = allSplits.filter(inPeriod)
-  const displayed    = mode === 'pending'
-    ? periodSplits.filter(s => s.shares.some(sh => sh.payee_id !== null && sh.status === 'pending'))
-    : periodSplits
+  const displayed = mode === 'pending'
+    ? allSplits.filter(isUnsettled)
+    : allSplits.filter(inPeriod)
 
   return (
     <div className="p-4 md:p-6 max-w-3xl mx-auto">
       <div className="flex items-center gap-3 mb-6">
         <Link to="/splits" className="text-xs text-fg-muted hover:text-fg">← Splits</Link>
         <h1 className="text-base font-semibold text-fg">{title}</h1>
-        <span className="text-xs text-fg-faint">{shortLabel}</span>
+        <span className="text-xs text-fg-faint">{mode === 'pending' ? 'All time' : shortLabel}</span>
       </div>
 
       {displayed.length === 0 ? (

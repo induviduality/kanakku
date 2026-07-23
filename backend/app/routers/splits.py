@@ -72,7 +72,15 @@ async def _load_settlements_for_shares(
 
 async def _load_expense_ids_and_date(
     session: AsyncSession, split_id: uuid.UUID
-) -> tuple[list[uuid.UUID], datetime]:
+) -> tuple[list[uuid.UUID], datetime, list[datetime]]:
+    """Returns (expense_transaction_ids, earliest_date, all_dates).
+
+    all_dates is every linked expense transaction's own transacted_at — a
+    bundle split (multiple expense transactions) can span several months, and
+    frontend period-scoped views need to match a split into each of those
+    months rather than only the single earliest date (see docs/decisions/log.md
+    2026-07-23, review bug #7/#8).
+    """
     rows = (
         await session.execute(
             select(SplitExpense.transaction_id, Transaction.transacted_at)
@@ -84,19 +92,20 @@ async def _load_expense_ids_and_date(
     ids = [r[0] for r in rows]
     dates = [r[1] for r in rows]
     expense_date = min(dates) if dates else datetime.now(UTC)
-    return ids, expense_date
+    return ids, expense_date, dates
 
 
 async def _build_response(
     split: Split, shares: list[SplitShare], session: AsyncSession
 ) -> SplitResponse:
     smap = await _load_settlements_for_shares(session, [s.id for s in shares])
-    expense_ids, expense_date = await _load_expense_ids_and_date(session, split.id)
+    expense_ids, expense_date, expense_dates = await _load_expense_ids_and_date(session, split.id)
     return SplitResponse(
         id=split.id,
         user_id=split.user_id,
         expense_transaction_ids=expense_ids,
         expense_date=expense_date,
+        expense_dates=expense_dates,
         notes=split.notes,
         shares=[_share_response(s, smap[s.id]) for s in shares],
         created_at=split.created_at,

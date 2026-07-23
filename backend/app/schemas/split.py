@@ -179,6 +179,10 @@ class SplitResponse(BaseModel):
     user_id: uuid.UUID
     expense_transaction_ids: list[uuid.UUID]
     expense_date: datetime
+    # Every linked expense transaction's own date — lets period-scoped views
+    # match a multi-expense bundle split into each month it actually spans,
+    # not just the earliest one. See docs/decisions/log.md 2026-07-23 (#7/#8).
+    expense_dates: list[datetime] = []
     notes: str | None
     shares: list[SplitShareResponse]
     created_at: datetime

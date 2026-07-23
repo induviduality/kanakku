@@ -30,6 +30,7 @@ export interface Split {
   user_id: string
   expense_transaction_ids: string[]
   expense_date: string
+  expense_dates: string[]
   notes: string | null
   shares: SplitShare[]
   created_at: string

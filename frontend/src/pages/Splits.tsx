@@ -114,23 +114,30 @@ export default function Splits() {
 
   const allSplits = data ?? []
 
-  // Client-side period filter on split.expense_date.
-  // expense_date is a full UTC timestamp — slicing its first 10 characters
-  // would extract the UTC calendar date, not the user's local one, silently
-  // misplacing a split near a day boundary (see docs/decisions/log.md
-  // 2026-07-11 (11)). Convert to a local Date first, then to a local date
-  // string, before comparing against the local start/end.
   const start = dashboardParams.start_date ?? ''
   const end   = dashboardParams.end_date ?? ''
+
+  const isUnsettled = (s: Split) =>
+    s.shares.some(sh => sh.payee_id !== null && sh.status === 'pending')
+
+  // Debt tracking is the wrong thing to period-scope: a pending split from
+  // three months ago is still owed today, so it must keep showing up in
+  // every period's view until it's settled — not just the period the
+  // original expense happened in (docs/decisions/log.md 2026-07-23 #8).
+  // Once fully settled/forgiven, a split "moves" into the period(s) of its
+  // underlying expense transaction(s) — for a multi-expense bundle split
+  // that can be more than one month, so match against every expense date,
+  // not just the earliest (#7/#8).
   const inPeriod = (s: Split) => {
-    const d = toIsoDate(new Date(s.expense_date))
-    return d >= start && d <= end
+    if (isUnsettled(s)) return true
+    return s.expense_dates.some(d => {
+      const iso = toIsoDate(new Date(d))
+      return iso >= start && iso <= end
+    })
   }
 
   const periodSplits  = allSplits.filter(inPeriod)
-  const unsettled = periodSplits.filter(s =>
-    s.shares.some(sh => sh.payee_id !== null && sh.status === 'pending'),
-  )
+  const unsettled = allSplits.filter(isUnsettled)
 
   return (
     <>
@@ -153,7 +160,7 @@ export default function Splits() {
         {unsettled.length === 0 ? (
           <EmptyState
             title="No unsettled splits"
-            description={`All splits in ${shortLabel} are settled.`}
+            description="You're all caught up — nothing owed or pending across any split."
           />
         ) : (
           <>

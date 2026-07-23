@@ -1,3 +1,14 @@
+# Ad-hoc Fix Sprint (2026-07-23, cont.) — Fable Review 2026-07-12: Bugs #6, #7, #8, #9 — COMPLETE
+
+## Completed Tasks
+- #6 Import confirm silently skipped unparseable records: new `RecordStatus.failed` + migration 0030, `_record_to_transaction` returns a reason, `ImportReview.tsx` gained a "Failed" tab with edit-to-requeue — DONE, browser-verified end to end (broken record surfaced with exact parse error → edited → requeued to pending → confirmed successfully)
+- #7/#8 Split period-scoping: unsettled splits now show in every period until settled; settled splits match every linked expense transaction's month (not just the earliest) — new `expense_dates` field on `SplitResponse`, `Splits.tsx` + `SplitsAll.tsx` rewritten to the user's exact specified semantics — DONE, browser-verified with two constructed scenarios (Jan pending split visible in Jul; Jan+Feb settled bundle visible in both those months and nowhere else)
+- #9 Idle auto-logout (20 min) + mounted the previously-dead `AuthGuard` — DONE, code-reviewed and build-verified; the 20-minute wait itself wasn't exercised in real time
+- Found + fixed while validating in the browser (not one of the numbered review bugs): `frontend/Dockerfile` had no `.dockerignore`, baking the developer's local `.env.local` (`VITE_MOCK_API=true`) into built Docker images — added `frontend/.dockerignore`
+
+## Pending
+- (none — all four bugs fixed and validated)
+
 # Ad-hoc Fix Sprint (2026-07-23) — Fable Review 2026-07-12: Bugs #3 & #4 — COMPLETE
 
 ## Completed Tasks

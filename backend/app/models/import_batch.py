@@ -33,6 +33,7 @@ class RecordStatus(StrEnum):
     confirmed = "confirmed"
     rejected = "rejected"
     duplicate = "duplicate"
+    failed = "failed"
 
 
 class RecordConfidence(StrEnum):
