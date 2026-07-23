@@ -1,5 +1,19 @@
 # Decision Log
 
+## 2026-07-24 — Credit cards §3.3: import records can be retyped to `transfer` (card-bill payments) + a matching hint
+
+**Context:** Fable review 2026-07-12 (05-credit-cards §3.3). A credit-card bill paid from a bank account arrives on the *bank* statement as a plain debit → imported as an `expense` → the spend is double-counted (once at swipe on the card, once at payment from the bank). The import review type dropdown only offered expense/income/opening_balance, so there was no way to model the payment correctly as a transfer at review time. User chose the fuller option: minimum retype-to-transfer **plus** a matching hint.
+
+**Decision:** Backend `_record_to_transaction` now maps `type: "transfer"` and reads a `to_account_id` from parsed_json, building a real transfer Transaction (source = batch account, destination = the liability account). The destination is validated against the user's own live account ids (new `_user_account_ids` helper, passed into both `confirm_records` and `replace_existing`); a missing/invalid/self destination marks the record `failed` with a reason (consistent with review bug #6's failed-record surface) rather than importing a broken row. New `GET /imports/{batch_id}/transfer-suggestions`: for a batch imported into a liquid (non-liability) account, it matches each pending bank debit against a recent *credit* (income transaction) on any credit_card/loan account of the same amount within ±5 days, returning `{record_id, to_account_id, to_account_name, matched_transaction_id}`. Frontend `ImportReview`: the type dropdown gained `transfer` with a destination-account picker (accounts minus the source); the non-edit chip shows `→ <dest>`; and matched pending expense rows show a one-click `↔ Transfer to <card>?` action that retypes the record. Centralized the liability-type set as `LIABILITY_ACCOUNT_TYPES` on the Account model (was a private `_LIABILITY_TYPES` in transactions.py; imports.py needed it too).
+
+**Known caveat (documented, not auto-handled — matches the chosen "hint only" scope):** if the user *also* imported the card statement's "payment received" line as income on the card, accepting the transfer hint double-credits the card (income + transfer-in). The canonical model records the bill payment only as the transfer, so that income line should be rejected. Auto-resolving it was out of scope for a hint; the suggestion carries `matched_transaction_id` if we later want to offer removing it.
+
+**Alternatives considered:**
+- Only the minimum retype (no hint) — rejected by user in favour of the matching hint.
+- Auto-delete the matched card income credit on accepting the hint — deferred; too aggressive a side effect for a one-click hint, and the double-count only arises if the card statement was separately imported.
+
+**Affects:** `backend/app/models/account.py` (`LIABILITY_ACCOUNT_TYPES`), `backend/app/routers/imports.py`, `backend/app/routers/transactions.py`, `backend/tests/test_imports.py` (3 new tests), `frontend/src/api/imports.ts`, `frontend/src/pages/ImportReview.tsx`, `frontend/src/test/handlers.ts`.
+
 ## 2026-07-24 — Credit cards §4: readable liability balances (shared formatter) + dashboard hero split into Net Worth / Cash / Owed
 
 **Context:** Fable review 2026-07-12 (05-credit-cards §4). With computed balances (D-002), a credit_card/loan account carries a *negative* balance whose magnitude is the amount owed. The UI rendered that as a bare `-₹12,450` on account cards, the drawer, and the dashboard, and the dashboard hero's single "Total Balance" silently netted card debt against cash. User selected this workstream (UI-only, no schema change).

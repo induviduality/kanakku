@@ -356,6 +356,105 @@ async def test_replace_existing_updates_account_balance(authed) -> None:
     assert old_txn_resp.status_code == 404
 
 
+# ── Bill-payment as transfer (credit-cards review §3.3) ──────────────────────
+
+
+async def _create_card_account(client, headers) -> str:
+    resp = await client.post(
+        "/api/v1/accounts",
+        json={"name": "HDFC Credit Card", "type": "credit_card", "currency": "INR"},
+        headers=headers,
+    )
+    assert resp.status_code == 201
+    return resp.json()["id"]
+
+
+async def test_confirm_transfer_record_creates_transfer(authed) -> None:
+    """A bank debit retyped to `transfer` (a card-bill payment) must become a
+    transfer into the card account — not an expense that double-counts the
+    spend already recorded at swipe time."""
+    client, headers, account_id = authed
+    card_id = await _create_card_account(client, headers)
+    batch_id, record_id = await _create_batch_with_record(client, headers, account_id)
+
+    # Retype the pending expense to a transfer to the card.
+    await client.patch(
+        f"/api/v1/imports/{batch_id}/records/{record_id}",
+        json={"parsed_json": {
+            "date": "2025-01-15", "description": "CC PAYMENT",
+            "amount": "350.00", "type": "transfer", "to_account_id": card_id,
+        }},
+        headers=headers,
+    )
+    resp = await client.post(
+        f"/api/v1/imports/{batch_id}/confirm",
+        json={"record_ids": [record_id]},
+        headers=headers,
+    )
+    assert resp.json()["total_confirmed"] == 1
+
+    # Bank debited, card credited (its debt moves toward zero); neither shows
+    # up as expense.
+    bank = (await client.get(f"/api/v1/accounts/{account_id}", headers=headers)).json()
+    card = (await client.get(f"/api/v1/accounts/{card_id}", headers=headers)).json()
+    assert bank["current_balance"] == "9650.00"   # 10000 - 350 out
+    assert card["current_balance"] == "350.00"     # 0 + 350 in
+
+
+async def test_confirm_transfer_missing_destination_fails(authed) -> None:
+    """A transfer record without a valid destination must be marked failed,
+    not silently imported."""
+    client, headers, account_id = authed
+    batch_id, record_id = await _create_batch_with_record(client, headers, account_id)
+
+    await client.patch(
+        f"/api/v1/imports/{batch_id}/records/{record_id}",
+        json={"parsed_json": {
+            "date": "2025-01-15", "description": "CC PAYMENT",
+            "amount": "350.00", "type": "transfer",
+        }},
+        headers=headers,
+    )
+    await client.post(
+        f"/api/v1/imports/{batch_id}/confirm",
+        json={"record_ids": [record_id]},
+        headers=headers,
+    )
+    failed = (await client.get(
+        f"/api/v1/imports/{batch_id}/records", params={"status": "failed"}, headers=headers,
+    )).json()
+    assert len(failed) == 1
+    assert "destination" in failed[0]["parsed_json"]["_import_error"].lower()
+
+
+async def test_transfer_suggestions_matches_card_credit(authed) -> None:
+    """A pending bank debit whose amount matches a recent credit on a card
+    account is suggested as a transfer to that card."""
+    client, headers, account_id = authed
+    card_id = await _create_card_account(client, headers)
+
+    # A card-statement payment already recorded as income (credit) on the card.
+    await client.post(
+        "/api/v1/transactions",
+        json={
+            "type": "income", "transacted_at": "2025-01-16T10:00:00Z",
+            "amount": "350.00", "account_id": card_id,
+        },
+        headers=headers,
+    )
+    # The matching bank debit, still pending in an import batch.
+    batch_id, record_id = await _create_batch_with_record(client, headers, account_id)
+
+    resp = await client.get(
+        f"/api/v1/imports/{batch_id}/transfer-suggestions", headers=headers,
+    )
+    assert resp.status_code == 200
+    suggestions = resp.json()
+    assert len(suggestions) == 1
+    assert suggestions[0]["record_id"] == record_id
+    assert suggestions[0]["to_account_id"] == card_id
+
+
 async def test_confirm_force_flag_confirms_duplicates(authed) -> None:
     client, headers, account_id = authed
 

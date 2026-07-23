@@ -923,6 +923,7 @@ export const handlers = [
     return HttpResponse.json({ ...IMPORT_BATCHES_RESPONSE[0], id: params.batchId })
   }),
   http.get('/api/v1/imports/:batchId/records', () => HttpResponse.json(IMPORT_RECORDS_RESPONSE)),
+  http.get('/api/v1/imports/:batchId/transfer-suggestions', () => HttpResponse.json([])),
   http.patch('/api/v1/imports/:batchId/records/:recordId', async ({ request, params }) => {
     const body = await request.json() as Record<string, unknown>
     return HttpResponse.json({

@@ -127,6 +127,116 @@ async def list_records(
     return list(result.scalars().all())
 
 
+# ── GET /imports/{batch_id}/transfer-suggestions ─────────────────────────────
+
+class TransferSuggestion(BaseModel):
+    record_id: uuid.UUID
+    to_account_id: uuid.UUID
+    to_account_name: str
+    matched_transaction_id: uuid.UUID
+
+
+@router.get("/{batch_id}/transfer-suggestions", response_model=list[TransferSuggestion])
+async def transfer_suggestions(
+    batch_id: uuid.UUID,
+    current_user: UserDep,
+    session: SessionDep,
+) -> list[TransferSuggestion]:
+    """Suggest which pending bank debits are really credit-card/loan bill payments.
+
+    Credit-cards review §3.3: a card bill paid from a bank account arrives on
+    the *bank* statement as a plain debit → imported as an expense → the spend
+    is counted twice (once at swipe on the card, once at payment from the
+    bank). If the matching card/loan statement was also imported, that payment
+    shows up as a *credit* (income) on the liability account. We match each
+    pending bank debit against a recent liability-account credit of the same
+    amount and suggest retyping it to a transfer to that account.
+    """
+    from datetime import timedelta
+
+    from app.models.account import LIABILITY_ACCOUNT_TYPES, Account
+
+    batch = await _get_batch_or_404(session, batch_id, current_user.id)
+    if batch.account_id is None:
+        return []
+
+    # The source must be a liquid account; a card-to-card "payment" isn't the
+    # bill-payment case this hint is for.
+    source = await session.get(Account, batch.account_id)
+    if source is None or source.type in LIABILITY_ACCOUNT_TYPES:
+        return []
+
+    liability_accounts = (
+        await session.execute(
+            sa.select(Account.id, Account.name).where(
+                Account.user_id == current_user.id,
+                Account.deleted_at.is_(None),
+                Account.type.in_(LIABILITY_ACCOUNT_TYPES),
+                Account.id != batch.account_id,
+            )
+        )
+    ).all()
+    if not liability_accounts:
+        return []
+    liability_ids = [row.id for row in liability_accounts]
+    name_by_id = {row.id: row.name for row in liability_accounts}
+
+    # Candidate credits: income transactions on those liability accounts.
+    credits = (
+        await session.execute(
+            sa.select(
+                Transaction.id, Transaction.account_id,
+                Transaction.amount, Transaction.transacted_at,
+            ).where(
+                Transaction.user_id == current_user.id,
+                Transaction.deleted_at.is_(None),
+                Transaction.type == TransactionType.income,
+                Transaction.account_id.in_(liability_ids),
+            )
+        )
+    ).all()
+    if not credits:
+        return []
+
+    tz_name = await _get_user_timezone(session, batch.user_id)
+    records = (
+        await session.execute(
+            sa.select(RawImportRecord).where(
+                RawImportRecord.batch_id == batch_id,
+                RawImportRecord.status == RecordStatus.pending,
+            )
+        )
+    ).scalars().all()
+
+    WINDOW = timedelta(days=5)
+    suggestions: list[TransferSuggestion] = []
+    for record in records:
+        data = record.parsed_json or {}
+        if str(data.get("type", "expense")).lower() != "expense":
+            continue
+        try:
+            amount = Decimal(str(data.get("amount", "0")))
+            rec_dt = (
+                datetime.strptime(str(data.get("date", "")), "%Y-%m-%d")
+                .replace(tzinfo=ZoneInfo(tz_name))
+                .astimezone(UTC)
+            )
+        except (ValueError, ArithmeticError):
+            continue
+        # First credit of the same amount within the date window wins.
+        for c in credits:
+            if c.amount == amount and abs(c.transacted_at - rec_dt) <= WINDOW:
+                suggestions.append(TransferSuggestion(
+                    record_id=record.id,
+                    to_account_id=c.account_id,
+                    to_account_name=name_by_id[c.account_id],
+                    matched_transaction_id=c.id,
+                ))
+                break
+
+    return suggestions
+
+
 # ── PATCH /imports/{batch_id}/records/{record_id} ────────────────────────────
 
 @router.patch("/{batch_id}/records/{record_id}", response_model=RawImportRecordResponse)
@@ -220,11 +330,12 @@ async def confirm_records(
     records = list(result.scalars().all())
 
     tz_name = await _get_user_timezone(session, batch.user_id)
+    valid_account_ids = await _user_account_ids(session, batch.user_id)
     confirmed = 0
     for record in records:
         if record.status == RecordStatus.duplicate and not body.force:
             continue
-        txn, error = _record_to_transaction(record, batch, tz_name)
+        txn, error = _record_to_transaction(record, batch, tz_name, valid_account_ids)
         if txn is None:
             # Mark it (and remember why) instead of silently leaving it
             # pending — the previous behavior made records vanish from the
@@ -305,7 +416,8 @@ async def replace_existing(
     # soft-delete the existing transaction below and leave the user with
     # neither the old nor the new one.
     tz_name = await _get_user_timezone(session, batch.user_id)
-    txn, error = _record_to_transaction(record, batch, tz_name)
+    valid_account_ids = await _user_account_ids(session, batch.user_id)
+    txn, error = _record_to_transaction(record, batch, tz_name, valid_account_ids)
     if txn is None:
         raise HTTPException(status_code=422, detail=error or "Could not import this record")
 
@@ -372,8 +484,24 @@ async def _get_user_timezone(session: AsyncSession, user_id: uuid.UUID) -> str:
     return result.scalar_one_or_none() or "UTC"
 
 
+async def _user_account_ids(session: AsyncSession, user_id: uuid.UUID) -> set[uuid.UUID]:
+    """Set of the user's live account ids — used to validate transfer destinations."""
+    from app.models.account import Account
+
+    rows = await session.execute(
+        sa.select(Account.id).where(
+            Account.user_id == user_id,
+            Account.deleted_at.is_(None),
+        )
+    )
+    return set(rows.scalars().all())
+
+
 def _record_to_transaction(
-    record: RawImportRecord, batch: ImportBatch, tz_name: str
+    record: RawImportRecord,
+    batch: ImportBatch,
+    tz_name: str,
+    valid_account_ids: set[uuid.UUID] | None = None,
 ) -> tuple[Transaction | None, str | None]:
     """Convert a RawImportRecord's parsed_json into a Transaction.
 
@@ -385,6 +513,14 @@ def _record_to_transaction(
     was enough to push an opening_balance transaction dated exactly on a
     period boundary to the wrong side of it — see docs/decisions/log.md
     2026-07-11 (14). tz_name comes from the user's own UserSettings.timezone.
+
+    A record retyped to ``transfer`` at review time (e.g. a card-bill payment
+    that arrives on the *bank* statement as a plain debit — see the
+    credit-cards review §3.3) carries a ``to_account_id`` in parsed_json: the
+    liability account the money moves to. That destination must be one of the
+    user's own accounts (``valid_account_ids``) and cannot equal the source
+    account. Modelling the payment as a transfer keeps it out of expense
+    totals, so the card swipe isn't double-counted at both swipe and payment.
 
     Returns (transaction, None) on success, or (None, reason) on failure —
     the caller is responsible for surfacing the reason rather than silently
@@ -406,11 +542,26 @@ def _record_to_transaction(
         txn_type = {
             "income": TransactionType.income,
             "opening_balance": TransactionType.opening_balance,
+            "transfer": TransactionType.transfer,
         }.get(txn_type_str, TransactionType.expense)
         description = str(data.get("description", ""))
 
         if batch.account_id is None:
             return None, "Batch has no account selected"
+
+        to_account_id: uuid.UUID | None = None
+        if txn_type == TransactionType.transfer:
+            raw_to = data.get("to_account_id")
+            if not raw_to:
+                return None, "Transfer record needs a destination account"
+            try:
+                to_account_id = uuid.UUID(str(raw_to))
+            except ValueError:
+                return None, "Transfer destination account is not a valid id"
+            if to_account_id == batch.account_id:
+                return None, "Transfer destination must differ from the source account"
+            if valid_account_ids is not None and to_account_id not in valid_account_ids:
+                return None, "Transfer destination account not found"
 
         return Transaction(
             user_id=batch.user_id,
@@ -420,6 +571,7 @@ def _record_to_transaction(
             currency="INR",
             description=description,
             account_id=batch.account_id,
+            to_account_id=to_account_id,
             import_record_id=record.id,
         ), None
     except Exception as exc:

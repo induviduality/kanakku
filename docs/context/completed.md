@@ -1,5 +1,13 @@
 # Completed Milestones
 
+## Credit cards §3.3 — bill-payment import fix (retype to transfer + matching hint) (2026-07-24)
+
+- Backend: `_record_to_transaction` supports `type: "transfer"` with a `to_account_id` (validated against the user's own accounts via new `_user_account_ids`; invalid → record marked `failed`). New `GET /imports/{batch_id}/transfer-suggestions` matches a pending bank debit against a recent same-amount credit (income) on a credit_card/loan account (±5 days) and suggests it as a transfer to that account. Centralized `LIABILITY_ACCOUNT_TYPES` on the Account model.
+- Frontend `ImportReview`: type dropdown gained `transfer` + destination-account picker; chip shows `→ <dest>`; matched rows show a one-click `↔ Transfer to <card>?` hint.
+- Purpose: a card bill paid from a bank shows on the bank statement as a debit; importing it as an expense double-counts the spend (swipe + payment). Modelling it as a transfer keeps dashboards correct.
+- Caveat (documented): if the card statement's payment line was separately imported as income on the card, accepting the hint double-credits the card — that income line should be rejected. Auto-resolution deferred (out of "hint only" scope).
+- Verification: frontend `bun run build` clean; backend `py_compile` + import-resolution check pass; 3 new backend tests added but **not executed** (no local Postgres this session). ImportReview.test.tsx remains in the known pre-existing ToastProvider-baseline failure set (commit 734cb94) — unrelated to this change.
+
 ## Credit cards §4 — readable liability balances + dashboard hero split (2026-07-24)
 
 - New shared `frontend/src/lib/balance.ts`: `formatAccountBalance(balance, type)` frames liability (credit_card/loan) balances as `₹12,450 due` / `₹0 · cleared` / `₹500 credit` instead of a bare negative; asset accounts unchanged.

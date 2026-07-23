@@ -9,7 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.session import get_session
 from app.dependencies import get_current_user
-from app.models.account import Account, AccountType
+from app.models.account import LIABILITY_ACCOUNT_TYPES, Account
 from app.models.payment_method import PaymentMethod
 from app.models.split import Split, SplitExpense
 from app.models.piggy_bank import ContributionType, PiggyBankContribution
@@ -143,7 +143,7 @@ async def _to_response(txn: Transaction, session: AsyncSession) -> TransactionRe
     return TransactionResponse.model_validate(data)
 
 
-_LIABILITY_TYPES = {AccountType.credit_card, AccountType.loan}
+_LIABILITY_TYPES = LIABILITY_ACCOUNT_TYPES
 
 
 async def _set_joins(

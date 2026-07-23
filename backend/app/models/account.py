@@ -16,6 +16,12 @@ class AccountType(StrEnum):
     loan = "loan"
 
 
+# Accounts whose balance represents money owed rather than money held. A
+# liability's computed balance is negative when in debt (see
+# app/services/account_balance.py).
+LIABILITY_ACCOUNT_TYPES = frozenset({AccountType.credit_card, AccountType.loan})
+
+
 class Account(Base):
     __tablename__ = "accounts"
 

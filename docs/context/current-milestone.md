@@ -4,9 +4,9 @@ User scope (via clarifying Q&A): implement §4 (readable liability balances), §
 
 ## Completed Tasks
 - §4 Readable liability balances: shared `lib/balance.ts` formatter (`₹X due` / `cleared` / `credit`); wired into AccountDrawer, Accounts list, dashboard account cards; dashboard hero split into Net Worth / Cash / Owed. UI-only, build + tests green — DONE
+- §3.3 Bill-payment import fix: `_record_to_transaction` supports `transfer` + validated `to_account_id`; new `GET /imports/{batch_id}/transfer-suggestions` matching hint; `ImportReview` type dropdown + destination picker + one-click hint. Build clean; backend syntax/import-checked (no local Postgres to run pytest) — DONE
 
 ## Next
-- §3.3 Bill-payment import fix — allow retyping an imported bank debit to `transfer` with a destination-account picker; add a matching hint when a bank debit matches a recent card-account credit
 - §5 Seed existing card debt — approach (a); **confirm exact behavior with user before writing the migration** (their answer hedged "if implemented later")
 
 # Ad-hoc Fix Sprint (2026-07-23, cont. 2) — Fable Review 2026-07-12: Bug #10 (logout) — COMPLETE

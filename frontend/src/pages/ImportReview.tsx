@@ -8,11 +8,13 @@ import {
   useConfirmRecords,
   useRejectRecords,
   useReplaceExisting,
+  useTransferSuggestions,
   type RawImportRecord,
   type RecordStatus,
+  type TransferSuggestion,
 } from '../api/imports'
 import { useTransaction } from '../api/transactions'
-import { useAccounts } from '../api/accounts'
+import { useAccounts, type Account } from '../api/accounts'
 import { useToast } from '../lib/toast'
 
 const TABS: { status: RecordStatus; label: string }[] = [
@@ -209,12 +211,18 @@ function DuplicateResolveModal({
 function RecordRow({
   record,
   batchId,
+  accounts,
+  sourceAccountId,
+  suggestion,
   selected,
   onToggle,
   onResolve,
 }: {
   record: RawImportRecord
   batchId: string
+  accounts: Account[]
+  sourceAccountId: string | null
+  suggestion?: TransferSuggestion
   selected: boolean
   onToggle: () => void
   onResolve?: () => void
@@ -226,15 +234,30 @@ function RecordRow({
   const [description, setDescription] = useState(parsedField(record, 'description'))
   const [amount, setAmount] = useState(parsedField(record, 'amount'))
   const [type, setType] = useState(parsedField(record, 'type') || 'expense')
+  const [toAccountId, setToAccountId] = useState(parsedField(record, 'to_account_id'))
+
+  // Candidate destinations for a transfer = every account except the one the
+  // statement was imported into (the money's source).
+  const destAccounts = accounts.filter(a => a.id !== sourceAccountId)
+  const toDest = accounts.find(a => a.id === parsedField(record, 'to_account_id'))
 
   function saveEdit() {
-    const { _import_error, ...rest } = record.parsed_json ?? {}
-    void _import_error
+    // Drop _import_error and any stale to_account_id; the latter is re-added
+    // below only when the record is actually a transfer.
+    const { _import_error, to_account_id: _staleTo, ...rest } = record.parsed_json ?? {}
+    void _import_error; void _staleTo
+    if (type === 'transfer' && !toAccountId) {
+      toast('Pick a destination account for the transfer.', 'error')
+      return
+    }
     patchMutation.mutate(
       {
         recordId: record.id,
         patch: {
-          parsed_json: { ...rest, description, amount, type },
+          parsed_json: {
+            ...rest, description, amount, type,
+            ...(type === 'transfer' ? { to_account_id: toAccountId } : {}),
+          },
           // Re-queue a fixed-up failed record so it's picked up by Confirm again.
           ...(record.status === 'failed' && { status: 'pending' }),
         },
@@ -243,6 +266,23 @@ function RecordRow({
         onSuccess: () => setEditing(false),
         onError: () => toast('Failed to save changes. Please try again.', 'error'),
       },
+    )
+  }
+
+  // One-click acceptance of the "this debit is really a card bill payment"
+  // hint: retype to a transfer into the matched liability account.
+  function applySuggestion() {
+    if (!suggestion) return
+    const { _import_error, ...rest } = record.parsed_json ?? {}
+    void _import_error
+    patchMutation.mutate(
+      {
+        recordId: record.id,
+        patch: {
+          parsed_json: { ...rest, type: 'transfer', to_account_id: suggestion.to_account_id },
+        },
+      },
+      { onError: () => toast('Failed to link as transfer. Please try again.', 'error') },
     )
   }
 
@@ -333,23 +373,45 @@ function RecordRow({
       </td>
       <td className="px-3 py-2.5">
         {editing ? (
-          <select
-            value={type}
-            onChange={e => setType(e.target.value)}
-            className="kk-input h-7 text-xs w-36"
-          >
-            <option value="expense">expense</option>
-            <option value="income">income</option>
-            <option value="opening_balance">opening balance</option>
-          </select>
+          <div className="flex flex-col gap-1">
+            <select
+              value={type}
+              onChange={e => setType(e.target.value)}
+              className="kk-input h-7 text-xs w-36"
+            >
+              <option value="expense">expense</option>
+              <option value="income">income</option>
+              <option value="transfer">transfer</option>
+              <option value="opening_balance">opening balance</option>
+            </select>
+            {type === 'transfer' && (
+              <select
+                aria-label="destination account"
+                value={toAccountId}
+                onChange={e => setToAccountId(e.target.value)}
+                className="kk-input h-7 text-xs w-36"
+              >
+                <option value="">To account…</option>
+                {destAccounts.map(a => (
+                  <option key={a.id} value={a.id}>{a.name}</option>
+                ))}
+              </select>
+            )}
+          </div>
         ) : (
-          <span className={`kk-chip ${
-            txnType === 'income' ? 'kk-chip-positive' :
-            txnType === 'opening_balance' ? 'kk-chip-accent' :
-            'kk-chip-negative'
-          }`}>
-            {txnType === 'opening_balance' ? 'opening bal.' : txnType}
-          </span>
+          <div className="flex flex-col gap-0.5 items-start">
+            <span className={`kk-chip ${
+              txnType === 'income' ? 'kk-chip-positive' :
+              txnType === 'opening_balance' ? 'kk-chip-accent' :
+              txnType === 'transfer' ? 'kk-chip-accent' :
+              'kk-chip-negative'
+            }`}>
+              {txnType === 'opening_balance' ? 'opening bal.' : txnType}
+            </span>
+            {txnType === 'transfer' && toDest && (
+              <span className="text-[11px] text-fg-faint">→ {toDest.name}</span>
+            )}
+          </div>
         )}
       </td>
       <td className="px-3 py-2.5 text-xs">
@@ -388,6 +450,16 @@ function RecordRow({
                   Edit
                 </button>
               )}
+              {suggestion && txnType === 'expense' && (
+                <button
+                  onClick={applySuggestion}
+                  disabled={patchMutation.isPending}
+                  title="This debit matches a recent credit on your card/loan — likely the bill payment."
+                  className="text-xs font-medium text-accent hover:underline whitespace-nowrap disabled:opacity-50"
+                >
+                  ↔ Transfer to {suggestion.to_account_name}?
+                </button>
+              )}
             </div>
           )
         )}
@@ -409,6 +481,12 @@ export default function ImportReview() {
   const batchProcessing = batch?.status === 'pending' || batch?.status === 'processing'
   const { data: records = [], isLoading: recordsLoading } = useGetImportRecords(batchId, activeTab, batchProcessing)
   const { data: accounts = [] } = useAccounts()
+  // Bill-payment hints only make sense on the pending tab and once parsing is done.
+  const { data: suggestions = [] } = useTransferSuggestions(
+    batchId,
+    activeTab === 'pending' && !batchProcessing,
+  )
+  const suggestionByRecord = new Map(suggestions.map(s => [s.record_id, s]))
   const confirmMutation = useConfirmRecords(batchId)
   const rejectMutation = useRejectRecords(batchId)
   const patchBatchMutation = usePatchBatch(batchId)
@@ -626,6 +704,9 @@ export default function ImportReview() {
                   key={record.id}
                   record={record}
                   batchId={batchId}
+                  accounts={accounts}
+                  sourceAccountId={batch?.account_id ?? null}
+                  suggestion={suggestionByRecord.get(record.id)}
                   selected={selectedIds.has(record.id)}
                   onToggle={() => toggleSelect(record.id)}
                   onResolve={record.status === 'duplicate' ? () => setResolveRecord(record) : undefined}

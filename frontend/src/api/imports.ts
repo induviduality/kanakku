@@ -58,6 +58,13 @@ export interface BatchPatch {
   account_id?: string | null
 }
 
+export interface TransferSuggestion {
+  record_id: string
+  to_account_id: string
+  to_account_name: string
+  matched_transaction_id: string
+}
+
 // ── Query hooks ───────────────────────────────────────────────────────────────
 
 export function useGetImportBatches() {
@@ -88,6 +95,14 @@ export function useGetImportRecords(batchId: string, status?: RecordStatus, poll
     },
     enabled: !!batchId,
     refetchInterval: poll ? 1500 : false,
+  })
+}
+
+export function useTransferSuggestions(batchId: string, enabled = true) {
+  return useQuery({
+    queryKey: ['imports', batchId, 'transfer-suggestions'],
+    queryFn: () => apiGet<TransferSuggestion[]>(`/imports/${batchId}/transfer-suggestions`),
+    enabled: !!batchId && enabled,
   })
 }
 
