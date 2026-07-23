@@ -1,5 +1,12 @@
 # Completed Milestones
 
+## Credit cards §4 — readable liability balances + dashboard hero split (2026-07-24)
+
+- New shared `frontend/src/lib/balance.ts`: `formatAccountBalance(balance, type)` frames liability (credit_card/loan) balances as `₹12,450 due` / `₹0 · cleared` / `₹500 credit` instead of a bare negative; asset accounts unchanged.
+- Wired into `AccountDrawer` (hero now reads "Amount owed" for liabilities), the `Accounts` list rows, and the dashboard account-balance cards.
+- Dashboard hero: "Total Balance" → **Net Worth** (unchanged netted figure) with **Cash** and **Owed** broken out beneath, computed client-side from `account_balances` (already carries `type`). No backend change.
+- Verification: `bun run build` clean; Dashboard + Accounts test files pass (19 tests). Part of the Fable 2026-07-12 credit-card review (05); enforcement-hole cleanup deliberately skipped in favour of the §5 seeding approach.
+
 ## Fable review fix 2026-07-12 #10 — logout button (2026-07-23)
 
 - New `useLogout()` hook (`api/auth.ts`) shared by both the manual logout button and the idle-logout timer — clears local auth state and navigates to `/login` immediately, then best-effort revokes the refresh token server-side.

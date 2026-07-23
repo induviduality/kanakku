@@ -1,5 +1,6 @@
 import { Drawer, DrawerSection, DrawerRow } from '../Drawer'
 import { usePaymentMethods, usePatchAccount, type Account } from '../../api/accounts'
+import { formatAccountBalance, isLiability, TONE_CLASS } from '../../lib/balance'
 
 const TYPE_LABEL: Record<Account['type'], string> = {
   bank:        'Bank',
@@ -44,7 +45,8 @@ export function AccountDrawer({ account, onClose }: Props) {
   const patch    = usePatchAccount()
   const balance  = account ? parseFloat(account.current_balance) : 0
   const opening  = account ? parseFloat(account.opening_balance) : 0
-  const isNeg    = balance < 0
+  const liability = account ? isLiability(account.type) : false
+  const disp     = account ? formatAccountBalance(balance, account.type) : null
 
   function toggleActive() {
     if (!account) return
@@ -67,9 +69,9 @@ export function AccountDrawer({ account, onClose }: Props) {
               )}
             </div>
             <div>
-              <p className="text-xs text-fg-muted">Current balance</p>
-              <p className={`text-2xl font-bold kk-mono mt-0.5 ${isNeg ? 'text-negative-dim' : 'text-fg'}`}>
-                {account.currency} {Math.abs(balance).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              <p className="text-xs text-fg-muted">{liability ? 'Amount owed' : 'Current balance'}</p>
+              <p className={`text-2xl font-bold kk-mono mt-0.5 ${disp ? TONE_CLASS[disp.tone] : 'text-fg'}`}>
+                {account.currency} {disp?.label}
               </p>
             </div>
           </div>

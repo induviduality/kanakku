@@ -6,6 +6,7 @@ import BudgetProgressCard from '../components/dashboard/BudgetProgressCard'
 import CashFlowChart from '../components/dashboard/CashFlowChart'
 import PiggyBankProgressRing from '../components/dashboard/PiggyBankProgressRing'
 import { usePeriod } from '../lib/period-context'
+import { formatAccountBalance, isLiability, TONE_CLASS } from '../lib/balance'
 
 // ── Skeleton ────────────────────────────────────────────────────────────────
 
@@ -108,15 +109,21 @@ function StatCard({
   )
 }
 
-function BalanceCard({ totalBalance }: { totalBalance: number }) {
+// Hero balance card. "Net worth" is the netted figure (cash minus card/loan
+// debt), shown large; "Cash" (bank + cash accounts) and "Owed" (liability
+// magnitudes) break it apart below so card debt no longer silently nets away
+// against cash in a single number.
+function BalanceCard({ netWorth, cash, owed }: { netWorth: number; cash: number; owed: number }) {
   const [hidden, setHidden] = useState(false)
   const [displayed, setDisplayed] = useState(0)
-  useEffect(() => { setDisplayed(totalBalance) }, [totalBalance])
+  useEffect(() => { setDisplayed(netWorth) }, [netWorth])
+
+  const money = (n: number) => `₹${Math.abs(n).toLocaleString('en-IN', { maximumFractionDigits: 0 })}`
 
   return (
     <div className="kk-card">
       <div className="flex items-center justify-between">
-        <p className="kk-label">Total Balance</p>
+        <p className="kk-label">Net Worth</p>
         <button
           onClick={() => setHidden((h) => !h)}
           className="text-fg-faint hover:text-fg transition-colors"
@@ -143,7 +150,16 @@ function BalanceCard({ totalBalance }: { totalBalance: number }) {
           className="text-2xl font-bold text-fg mt-2 kk-mono block"
         />
       )}
-      <p className="text-xs text-fg-faint mt-1 min-h-[1.25rem]">across all accounts</p>
+      {hidden ? (
+        <p className="text-xs text-fg-faint mt-1 min-h-[1.25rem]">cash & debt hidden</p>
+      ) : (
+        <div className="flex items-center gap-3 mt-1 min-h-[1.25rem] text-xs">
+          <span className="text-fg-faint">Cash <span className="text-fg-dim kk-mono">{money(cash)}</span></span>
+          {owed !== 0 && (
+            <span className="text-fg-faint">Owed <span className="text-negative-dim kk-mono">{money(owed)}</span></span>
+          )}
+        </div>
+      )}
     </div>
   )
 }
@@ -178,7 +194,19 @@ export default function Dashboard() {
 
   const inflow = parseFloat(data.inflow)
   const outflow = parseFloat(data.outflow)
-  const totalBalance = parseFloat(data.total_balance)
+  const netWorth = parseFloat(data.total_balance)
+  // Cash = liquid (bank + cash) accounts; Owed = magnitude of card/loan debt.
+  // A liability's balance is negative when in debt, so -Σ(liability balances)
+  // is the amount owed (a rare net card credit makes it negative → shown 0).
+  const cash = data.account_balances
+    .filter(a => !isLiability(a.type))
+    .reduce((s, a) => s + parseFloat(a.balance), 0)
+  const owed = Math.max(
+    0,
+    -data.account_balances
+      .filter(a => isLiability(a.type))
+      .reduce((s, a) => s + parseFloat(a.balance), 0),
+  )
 
   const savingsRateDelta =
     data.savings_rate != null && data.prev_savings_rate != null
@@ -190,7 +218,7 @@ export default function Dashboard() {
 
       {/* Row 1 — summary stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
-        <BalanceCard totalBalance={totalBalance} />
+        <BalanceCard netWorth={netWorth} cash={cash} owed={owed} />
         <StatCard label="Inflow"   amount={inflow}  format={INR_FORMAT} sub={label} />
         <StatCard label="Outflow"  amount={outflow} format={INR_FORMAT} sub={label} />
         <StatCard
@@ -306,14 +334,16 @@ export default function Dashboard() {
           <p className="text-sm text-fg-muted">No accounts yet.</p>
         ) : (
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-            {data.account_balances.map(a => (
+            {data.account_balances.map(a => {
+              const disp = formatAccountBalance(parseFloat(a.balance), a.type)
+              return (
               <div key={a.id} className="kk-card py-3 px-4">
                 <p className="text-xs text-fg-faint truncate">{a.name}</p>
-                <p className={`text-base font-bold kk-mono mt-1 ${parseFloat(a.balance) < 0 ? 'text-negative-dim' : 'text-fg'}`}>
-                  ₹{parseFloat(a.balance).toLocaleString('en-IN')}
+                <p className={`text-base font-bold kk-mono mt-1 ${TONE_CLASS[disp.tone]}`}>
+                  ₹{disp.label}
                 </p>
               </div>
-            ))}
+            )})}
           </div>
         )}
       </Section>

@@ -1,5 +1,16 @@
 # Decision Log
 
+## 2026-07-24 — Credit cards §4: readable liability balances (shared formatter) + dashboard hero split into Net Worth / Cash / Owed
+
+**Context:** Fable review 2026-07-12 (05-credit-cards §4). With computed balances (D-002), a credit_card/loan account carries a *negative* balance whose magnitude is the amount owed. The UI rendered that as a bare `-₹12,450` on account cards, the drawer, and the dashboard, and the dashboard hero's single "Total Balance" silently netted card debt against cash. User selected this workstream (UI-only, no schema change).
+
+**Decision:** New shared `frontend/src/lib/balance.ts` (`isLiability`, `formatAccountBalance`, `TONE_CLASS`, `LIABILITY_TYPES`). For liability accounts it frames the balance as `₹12,450 due` (owe, negative tone) / `₹0 · cleared` (neutral) / `₹500 credit` (overpayment, positive tone); asset accounts keep the plain signed figure. Wired into `AccountDrawer` (hero label switches to "Amount owed" for liabilities), the `Accounts` list rows, and the dashboard account-balance cards. The dashboard hero `BalanceCard` now shows **Net Worth** (the netted `total_balance`, unchanged) large, with **Cash** (Σ non-liability balances) and **Owed** (−Σ liability balances, floored at 0) broken out below — all computed client-side from `account_balances`, which already carries `type`, so no backend change.
+
+**Alternatives considered:**
+- A backend field for cash/owed/net-worth split — unnecessary; `account_balances` already returns per-account `type` + `balance`, so the split is a pure client aggregate.
+
+**Affects:** `frontend/src/lib/balance.ts` (new), `frontend/src/components/drawers/AccountDrawer.tsx`, `frontend/src/pages/Accounts.tsx`, `frontend/src/pages/Dashboard.tsx`, `frontend/src/pages/Dashboard.test.tsx` (label "Total Balance" → "Net Worth").
+
 ## 2026-07-23 — Logout: single `useLogout()` hook, ProfileMenu (desktop) + MobileNav More sheet (mobile); discovered missing user_id FK constraints while re-testing
 
 **Context:** Fable review (2026-07-12 #10) — `POST /auth/logout` existed but nothing on the frontend called it; no sign-out control anywhere. User asked for a logout button near a profile icon (desktop), hidden away in mobile.

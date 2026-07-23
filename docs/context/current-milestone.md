@@ -1,3 +1,14 @@
+# Credit Cards Sprint (2026-07-24) — Fable Review 2026-07-12 (05-credit-cards) — In Progress
+
+User scope (via clarifying Q&A): implement §4 (readable liability balances), §3.3 (bill-payment import fix, minimum + matching hint), and §5 (seed existing card debt, approach (a) — allow opening_balance on liability as a debit, scoped to credit_card/loan). Enforcement-hole cleanup (#5/#14) intentionally NOT taken — approach (a) legitimizes opening_balance on cards instead of banning it. §6.1 statement-cycle metadata skipped.
+
+## Completed Tasks
+- §4 Readable liability balances: shared `lib/balance.ts` formatter (`₹X due` / `cleared` / `credit`); wired into AccountDrawer, Accounts list, dashboard account cards; dashboard hero split into Net Worth / Cash / Owed. UI-only, build + tests green — DONE
+
+## Next
+- §3.3 Bill-payment import fix — allow retyping an imported bank debit to `transfer` with a destination-account picker; add a matching hint when a bank debit matches a recent card-account credit
+- §5 Seed existing card debt — approach (a); **confirm exact behavior with user before writing the migration** (their answer hedged "if implemented later")
+
 # Ad-hoc Fix Sprint (2026-07-23, cont. 2) — Fable Review 2026-07-12: Bug #10 (logout) — COMPLETE
 
 ## Completed Tasks

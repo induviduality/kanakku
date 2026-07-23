@@ -16,6 +16,7 @@ import EntityModal from '../components/EntityModal'
 import ConfirmDialog from '../components/ConfirmDialog'
 import { EmptyState } from '../components/EmptyState'
 import { AccountDrawer } from '../components/drawers/AccountDrawer'
+import { formatAccountBalance, TONE_CLASS } from '../lib/balance'
 
 // ── Payment methods sub-panel ────────────────────────────────────────────────
 
@@ -226,7 +227,9 @@ export default function Accounts() {
           {accounts.length === 0 && (
             <EmptyState title="No accounts yet" description="Add your first account to start tracking finances." />
           )}
-          {accounts.map((acc) => (
+          {accounts.map((acc) => {
+            const disp = formatAccountBalance(parseFloat(acc.current_balance), acc.type)
+            return (
             <div key={acc.id} className="border border-gray-200 rounded-lg bg-white">
               <div className="flex items-center justify-between p-4">
                 <div
@@ -235,7 +238,8 @@ export default function Accounts() {
                 >
                   <p className="font-medium text-gray-900">{acc.name}</p>
                   <p className="text-sm text-gray-500">
-                    {acc.type.replace('_', ' ')} · {acc.currency} {acc.current_balance}
+                    {acc.type.replace('_', ' ')} · {acc.currency}{' '}
+                    <span className={TONE_CLASS[disp.tone]}>{disp.label}</span>
                   </p>
                 </div>
                 <div className="flex items-center gap-2">
@@ -275,7 +279,7 @@ export default function Accounts() {
                 </div>
               )}
             </div>
-          ))}
+          )})}
         </div>
       )}
 

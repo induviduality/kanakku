@@ -50,7 +50,7 @@ describe('Dashboard page', () => {
 
   it('renders hero stat cards', async () => {
     renderDashboard()
-    await waitFor(() => screen.getByText('Total Balance'))
+    await waitFor(() => screen.getByText('Net Worth'))
     expect(screen.getByText('Inflow')).toBeInTheDocument()
     expect(screen.getByText('Outflow')).toBeInTheDocument()
     expect(screen.getByText('Savings Rate')).toBeInTheDocument()
@@ -85,7 +85,7 @@ describe('Dashboard page', () => {
   it('toggles total balance visibility', async () => {
     const user = userEvent.setup()
     renderDashboard()
-    await waitFor(() => screen.getByText('Total Balance'))
+    await waitFor(() => screen.getByText('Net Worth'))
     
     // Hide balance
     await user.click(screen.getByLabelText(/hide balance/i))
@@ -110,7 +110,7 @@ describe('Dashboard page', () => {
       ),
     )
     renderDashboard()
-    await waitFor(() => screen.getByText('Total Balance'))
+    await waitFor(() => screen.getByText('Net Worth'))
     expect(screen.getByText('No active budgets.')).toBeInTheDocument()
     expect(screen.getByText('No savings goals yet.')).toBeInTheDocument()
     expect(screen.getByText('No pending splits.')).toBeInTheDocument()
