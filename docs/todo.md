@@ -576,6 +576,20 @@
 
 ---
 
+## Known Issues (deferred)
+
+- [ ] **Missing DB-level FK constraints from `accounts`/`transactions`/`splits`/`payees`/`categories`/
+      `budgets`/`piggy_banks`/`subscriptions`/`tags`/`import_batches`/`user_settings` to `users`.**
+      All declare `ForeignKey("users.id", ondelete="CASCADE")` in the SQLAlchemy models, but the real
+      constraint doesn't exist in the database (verified via `information_schema` — only `sessions`
+      and `invite_tokens` actually have one). Violates the project's "constraints enforced at both
+      application AND database level" principle. Found 2026-07-23 when `dev_seed.py`'s delete-user
+      reset silently failed to cascade, leaving orphaned rows that crashed the API on next seed run
+      (cleaned up by hand; no real user data affected). Needs a migration adding the FKs — check for
+      any other orphans first (unlikely outside dev-seed usage, since `users.id` rows are otherwise
+      never deleted in the app itself, only invalidated via soft `deleted_at`... actually `users` has
+      no soft-delete column at all, worth double-checking during that migration).
+
 ## Post-v1 Backlog (Reference Only)
 
 See TDD section 5:

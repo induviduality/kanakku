@@ -30,7 +30,7 @@ client-side download, or issue a short-lived signed URL from the backend.
 
 ## High
 
-### 3. Editing a split silently destroys forgiveness and partial-payment amounts
+### 3. ✅ FIXED (2026-07-23) — Editing a split silently destroys forgiveness and partial-payment amounts
 Frontend: `frontend/src/components/SplitForm.tsx:235-266` — Backend: `backend/app/routers/splits.py:457,485-493`
 
 `PUT /splits/{id}` is delete-and-recreate. Two data-loss paths, both confirmed:
@@ -47,7 +47,7 @@ Frontend: `frontend/src/components/SplitForm.tsx:235-266` — Backend: `backend/
 Fix: SplitForm must carry `forgiven_amount` per share and show it in edit mode; the backend
 should accept per-settlement amounts on PUT (or diff instead of recreate).
 
-### 4. Savings-goal progress never moves when linked from the transaction form — D-002 bug class, second instance
+### 4. ✅ FIXED (2026-07-23) — Savings-goal progress never moves when linked from the transaction form — D-002 bug class, second instance
 `backend/app/routers/transactions.py:182-206` vs `backend/app/routers/piggy_banks.py:202,228`
 
 `PiggyBank.current_amount` is an imperatively-maintained cache. The piggy-bank router's own
@@ -85,7 +85,7 @@ balance-drift symptom you spent 2026-07-11 eradicating. Also note:
   unique index `(account_id) WHERE type='opening_balance' AND deleted_at IS NULL` closes
   every path at once.
 
-### 6. Import confirm silently skips records it can't parse
+### 6. ✅ FIXED (2026-07-23) — Import confirm silently skips records it can't parse
 `backend/app/routers/imports.py:227-234, 411-412`
 
 `_record_to_transaction` wraps everything in `try/except: return None`, and `confirm_records`
@@ -95,7 +95,7 @@ pending: no error, no toast, no count anywhere. The user selects 40 rows, clicks
 sees "confirmed" — and 3 rows quietly didn't import. Fix: collect skipped record ids and
 return them in the response; surface them in ImportReview.
 
-### 7. Split view-all pages still filter by `created_at` — the June fix missed them
+### 7. ✅ FIXED (2026-07-23) — Split view-all pages still filter by `created_at` — the June fix missed them
 `frontend/src/pages/SplitsAll.tsx:113-119,53`
 
 `Splits.tsx` was fixed on 2026-06-21 to period-filter by `split.expense_date`; the
@@ -104,7 +104,7 @@ return them in the response; surface them in ImportReview.
 but the July view-all page. The comment above the code even describes the local-date
 conversion fix while filtering the wrong field.
 
-### 8. Unsettled splits are period-scoped in every view — old debts disappear
+### 8. ✅ FIXED (2026-07-23) — Unsettled splits are period-scoped in every view — old debts disappear
 `frontend/src/pages/Splits.tsx:130-133`, `frontend/src/pages/SplitsAll.tsx:121-124`
 
 The "Unsettled" section *and* the dedicated `/splits/pending` page both filter to the
@@ -116,7 +116,7 @@ regardless of when the expense occurred. The dashboard "Pending Splits" panel is
 "No unsettled splits". Recommendation: make pending views all-time (or "period + older,
 grouped"), keep the period filter for the history view only.
 
-### 9. Mid-session auth expiry leaves the app silently broken — `AuthGuard` is dead code
+### 9. ✅ FIXED (2026-07-23) — Mid-session auth expiry leaves the app silently broken — `AuthGuard` is dead code
 `frontend/src/components/AuthGuard.tsx` (never imported), `frontend/src/router.tsx:47-54`, `frontend/src/lib/api-client.ts:35`
 
 Route protection runs only in `beforeLoad` (navigation time). When the refresh token
@@ -126,7 +126,7 @@ own test. Combined with #12 below (no global mutation error handler), every subs
 action fails silently; the user sees frozen data and dead buttons until they happen to
 navigate. Fix: mount the guard (or an equivalent subscription) in `AppLayout`.
 
-### 10. No logout anywhere — while the backend endpoint sits unused
+### 10. ✅ FIXED (2026-07-23) — No logout anywhere — while the backend endpoint sits unused
 Backend: `backend/app/routers/auth.py:135` (`POST /auth/logout` exists). Frontend: no caller.
 
 H3 from June, unchanged: no sign-out control in TopNav, SideNav, MobileNav's More sheet, or

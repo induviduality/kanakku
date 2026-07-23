@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Link, useRouterState } from '@tanstack/react-router'
 import * as Dialog from '@radix-ui/react-dialog'
+import { useLogout } from '../api/auth'
 
 const NAV_ITEMS = [
   { to: '/', label: 'Dashboard', icon: HomeIcon },
@@ -62,10 +63,19 @@ function MenuIcon() {
   )
 }
 
+function LogoutIcon() {
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+    </svg>
+  )
+}
+
 export default function MobileNav() {
   const [moreOpen, setMoreOpen] = useState(false)
   const routerState = useRouterState()
   const currentPath = routerState.location.pathname
+  const logout = useLogout()
 
   function isActive(to: string) {
     if (to === '/') return currentPath === '/'
@@ -153,6 +163,16 @@ export default function MobileNav() {
                 </Link>
               ))}
             </div>
+
+            <button
+              type="button"
+              onClick={() => { setMoreOpen(false); logout.mutate() }}
+              disabled={logout.isPending}
+              className="mt-3 w-full flex items-center justify-center gap-2 min-h-[44px] px-2 py-2 text-sm font-medium text-negative-dim bg-negative/5 rounded-xl hover:bg-negative/10 transition-colors disabled:opacity-50"
+            >
+              <LogoutIcon />
+              {logout.isPending ? 'Signing out…' : 'Log out'}
+            </button>
           </Dialog.Content>
         </Dialog.Portal>
       </Dialog.Root>

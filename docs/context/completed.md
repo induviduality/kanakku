@@ -1,5 +1,13 @@
 # Completed Milestones
 
+## Fable review fix 2026-07-12 #10 — logout button (2026-07-23)
+
+- New `useLogout()` hook (`api/auth.ts`) shared by both the manual logout button and the idle-logout timer — clears local auth state and navigates to `/login` immediately, then best-effort revokes the refresh token server-side.
+- Desktop: new `components/nav/ProfileMenu.tsx` — a profile-icon button in `TopNav.tsx` opening a small Radix Popover with a single "Log out" action.
+- Mobile: `MobileNav.tsx`'s existing "More" bottom sheet gained a "Log out" tile below the link grid (hidden away behind the sheet, as requested), styled distinctly since it's destructive rather than navigational.
+- Browser-verified end to end: opened the profile menu, clicked Log out, landed on `/login` with tokens cleared.
+- **Found + fixed while re-validating**: flipping `DEV_MODE` on a second time crashed the API — `dev_seed.py`'s reset relies on `ON DELETE CASCADE` from `users`, but that constraint doesn't actually exist in the database for `accounts`/`transactions`/`splits`/and 8 other tables (verified via `information_schema`; only `sessions`/`invite_tokens` have a real FK to `users`). Restored the app, manually cleaned up the orphaned dev-seed rows (zero impact on real user data, confirmed by row-count before/after), and logged the missing-FK gap as a deferred follow-up in `docs/todo.md` per explicit user decision (needs its own migration, out of scope here).
+
 ## Fable review fixes 2026-07-12 #6, #7, #8, #9 — import failures, split period visibility, idle logout (2026-07-23)
 
 - **#6 Import confirm silently skipped unparseable records**: new `RecordStatus.failed` (migration `0030`) — `_record_to_transaction` now returns a reason string on failure, `confirm_records` marks the record `failed` with the reason stored in `parsed_json['_import_error']` instead of leaving it invisibly pending. `replace_existing` now builds the replacement transaction *before* soft-deleting the matched duplicate, fixing a related bug where a parse failure there left neither the old nor a new transaction. `ImportReview.tsx` gained a "Failed" tab with the reason shown inline per record and an edit-to-requeue flow (editing a failed record flips it back to `pending`).

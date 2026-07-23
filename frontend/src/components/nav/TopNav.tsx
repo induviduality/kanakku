@@ -2,6 +2,7 @@ import { Link, useRouterState } from '@tanstack/react-router'
 import { usePeriod } from '../../lib/period-context'
 import { buildBreadcrumbs } from '../../lib/breadcrumbs'
 import PeriodPicker from './PeriodPicker'
+import ProfileMenu from './ProfileMenu'
 
 export default function TopNav() {
   const routerState = useRouterState()
@@ -61,12 +62,17 @@ export default function TopNav() {
       </nav>
 
       {/* Period picker */}
-      <div className="shrink-0 pr-4 md:pr-6">
+      <div className="shrink-0 pr-3">
         <PeriodPicker
           selection={selection}
           shortLabel={shortLabel}
           onChange={setSelection}
         />
+      </div>
+
+      {/* Profile menu — desktop only; mobile gets "Log out" in the More sheet instead */}
+      <div className="hidden md:block shrink-0 pr-4 md:pr-6">
+        <ProfileMenu />
       </div>
     </header>
   )

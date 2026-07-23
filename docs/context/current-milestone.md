@@ -1,3 +1,12 @@
+# Ad-hoc Fix Sprint (2026-07-23, cont. 2) — Fable Review 2026-07-12: Bug #10 (logout) — COMPLETE
+
+## Completed Tasks
+- #10 No logout control anywhere: new shared `useLogout()` hook; desktop `ProfileMenu` (profile icon → Popover → "Log out") in `TopNav`; mobile "Log out" tile in `MobileNav`'s More sheet — DONE, browser-verified (opened menu, logged out, landed on /login)
+- Found + fixed a real outage while re-testing: `accounts`/`transactions`/`splits`/8 other tables have no actual DB-level FK to `users` (only declared in the ORM, never migrated in) — `dev_seed.py`'s reset silently failed to cascade, leaving orphaned rows that crashed the API. Restored the app, cleaned up the orphans by hand (verified zero impact on real user data), logged the missing-FK gap in `docs/todo.md` as a deferred follow-up per user's explicit choice
+
+## Pending
+- (none — bug #10 fixed and validated; the missing-FK issue is intentionally deferred, tracked in docs/todo.md's new "Known Issues" section)
+
 # Ad-hoc Fix Sprint (2026-07-23, cont.) — Fable Review 2026-07-12: Bugs #6, #7, #8, #9 — COMPLETE
 
 ## Completed Tasks
