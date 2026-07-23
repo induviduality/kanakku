@@ -9,7 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.session import get_session
 from app.dependencies import get_current_user
-from app.models.account import LIABILITY_ACCOUNT_TYPES, Account
+from app.models.account import Account
 from app.models.payment_method import PaymentMethod
 from app.models.split import Split, SplitExpense
 from app.models.piggy_bank import ContributionType, PiggyBankContribution
@@ -143,9 +143,6 @@ async def _to_response(txn: Transaction, session: AsyncSession) -> TransactionRe
     return TransactionResponse.model_validate(data)
 
 
-_LIABILITY_TYPES = LIABILITY_ACCOUNT_TYPES
-
-
 async def _set_joins(
     txn_id: uuid.UUID,
     category_ids: list[uuid.UUID],
@@ -248,7 +245,7 @@ async def create_transaction(
     if body.type != TransactionType.transfer and body.to_account_id is not None:
         raise HTTPException(status_code=422, detail="to_account_id only allowed for transfer")
 
-    # Resolve currency and validate opening_balance account type
+    # Resolve currency
     currency = body.currency
     if currency is None:
         acc = await _get_account_or_404(body.account_id, current_user.id, session)
@@ -256,12 +253,9 @@ async def create_transaction(
     else:
         acc = await _get_account_or_404(body.account_id, current_user.id, session)
 
-    if body.type == TransactionType.opening_balance and acc.type in _LIABILITY_TYPES:
-        raise HTTPException(
-            status_code=422,
-            detail="opening_balance cannot be applied to liability accounts (credit_card, loan)",
-        )
-
+    # opening_balance on a liability account is allowed and seeds the amount
+    # already owed — counted as a debit by compute_balances (credit-cards
+    # review §5, approach (a)). No account-type guard here anymore.
     if body.type == TransactionType.opening_balance:
         existing = (await session.execute(
             select(Transaction.id).where(
@@ -663,13 +657,9 @@ async def patch_transaction(
     if new_type != TransactionType.transfer and new_to_account is not None:
         raise HTTPException(status_code=422, detail="to_account_id only allowed for transfer")
 
-    if new_type == TransactionType.opening_balance:
-        acc = await _get_account_or_404(txn.account_id, current_user.id, session)
-        if acc.type in _LIABILITY_TYPES:
-            raise HTTPException(
-                status_code=422,
-                detail="opening_balance cannot be applied to liability accounts (credit_card, loan)",
-            )
+    # opening_balance on a liability account is allowed (credit-cards review
+    # §5, approach (a)); it seeds owed debt, counted as a debit by
+    # compute_balances. No account-type guard here.
 
     for field, value in patch_data.items():
         if field in scalar_fields:

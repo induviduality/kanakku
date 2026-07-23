@@ -68,6 +68,46 @@ async def test_create_account_with_opening_balance(authed) -> None:
     assert data["current_balance"] == "10000.50"
 
 
+async def test_create_credit_card_with_outstanding_seeds_debt(authed) -> None:
+    """Credit-cards review §5 (approach a): a card's outstanding is entered as
+    a positive opening_balance and shows up as a negative computed balance
+    (money owed), not a positive credit."""
+    client, headers = authed
+    resp = await client.post(
+        "/api/v1/accounts",
+        json={"name": "HDFC Credit Card", "type": "credit_card", "currency": "INR",
+              "opening_balance": "8000.00"},
+        headers=headers,
+    )
+    assert resp.status_code == 201
+    account_id = resp.json()["id"]
+
+    acc = (await client.get(f"/api/v1/accounts/{account_id}", headers=headers)).json()
+    assert acc["current_balance"] == "-8000.00"  # owed, not held
+
+
+async def test_opening_balance_on_liability_allowed_via_transactions(authed) -> None:
+    """The old application guard blocking opening_balance on liability accounts
+    is gone; a manual opening_balance on a card is accepted and debits it."""
+    client, headers = authed
+    card_id = (await client.post(
+        "/api/v1/accounts",
+        json={"name": "Card", "type": "credit_card", "currency": "INR"},
+        headers=headers,
+    )).json()["id"]
+
+    resp = await client.post(
+        "/api/v1/transactions",
+        json={"type": "opening_balance", "transacted_at": "2026-01-01T00:00:00Z",
+              "amount": "5000.00", "account_id": card_id},
+        headers=headers,
+    )
+    assert resp.status_code == 201
+
+    acc = (await client.get(f"/api/v1/accounts/{card_id}", headers=headers)).json()
+    assert acc["current_balance"] == "-5000.00"
+
+
 async def test_create_account_requires_auth(setup_client: AsyncClient) -> None:
     resp = await setup_client.post(
         "/api/v1/accounts",

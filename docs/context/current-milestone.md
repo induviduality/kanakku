@@ -1,13 +1,19 @@
-# Credit Cards Sprint (2026-07-24) — Fable Review 2026-07-12 (05-credit-cards) — In Progress
+# Credit Cards Sprint (2026-07-24) — Fable Review 2026-07-12 (05-credit-cards) — COMPLETE
 
 User scope (via clarifying Q&A): implement §4 (readable liability balances), §3.3 (bill-payment import fix, minimum + matching hint), and §5 (seed existing card debt, approach (a) — allow opening_balance on liability as a debit, scoped to credit_card/loan). Enforcement-hole cleanup (#5/#14) intentionally NOT taken — approach (a) legitimizes opening_balance on cards instead of banning it. §6.1 statement-cycle metadata skipped.
 
 ## Completed Tasks
 - §4 Readable liability balances: shared `lib/balance.ts` formatter (`₹X due` / `cleared` / `credit`); wired into AccountDrawer, Accounts list, dashboard account cards; dashboard hero split into Net Worth / Cash / Owed. UI-only, build + tests green — DONE
 - §3.3 Bill-payment import fix: `_record_to_transaction` supports `transfer` + validated `to_account_id`; new `GET /imports/{batch_id}/transfer-suggestions` matching hint; `ImportReview` type dropdown + destination picker + one-click hint. Build clean; backend syntax/import-checked (no local Postgres to run pytest) — DONE
+- §5 Seed existing card debt (approach a, confirmed positive-outstanding): removed the app guard blocking opening_balance on liabilities; `compute_balances` counts it as a debit; account form "Current outstanding"; dev-seed scenario; spec updated. Code-only, no migration. Build + Accounts tests green; backend syntax/import-checked — DONE
 
-## Next
-- §5 Seed existing card debt — approach (a); **confirm exact behavior with user before writing the migration** (their answer hedged "if implemented later")
+## Not taken (per user scope)
+- Enforcement-hole cleanup (#5/#14) — superseded by §5 approach (a), which legitimizes opening_balance on cards.
+- §6.1 statement-cycle metadata (statement_day/payment_due_day) — skipped.
+
+## Deferred / caveats
+- §3.3 hint double-count: if a card statement's "payment received" line was separately imported as income on the card, accepting the transfer hint double-credits the card; the income line should be rejected. Auto-resolution not built (out of "hint only" scope); suggestion carries `matched_transaction_id` for a future enhancement.
+- Backend tests for all three workstreams were syntax/import-checked only — no local Postgres this session. Worth a real pytest run against a test DB before considering fully verified.
 
 # Ad-hoc Fix Sprint (2026-07-23, cont. 2) — Fable Review 2026-07-12: Bug #10 (logout) — COMPLETE
 

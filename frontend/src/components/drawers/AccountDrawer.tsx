@@ -94,7 +94,7 @@ export function AccountDrawer({ account, onClose }: Props) {
               }
             />
               <DrawerRow
-                label="Opening balance"
+                label={liability ? 'Opening outstanding' : 'Opening balance'}
                 value={<span className="kk-mono">{account.currency} {opening.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>}
               />
               <DrawerRow

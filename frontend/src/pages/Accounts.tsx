@@ -320,7 +320,9 @@ export default function Accounts() {
             />
           </div>
           <div>
-            <label htmlFor="acc-opening-balance" className="block text-sm font-medium text-gray-700">Opening balance</label>
+            <label htmlFor="acc-opening-balance" className="block text-sm font-medium text-gray-700">
+              {type === 'credit_card' || type === 'loan' ? 'Current outstanding' : 'Opening balance'}
+            </label>
             <input
               id="acc-opening-balance"
               type="number"
@@ -329,6 +331,11 @@ export default function Accounts() {
               onChange={(e) => setOpeningBalance(e.target.value)}
               className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
             />
+            {(type === 'credit_card' || type === 'loan') && (
+              <p className="mt-1 text-xs text-gray-500">
+                Amount you currently owe, as a positive number — shown as “due”.
+              </p>
+            )}
           </div>
           <div className="flex justify-end gap-2">
             <button type="button" onClick={() => setCreateOpen(false)} className="text-sm text-gray-500 hover:text-gray-700">

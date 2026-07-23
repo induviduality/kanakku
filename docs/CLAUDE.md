@@ -14,7 +14,12 @@ Full spec at docs/tdd.md.
   Pending shares do not reduce reported expense.
 - Transactions have four types: expense, income, transfer, opening_balance.
   "split_parent" is NOT a transaction type — splits are a separate entity.
-  opening_balance seeds an account's starting balance and is excluded from all reports.
+  opening_balance seeds an account's starting balance and is excluded from all
+  income/expense/net *flow* reports. It IS included in point-in-time balances.
+  On a liability account (credit_card/loan) it seeds the amount already owed:
+  the user enters the outstanding as a positive number and compute_balances
+  counts it as a debit (negative). (credit-cards review §5, approach (a),
+  2026-07-24 — supersedes the earlier "banned on liability accounts" rule.)
 - Soft delete everywhere. deleted_at nullable column. 30-day recovery.
 - All DB constraints enforced at both application AND database level.
 

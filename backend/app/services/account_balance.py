@@ -26,7 +26,7 @@ from fastapi import HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.account import Account
+from app.models.account import LIABILITY_ACCOUNT_TYPES, Account
 from app.models.transaction import Transaction, TransactionType
 
 
@@ -63,6 +63,13 @@ async def compute_balances(
     unlike dashboard.py's report-facing aggregates, which exclude
     opening_balance from period *flow* totals; this is a point-in-time
     balance, not a flow, so it belongs here.
+
+    On a liability account (credit_card / loan) an opening_balance seeds the
+    amount already *owed* when tracking starts — so it counts as a debit
+    (negative), the mirror of how it credits an asset account. The user
+    enters the outstanding as a positive number; the sign is applied here by
+    account type (credit-cards review §5, approach (a)). It stays excluded
+    from income/expense flow reports, exactly as before.
     """
     if not account_ids:
         return {}
@@ -93,10 +100,21 @@ async def compute_balances(
                 sa.select(
                     Transaction.account_id,
                     sa.func.sum(sa.case(
-                        (Transaction.type.in_([TransactionType.income, TransactionType.opening_balance]), Transaction.amount),
-                        else_=-Transaction.amount,
+                        (Transaction.type == TransactionType.income, Transaction.amount),
+                        (Transaction.type == TransactionType.expense, -Transaction.amount),
+                        # opening_balance seeds owed debt on a liability account
+                        # (a debit) but held funds on an asset account (a credit).
+                        (
+                            sa.and_(
+                                Transaction.type == TransactionType.opening_balance,
+                                Account.type.in_(LIABILITY_ACCOUNT_TYPES),
+                            ),
+                            -Transaction.amount,
+                        ),
+                        else_=Transaction.amount,
                     )).label("net"),
                 )
+                .join(Account, Account.id == Transaction.account_id)
                 .where(
                     Transaction.user_id == user_id,
                     Transaction.deleted_at.is_(None),

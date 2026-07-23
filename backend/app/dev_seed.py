@@ -102,6 +102,7 @@ TXN_PIG_PHONE_1  = uuid.UUID("f6000001-0000-0000-0000-000000000033")
 TXN_OB_HDFC      = uuid.UUID("f6000001-0000-0000-0000-000000000040")
 TXN_OB_ICICI     = uuid.UUID("f6000001-0000-0000-0000-000000000041")
 TXN_OB_CASH      = uuid.UUID("f6000001-0000-0000-0000-000000000042")
+TXN_OB_CREDIT    = uuid.UUID("f6000001-0000-0000-0000-000000000043")
 
 # Jan–Mar spread (so cashflow chart has data across all months)
 TXN_SALARY_JAN   = uuid.UUID("f6000001-0000-0000-0000-000000000050")
@@ -301,6 +302,14 @@ async def seed_dev_data() -> None:
                         transacted_at=_dt(2026, 1, 1), amount=Decimal("5000"),
                         currency="INR", account_id=ACC_CASH,
                         description="Opening balance"),
+            # Scenario: pre-existing credit-card debt seeded via opening_balance
+            # (credit-cards review §5, approach a). Entered as a positive
+            # outstanding; compute_balances counts it as a debit, so the card
+            # reads "₹15,000 due" before any of its own transactions.
+            Transaction(id=TXN_OB_CREDIT, user_id=USER_ID, type=TransactionType.opening_balance,
+                        transacted_at=_dt(2026, 1, 1), amount=Decimal("15000"),
+                        currency="INR", account_id=ACC_CREDIT,
+                        description="Opening outstanding"),
             Transaction(id=TXN_SALARY_APR, user_id=USER_ID, type=TransactionType.income,
                         transacted_at=_dt(2026, 4, 1), amount=Decimal("85000"),
                         currency="INR", account_id=ACC_HDFC, payee_id=PAYEE_EMPLOYER,

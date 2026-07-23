@@ -1,5 +1,17 @@
 # Decision Log
 
+## 2026-07-24 — Credit cards §5: seed existing card debt via opening_balance on liability accounts (approach (a), code-only)
+
+**Context:** Fable review 2026-07-12 (05-credit-cards §5). You couldn't represent "I already owe ₹8,000 on this card when I start using Kanakku": an application guard in `transactions.py` blocked `opening_balance` on credit_card/loan accounts, and `compute_balances` treated opening_balance as a credit. User chose approach (a) — allow it, treated as a debit — after confirming the exact behavior. Verified there is **no DB-level constraint** enforcing the ban (grep of migrations), so this is entirely code — no migration, fully reversible.
+
+**Decision:** (1) Removed the `opening_balance`-on-liability guard from both `create_transaction` and `patch_transaction` (kept the one-opening_balance-per-account uniqueness rule). (2) `compute_balances` now joins `Account` and, via a CASE, counts an `opening_balance` on a liability account as **−amount** (a debit) while keeping it +amount on asset accounts — the only sign change; opening_balance stays excluded from income/expense/net flow reports everywhere else. The user enters the outstanding as a **positive** number; the sign is applied by account type. (3) Frontend account-create form relabels the field to "Current outstanding" (with helper copy) for credit_card/loan; `AccountDrawer`'s detail row shows "Opening outstanding". `create_account` already inserted an opening_balance transaction for a nonzero starting value regardless of type, so with the sign flip a card created with outstanding 8000 now reads −₹8,000 ("₹8,000 due"). (4) Centralized liability set (`LIABILITY_ACCOUNT_TYPES` on the Account model) reused by `compute_balances`. (5) Spec: updated `docs/CLAUDE.md`'s opening_balance principle — supersedes the earlier "banned on liability accounts" rule.
+
+**Alternatives considered:**
+- Approach (b): keep the ban, seed via a reserved "Opening debt" expense in an excluded category — rejected by user; (a) keeps a single seeding concept and, since there was no DB constraint, needs no migration and no category-exclusion plumbing.
+- Enter the outstanding as a signed negative number — rejected by user in favour of the more intuitive positive-outstanding convention.
+
+**Affects:** `backend/app/services/account_balance.py`, `backend/app/routers/transactions.py`, `backend/app/dev_seed.py` (new `TXN_OB_CREDIT` scenario), `backend/tests/test_accounts.py` (2 new tests), `frontend/src/pages/Accounts.tsx`, `frontend/src/components/drawers/AccountDrawer.tsx`, `docs/CLAUDE.md`.
+
 ## 2026-07-24 — Credit cards §3.3: import records can be retyped to `transfer` (card-bill payments) + a matching hint
 
 **Context:** Fable review 2026-07-12 (05-credit-cards §3.3). A credit-card bill paid from a bank account arrives on the *bank* statement as a plain debit → imported as an `expense` → the spend is double-counted (once at swipe on the card, once at payment from the bank). The import review type dropdown only offered expense/income/opening_balance, so there was no way to model the payment correctly as a transfer at review time. User chose the fuller option: minimum retype-to-transfer **plus** a matching hint.

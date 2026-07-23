@@ -1,5 +1,13 @@
 # Completed Milestones
 
+## Credit cards §5 — seed existing card debt (opening_balance on liabilities, approach a) (2026-07-24)
+
+- Code-only (no migration — verified the ban was an app guard, not a DB constraint). Removed the guard blocking `opening_balance` on credit_card/loan in `create_transaction`/`patch_transaction`. `compute_balances` now counts an opening_balance on a liability account as a debit (−amount) via an Account-type join; asset accounts unchanged; opening_balance still excluded from flow reports.
+- UX: enter the outstanding as a positive number. Account-create form labels it "Current outstanding" (with helper) for credit_card/loan; `AccountDrawer` shows "Opening outstanding". A card created with outstanding 8000 reads −₹8,000 / "₹8,000 due".
+- Dev seed: new `TXN_OB_CREDIT` scenario seeds ₹15,000 pre-existing debt on the HDFC Credit Card.
+- Spec: `docs/CLAUDE.md` opening_balance principle updated (supersedes the "banned on liability accounts" rule).
+- Verification: frontend `bun run build` clean, Accounts tests pass (10); backend `py_compile` + import-resolution pass; 2 new backend tests added but **not executed** (no local Postgres this session).
+
 ## Credit cards §3.3 — bill-payment import fix (retype to transfer + matching hint) (2026-07-24)
 
 - Backend: `_record_to_transaction` supports `type: "transfer"` with a `to_account_id` (validated against the user's own accounts via new `_user_account_ids`; invalid → record marked `failed`). New `GET /imports/{batch_id}/transfer-suggestions` matches a pending bank debit against a recent same-amount credit (income) on a credit_card/loan account (±5 days) and suggests it as a transfer to that account. Centralized `LIABILITY_ACCOUNT_TYPES` on the Account model.
