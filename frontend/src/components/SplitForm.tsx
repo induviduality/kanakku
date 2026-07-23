@@ -52,10 +52,11 @@ interface PayeeShare {
   touched: boolean
   linkOpen: boolean
   settlementIds: string[]
+  forgivenAmount: string
 }
 
 function newPayeeShare(): PayeeShare {
-  return { key: crypto.randomUUID(), payeeId: null, amount: '', touched: false, linkOpen: false, settlementIds: [] }
+  return { key: crypto.randomUUID(), payeeId: null, amount: '', touched: false, linkOpen: false, settlementIds: [], forgivenAmount: '' }
 }
 
 // ── Component ────────────────────────────────────────────────────────────────
@@ -99,6 +100,7 @@ export function SplitForm({ initialSplit, onClose, onSuccess }: Props) {
         touched: true,
         linkOpen: false,
         settlementIds: s.settlements.map(st => st.transaction_id),
+        forgivenAmount: Number(s.forgiven_amount) > 0 ? s.forgiven_amount : '',
       }))
   })
   const [submitError, setSubmitError] = useState('')
@@ -182,6 +184,10 @@ export function SplitForm({ initialSplit, onClose, onSuccess }: Props) {
       payeeError[p.key] = 'Enter a valid amount for this payee.'
     if (!payeeError[p.key] && settledTotal(p) - n(p.amount) > EPS)
       payeeError[p.key] = `Linked payments (₹${inr(settledTotal(p))}) cannot exceed this payee's share (₹${inr(n(p.amount))}).`
+    if (!payeeError[p.key] && n(p.forgivenAmount) < 0)
+      payeeError[p.key] = 'Forgiven amount cannot be negative.'
+    if (!payeeError[p.key] && settledTotal(p) + n(p.forgivenAmount) - n(p.amount) > EPS)
+      payeeError[p.key] = `Linked payments + forgiven (₹${inr(settledTotal(p) + n(p.forgivenAmount))}) cannot exceed this payee's share (₹${inr(n(p.amount))}).`
   }
 
   const errors: string[] = []
@@ -245,6 +251,7 @@ export function SplitForm({ initialSplit, onClose, onSuccess }: Props) {
         payee_id: p.payeeId,
         amount: n(p.amount).toFixed(2),
         ...(p.settlementIds.length > 0 && { settlement_transaction_ids: p.settlementIds }),
+        ...(n(p.forgivenAmount) > 0 && { forgiven_amount: n(p.forgivenAmount).toFixed(2) }),
       })
     }
     try {
@@ -435,6 +442,21 @@ export function SplitForm({ initialSplit, onClose, onSuccess }: Props) {
                 <button type="button" onClick={() => payeeRemainder(p.key)} className="kk-btn-ghost shrink-0 text-xs">
                   Use remainder
                 </button>
+              </div>
+
+              {/* Forgiven amount */}
+              <div>
+                <label className="mb-1 block text-xs text-fg-muted">Forgiven amount</label>
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={p.forgivenAmount}
+                  onChange={e => updateShare(p.key, { forgivenAmount: e.target.value, touched: true })}
+                  placeholder="0.00"
+                  aria-label="Forgiven amount"
+                  className="kk-input"
+                />
               </div>
 
               {/* Linked settlements list */}

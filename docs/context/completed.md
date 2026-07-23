@@ -1,5 +1,11 @@
 # Completed Milestones
 
+## Fable review fixes 2026-07-12 #3 and #4 — split edit data loss, piggy bank progress drift (2026-07-23)
+
+- **#3 Split edit destroyed forgiveness/partial payments**: `PUT /splits/{id}` (delete-and-recreate) now preserves each settlement's original amount (captured before delete, keyed by transaction_id) instead of reinflating to the transaction's full amount — fixes silent inflation of partial payments on every edit. `SplitForm.tsx` now carries and submits `forgiven_amount` per payee share (new "Forgiven amount" input, shown/prefilled in edit mode), fixing forgiveness silently resetting to zero on save.
+- **#4 Savings-goal progress never moved when linked from the transaction form**: `PiggyBank.current_amount` was an imperatively-maintained cache that only the piggy-bank router's own contribution endpoints updated; `_sync_piggy_bank` (used by every transaction create/edit with a `piggy_bank_id`) never touched it. New `services/piggy_bank_balance.py` computes progress live from `PiggyBankContribution` joined to non-deleted transactions (same pattern as `account_balance.py`'s D-002 fix); `piggy_banks.py` and `dashboard.py`'s piggy bank summary now read/derive from the computed value instead of the stale column.
+- Verification: `py_compile` on all changed backend files (no local DB available to run pytest); `bun run build` clean, zero new TS errors.
+
 ## Credit card remodel — dropped as a payment method type (2026-07-08)
 
 Credit cards were modeled twice: as their own `AccountType.credit_card` (a liability account) and as a nested `PaymentMethodType.credit_card` under that same account — redundant, since the account already represents the card.

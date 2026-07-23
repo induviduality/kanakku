@@ -1,3 +1,12 @@
+# Ad-hoc Fix Sprint (2026-07-23) — Fable Review 2026-07-12: Bugs #3 & #4 — COMPLETE
+
+## Completed Tasks
+- #3 Split edit (PUT) data loss: preserved partial-settlement amounts and forgiveness across the delete-and-recreate — backend captures pre-existing settlement amounts up front and reuses them; `SplitForm.tsx` now carries/submits `forgiven_amount` per share with a new edit-mode input — DONE
+- #4 Savings-goal progress never moved when linked from the transaction form: `PiggyBank.current_amount` replaced as a live-computed value (`services/piggy_bank_balance.py`, same pattern as the account-balance D-002 fix) instead of an imperative cache only some code paths updated — DONE
+
+## Pending
+- (none — both bugs fixed; no local DB to run the split/piggy-bank test suites against, syntax-checked only)
+
 # Ad-hoc Fix Sprint (2026-07-11) — Create/Edit Split Drawer Revamp
 
 ## Completed Tasks

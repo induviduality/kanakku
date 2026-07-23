@@ -18,6 +18,7 @@ from app.schemas.piggy_bank import (
     PiggyBankPatch,
     PiggyBankResponse,
 )
+from app.services.piggy_bank_balance import compute_amount, compute_amounts
 
 router = APIRouter(prefix="/piggy-banks", tags=["piggy-banks"])
 
@@ -40,18 +41,18 @@ async def _get_piggy_or_404(
     return pig
 
 
-def _to_response(pig: PiggyBank) -> PiggyBankResponse:
+def _to_response(pig: PiggyBank, current: Decimal) -> PiggyBankResponse:
     data = {c.key: getattr(pig, c.key) for c in pig.__table__.columns}
     target = pig.target_amount
-    current = pig.current_amount
+    data["current_amount"] = current
     data["progress_pct"] = (
         float(current / target * 100) if target > 0 else 0.0
     )
     return PiggyBankResponse.model_validate(data)
 
 
-def _update_completion(pig: PiggyBank) -> None:
-    pig.is_completed = pig.current_amount >= pig.target_amount
+def _update_completion(pig: PiggyBank, current: Decimal) -> None:
+    pig.is_completed = current >= pig.target_amount
 
 
 # ── CRUD ──────────────────────────────────────────────────────────────────────
@@ -76,7 +77,7 @@ async def create_piggy_bank(
     session.add(pig)
     await session.commit()
     await session.refresh(pig)
-    return _to_response(pig)
+    return _to_response(pig, Decimal("0"))
 
 
 @router.get("", response_model=list[PiggyBankResponse])
@@ -90,7 +91,9 @@ async def list_piggy_banks(
             PiggyBank.deleted_at.is_(None),
         ).order_by(PiggyBank.name)
     )
-    return [_to_response(p) for p in result.scalars().all()]
+    pigs = result.scalars().all()
+    amounts = await compute_amounts(session, [p.id for p in pigs])
+    return [_to_response(p, amounts[p.id]) for p in pigs]
 
 
 @router.get("/{piggy_id}", response_model=PiggyBankResponse)
@@ -100,7 +103,8 @@ async def get_piggy_bank(
     session: AsyncSession = Depends(get_session),
 ) -> PiggyBankResponse:
     pig = await _get_piggy_or_404(piggy_id, current_user, session)
-    return _to_response(pig)
+    current = await compute_amount(session, pig.id)
+    return _to_response(pig, current)
 
 
 @router.patch("/{piggy_id}", response_model=PiggyBankResponse)
@@ -113,10 +117,11 @@ async def patch_piggy_bank(
     pig = await _get_piggy_or_404(piggy_id, current_user, session)
     for field, value in body.model_dump(exclude_unset=True).items():
         setattr(pig, field, value)
-    _update_completion(pig)
+    current = await compute_amount(session, pig.id)
+    _update_completion(pig, current)
     await session.commit()
     await session.refresh(pig)
-    return _to_response(pig)
+    return _to_response(pig, current)
 
 
 @router.delete("/{piggy_id}", status_code=204)
@@ -166,7 +171,8 @@ async def restore_piggy_bank(
     pig.deleted_at = None
     await session.commit()
     await session.refresh(pig)
-    return _to_response(pig)
+    current = await compute_amount(session, pig.id)
+    return _to_response(pig, current)
 
 
 # ── Contributions ─────────────────────────────────────────────────────────────
@@ -199,8 +205,9 @@ async def add_contribution(
         notes=body.notes,
     )
     session.add(contrib)
-    pig.current_amount += body.amount
-    _update_completion(pig)
+    await session.flush()
+    current = await compute_amount(session, pig.id)
+    _update_completion(pig, current)
     await session.commit()
     await session.refresh(contrib)
     return ContributionResponse.model_validate(contrib)
@@ -225,11 +232,10 @@ async def remove_contribution(
     if contrib is None:
         raise HTTPException(status_code=404, detail="Contribution not found")
 
-    pig.current_amount -= contrib.amount
-    if pig.current_amount < Decimal("0"):
-        pig.current_amount = Decimal("0")
-    _update_completion(pig)
     await session.delete(contrib)
+    await session.flush()
+    current = await compute_amount(session, pig.id)
+    _update_completion(pig, current)
     await session.commit()
 
 

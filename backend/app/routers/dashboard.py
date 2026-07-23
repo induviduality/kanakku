@@ -39,6 +39,7 @@ from app.schemas.dashboard import (
     RecentTransaction,
 )
 from app.services.account_balance import compute_balances
+from app.services.piggy_bank_balance import compute_amounts as compute_piggy_bank_amounts
 from app.services.subscription_dates import compute_next_billing_date, subscription_status
 
 router = APIRouter(prefix="/dashboard", tags=["dashboard"])
@@ -474,10 +475,13 @@ async def _piggy_banks_summary(
         )
     ).scalars().all()
 
+    amounts = await compute_piggy_bank_amounts(session, [p.id for p in pigs])
+
     result: list[PiggyBankSummaryItem] = []
     for p in pigs:
+        current = amounts[p.id]
         pct = (
-            float(p.current_amount / p.target_amount * 100)
+            float(current / p.target_amount * 100)
             if p.target_amount > 0
             else 0.0
         )
@@ -486,10 +490,10 @@ async def _piggy_banks_summary(
                 id=p.id,
                 name=p.name,
                 target_amount=p.target_amount,
-                current_amount=p.current_amount,
+                current_amount=current,
                 currency=p.currency,
                 progress_pct=min(round(pct, 1), 100.0),
-                is_completed=p.is_completed,
+                is_completed=current >= p.target_amount,
             )
         )
     return result

@@ -308,6 +308,27 @@ async def update_split(
     # 1. Fetch split or 404
     split = await _get_split_or_404(split_id, user, session)
 
+    # Capture existing per-transaction settlement amounts up front. PUT is a
+    # delete-and-recreate; without this, a partial payment recorded via the
+    # settle flow (amount < transaction.amount) would be inflated back to the
+    # full transaction amount when its link is recreated below.
+    old_settlement_amounts: dict[uuid.UUID, Decimal] = {}
+    existing_shares_for_amounts = (
+        await session.execute(
+            select(SplitShare).where(SplitShare.split_id == split_id)
+        )
+    ).scalars().all()
+    for share in existing_shares_for_amounts:
+        settlements = (
+            await session.execute(
+                select(SplitShareSettlement).where(
+                    SplitShareSettlement.share_id == share.id
+                )
+            )
+        ).scalars().all()
+        for s in settlements:
+            old_settlement_amounts[s.transaction_id] = s.amount
+
     # 2. Validate and load all expense transactions
     expense_txns: list[Transaction] = []
     for exp_id in body.expense_transaction_ids:
@@ -402,7 +423,10 @@ async def update_split(
                     )
             settlement_txns.append(inc)
 
-        paid_total = sum((t.amount for t in settlement_txns), Decimal("0.00"))
+        paid_total = sum(
+            (old_settlement_amounts.get(t.id, t.amount) for t in settlement_txns),
+            Decimal("0.00"),
+        )
         if paid_total + forgiven > s.amount:
             raise HTTPException(
                 status_code=422,
@@ -468,7 +492,10 @@ async def update_split(
             ).scalar_one_or_none()
             settlement_txns.append(inc)
 
-        paid_total = sum((t.amount for t in settlement_txns), Decimal("0.00"))
+        paid_total = sum(
+            (old_settlement_amounts.get(t.id, t.amount) for t in settlement_txns),
+            Decimal("0.00"),
+        )
         share = SplitShare(
             id=uuid.uuid4(),
             split_id=split.id,
@@ -488,7 +515,7 @@ async def update_split(
                     id=uuid.uuid4(),
                     share_id=share.id,
                     transaction_id=t.id,
-                    amount=t.amount,
+                    amount=old_settlement_amounts.get(t.id, t.amount),
                 )
             )
 

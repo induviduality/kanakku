@@ -1,5 +1,27 @@
 # Decision Log
 
+## 2026-07-23 — Split edit (PUT): preserve partial-settlement amounts and forgiveness across delete-and-recreate
+
+**Context:** Fable review (2026-07-12 #3) found that editing a split via `PUT /splits/{id}` — a delete-and-recreate operation — silently destroyed two things: (1) `SplitForm` never sent `forgiven_amount`, so any forgiveness set via the dedicated Forgive flow reset to zero on save; (2) the recreate step always inserted `SplitShareSettlement.amount = transaction.amount` (the full income transaction amount), inflating any partial settlement (set via `POST /settle {amount}`) back to full on every edit.
+
+**Decision:** Backend: `update_split` now captures each existing settlement's `(transaction_id → amount)` up front, before the delete-and-recreate, and uses that captured amount (falling back to the transaction's full amount only for newly linked settlements) both for the pre-commit "paid + forgiven ≤ share amount" validation and for the recreated `SplitShareSettlement` rows. This preserves partial payments without changing the API shape (`settlement_transaction_ids` stays a plain UUID list — the schema already had no per-item amount field, and adding one was out of scope for this fix). Frontend: `SplitForm`'s `PayeeShare` gained a `forgivenAmount` field, pre-populated from `initialSplit` in edit mode, editable via a new "Forgiven amount" input on each payee card, validated against `settled + forgiven ≤ amount`, and included in the submit payload when > 0.
+
+**Alternatives considered:**
+- Redesign `settlement_transaction_ids` into a list of `{transaction_id, amount}` objects so PUT could accept explicit per-settlement amounts from the client — more correct long-term (matches the review's suggested fix) but a bigger schema change touching create/bundle too; deferred since preserving the pre-existing amount server-side fully closes the data-loss bug without any client changes to settlement handling.
+
+**Affects:** `backend/app/routers/splits.py` (`update_split`), `frontend/src/components/SplitForm.tsx`
+
+## 2026-07-23 — Piggy bank progress computed from contributions on read, not a cached column
+
+**Context:** Fable review (2026-07-12 #4) found the same imperative-cache bug class as the 2026-07-11 account-balance fix (D-002-shaped): `PiggyBank.current_amount` was only updated by the piggy-bank router's own add/remove-contribution endpoints. `_sync_piggy_bank` in `transactions.py` — the path used by every transaction create/edit that links a "Savings Goal" — deletes and re-inserts `PiggyBankContribution` rows without ever touching `current_amount`, so linking a goal from the transaction form never moved its progress. Same drift on soft-deleting or amount-editing a linked transaction.
+
+**Decision:** New `app/services/piggy_bank_balance.py` (mirrors `account_balance.py`'s pattern) with `compute_amount`/`compute_amounts`, summing `PiggyBankContribution.amount` joined to non-deleted `Transaction` rows. `piggy_banks.py`'s CRUD + contribution endpoints and `dashboard.py`'s `_piggy_banks_summary` now compute the live total instead of reading/writing the stored column; `is_completed` is derived from the same computed value at every read. Stopped mutating `pig.current_amount` anywhere (add_contribution/remove_contribution no longer `+=`/`-=` it). The `current_amount` column itself is left in place, unused/frozen, for a later migration to drop — same staged approach as the account-balance rewrite.
+
+**Alternatives considered:**
+- Patch `_sync_piggy_bank` to also adjust `current_amount` — fixes this one call site but leaves the imperative-cache design intact, so the next new mutation path (there have already been two: add/remove-contribution vs. transaction-form linking) can reintroduce the same bug.
+
+**Affects:** `backend/app/services/piggy_bank_balance.py` (new), `backend/app/routers/piggy_banks.py`, `backend/app/routers/dashboard.py`
+
 ## 2026-07-08 — Credit cards: dropped `credit_card` from `PaymentMethodType`, kept only as an `AccountType`
 
 **Context:** Credit cards were modeled two ways at once: `AccountType.credit_card` (a dedicated liability account, e.g. dev seed's "HDFC Credit Card") *and* `PaymentMethodType.credit_card` (a payment method nested under that same account, e.g. dev seed's "HDFC Credit ••9876"). The nested payment method was pure redundancy — the account already represents the card.
