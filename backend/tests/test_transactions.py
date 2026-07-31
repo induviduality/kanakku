@@ -200,6 +200,34 @@ async def test_delete_restores_balance(authed) -> None:
     assert float(acc["current_balance"]) == 10000.00
 
 
+async def test_delete_blocked_when_linked_to_split(authed) -> None:
+    """Review bug #17: deleting an expense linked into a split must be blocked."""
+    client, headers, acc_id = authed
+    resp = await client.post(
+        "/api/v1/transactions",
+        json={"type": "expense", "transacted_at": "2026-01-15T10:00:00Z", "amount": "300.00", "account_id": acc_id},
+        headers=headers,
+    )
+    txn_id = resp.json()["id"]
+    split_resp = await client.post(
+        "/api/v1/splits",
+        json={
+            "expense_transaction_ids": [txn_id],
+            "shares": [{"amount": "300.00"}],
+        },
+        headers=headers,
+    )
+    assert split_resp.status_code == 201
+
+    del_resp = await client.delete(f"/api/v1/transactions/{txn_id}", headers=headers)
+    assert del_resp.status_code == 409
+    assert "split" in del_resp.json()["detail"].lower()
+
+    # Unaffected — still active, not soft-deleted
+    txn = (await client.get(f"/api/v1/transactions/{txn_id}", headers=headers)).json()
+    assert txn["deleted_at"] is None
+
+
 async def test_restore_reapplies_balance(authed) -> None:
     client, headers, acc_id = authed
     resp = await client.post(

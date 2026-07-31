@@ -1,3 +1,17 @@
+# Ad-hoc Fix Sprint (2026-07-31, cont. 3) — Fable Review 2026-07-12 (01-bugs), bug #17 — COMPLETE
+
+User explicitly asked for the blocked-delete reason to surface as a modal, not a toast.
+
+## Completed Tasks
+- #17 `delete_transaction` 409s if the transaction is linked via `SplitExpense` or `SplitShareSettlement`, matching the `delete_account` 409 pattern — DONE
+- New shared `InfoDialog` component + `getErrorDetail()` helper; wired into `Transactions.tsx` and `Disputes.tsx`'s delete flows (409 → modal, everything else → existing toast) — DONE
+- New regression test `test_delete_blocked_when_linked_to_split` — DONE (syntax-checked only, no local Postgres)
+- `bun run build` clean — DONE
+
+## Pending
+- Real pytest run against a DB, once available (same caveat as the §1 perf fix)
+- Not browser-verified end-to-end
+
 # Ad-hoc Fix Sprint (2026-07-31, cont. 2) — Fable Review 2026-07-12 (01-bugs), bug #11 — COMPLETE
 
 ## Completed Tasks

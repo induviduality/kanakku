@@ -1,4 +1,12 @@
-# Decision Log
+## 2026-07-31 — Bug #17: block split-linked transaction deletes with a modal, not a toast
+
+**Context:** Fable review 2026-07-12 (01-bugs #17) — deleting an expense or settlement transaction that's linked into a split silently corrupted the split (total no longer matches shares, `paid_amount` counts a gone transaction). The review's own account-deletion precedent (`accounts.py:148-179`) blocks with a 409 + specific message. User explicitly asked that this be surfaced as a modal.
+
+**Decision:** Backend 409s (message: "Transaction is linked to a split. Unlink it from the split before deleting.") checking both `SplitExpense.transaction_id` and `SplitShareSettlement.transaction_id` — covers both link directions (expense side and settlement/payment side) the review called out. Frontend: added a new shared `InfoDialog` (single "OK" button, distinct from the existing two-button `ConfirmDialog`) plus a `getErrorDetail()` helper that reads a failed `Response`'s JSON `detail` field, with a generic fallback string if the body isn't shaped as expected. Wired into the two places a transaction delete can be triggered (`Transactions.tsx`, `Disputes.tsx`'s duplicate-resolution flow) — both still fall back to the pre-existing generic toast for non-409 errors, so this doesn't touch the rest of the just-finished toast/confirm sweep.
+
+**Why a modal instead of extending the toast:** the 2026-07-31 toast sweep's rule was "every mutation gets a toast" for pass/fail visibility, which is right for routine errors. This case is different — the message is actionable ("go unlink it first") and worth the user actually reading and dismissing, not a 4-second auto-expiring toast easy to miss. Scoped narrowly: only this specific 409 case uses the modal; every other delete-failure path still uses the toast.
+
+**Affects:** `backend/app/routers/transactions.py` (`delete_transaction`), `backend/tests/test_transactions.py` (new regression test), `frontend/src/components/InfoDialog.tsx` (new), `frontend/src/lib/api-client.ts` (`getErrorDetail`), `frontend/src/pages/Transactions.tsx`, `frontend/src/pages/Disputes.tsx`. No migration. Not run against a real DB this session (no local Postgres); `bun run build` clean.
 
 ## 2026-07-31 — Perf review §1: batch `GET /transactions` per-row queries, not one aggregated join
 

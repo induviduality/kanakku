@@ -5,6 +5,8 @@ import { useDeleteTransaction } from '../api/transactions'
 import { usePeriod } from '../lib/period-context'
 import { useToast } from '../lib/toast'
 import ConfirmDialog from '../components/ConfirmDialog'
+import InfoDialog from '../components/InfoDialog'
+import { getErrorDetail } from '../lib/api-client'
 
 const TYPE_CHIP: Record<string, string> = {
   income:          'kk-chip-positive',
@@ -28,6 +30,7 @@ function DisputeResolveModal({
   const { toast } = useToast()
   const [busy, setBusy] = useState(false)
   const [confirmKeepId, setConfirmKeepId] = useState<string | null>(null)
+  const [blockedMessage, setBlockedMessage] = useState<string | null>(null)
 
   async function handleKeep(keepId: string) {
     setBusy(true)
@@ -38,8 +41,12 @@ function DisputeResolveModal({
       }
       toast('Duplicate moved to bin.')
       onKeptOne()
-    } catch {
-      toast('Failed to delete transaction. Please try again.', 'error')
+    } catch (err) {
+      if (err instanceof Response && err.status === 409) {
+        setBlockedMessage(await getErrorDetail(err, 'This transaction cannot be deleted.'))
+      } else {
+        toast('Failed to delete transaction. Please try again.', 'error')
+      }
       setBusy(false)
     }
   }
@@ -90,6 +97,13 @@ function DisputeResolveModal({
           setConfirmKeepId(null)
         }}
         onCancel={() => setConfirmKeepId(null)}
+      />
+
+      <InfoDialog
+        open={!!blockedMessage}
+        title="Can't delete transaction"
+        description={blockedMessage ?? ''}
+        onClose={() => setBlockedMessage(null)}
       />
     </div>
   )

@@ -11,7 +11,7 @@ from app.db.session import get_session
 from app.dependencies import get_current_user
 from app.models.account import Account
 from app.models.payment_method import PaymentMethod
-from app.models.split import Split, SplitExpense
+from app.models.split import Split, SplitExpense, SplitShareSettlement
 from app.models.piggy_bank import ContributionType, PiggyBankContribution
 from app.models.transaction import (
     Transaction,
@@ -727,6 +727,31 @@ async def delete_transaction(
     session: AsyncSession = Depends(get_session),
 ) -> None:
     txn = await _get_txn_or_404(txn_id, current_user, session)
+
+    # A transaction linked into a split (as an expense or as a settlement
+    # payment) must be unlinked first — deleting out from under it leaves the
+    # split's total mismatched against its shares (review bug #17).
+    split_expense_ref = (
+        await session.execute(
+            select(SplitExpense.id).where(SplitExpense.transaction_id == txn.id).limit(1)
+        )
+    ).scalar_one_or_none()
+    settlement_ref = (
+        await session.execute(
+            select(SplitShareSettlement.id)
+            .where(SplitShareSettlement.transaction_id == txn.id)
+            .limit(1)
+        )
+    ).scalar_one_or_none()
+    if split_expense_ref is not None or settlement_ref is not None:
+        raise HTTPException(
+            status_code=409,
+            detail=(
+                "Transaction is linked to a split. Unlink it from the split "
+                "before deleting."
+            ),
+        )
+
     txn.deleted_at = datetime.now(UTC)
     await session.commit()
 

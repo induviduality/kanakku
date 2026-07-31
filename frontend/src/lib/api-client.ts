@@ -107,3 +107,18 @@ export async function apiDelete<T = void>(path: string): Promise<T> {
   if (!res.ok) throw res
   return parseJsonOrUndefined<T>(res)
 }
+
+// Failed api* calls throw the raw Response. Callers that need the backend's
+// specific reason (e.g. a 409 blocked-delete message) read it via this —
+// falls back to a generic message if the body isn't the expected shape.
+export async function getErrorDetail(err: unknown, fallback: string): Promise<string> {
+  if (err instanceof Response) {
+    try {
+      const body = await err.json()
+      if (typeof body?.detail === 'string') return body.detail
+    } catch {
+      // not JSON / already consumed — fall through to fallback
+    }
+  }
+  return fallback
+}

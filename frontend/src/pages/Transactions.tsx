@@ -16,10 +16,12 @@ import { useCategories } from '../api/categories'
 import { useTags } from '../api/tags'
 import { usePeriod } from '../lib/period-context'
 import ConfirmDialog from '../components/ConfirmDialog'
+import InfoDialog from '../components/InfoDialog'
 
 import { EmptyState } from '../components/EmptyState'
 import { TransactionDrawer } from '../components/drawers/TransactionDrawer'
 import { useToast } from '../lib/toast'
+import { getErrorDetail } from '../lib/api-client'
 
 function formatAmount(t: Transaction): string {
   const sign = t.type === 'expense' ? '-' : t.type === 'transfer' ? '⇄' : '+'
@@ -158,6 +160,7 @@ export default function Transactions() {
 
   // UI-only state
   const [deleteTarget, setDeleteTarget] = useState<Transaction | null>(null)
+  const [deleteBlockedMessage, setDeleteBlockedMessage] = useState<string | null>(null)
   const [drawerTransaction, setDrawerTransaction] = useState<Transaction | null>(null)
   const [drawerSplitId, setDrawerSplitId] = useState<string | null>(null)
   const [drawerSplitTitle, setDrawerSplitTitle] = useState<string | null>(null)
@@ -730,8 +733,14 @@ export default function Transactions() {
             try {
               await deleteTxn.mutateAsync(deleteTarget.id)
               toast('Transaction deleted.')
-            } catch {
-              toast('Failed to delete transaction. Please try again.', 'error')
+            } catch (err) {
+              if (err instanceof Response && err.status === 409) {
+                setDeleteBlockedMessage(
+                  await getErrorDetail(err, 'This transaction cannot be deleted.')
+                )
+              } else {
+                toast('Failed to delete transaction. Please try again.', 'error')
+              }
             }
           }
           setDeleteTarget(null)
@@ -739,6 +748,12 @@ export default function Transactions() {
         onCancel={() => setDeleteTarget(null)}
       />
 
+      <InfoDialog
+        open={!!deleteBlockedMessage}
+        title="Can't delete transaction"
+        description={deleteBlockedMessage ?? ''}
+        onClose={() => setDeleteBlockedMessage(null)}
+      />
 
       <TransactionDrawer
         transaction={drawerTransaction}

@@ -1,5 +1,12 @@
 # Completed Milestones
 
+## Fable review 2026-07-12 (01-bugs #17) — block deleting a split-linked transaction (2026-07-31)
+
+- Backend: `delete_transaction` (transactions.py) now 409s with a clear message if the transaction is referenced by `SplitExpense.transaction_id` (linked expense) or `SplitShareSettlement.transaction_id` (linked settlement payment) — matches the existing `delete_account` 409-guard pattern (accounts.py:148-179). No DB/schema change.
+- Frontend: since a blocked-delete reason is specific and actionable ("unlink from the split first"), not just a generic failure, added it as a real modal rather than a toast — new shared `InfoDialog` component (single "OK" button) and `getErrorDetail()` helper in `api-client.ts` that reads the backend's `detail` field off a failed `Response`. Wired into both places a transaction can be deleted: `Transactions.tsx`'s delete-confirm flow and `Disputes.tsx`'s duplicate-resolution "keep this one" flow (both fall back to the existing generic-failure toast for any non-409 error).
+- New backend regression test `test_delete_blocked_when_linked_to_split` (test_transactions.py) — creates a split from an expense, asserts the delete 409s and the transaction stays live.
+- Validation: backend `py_compile` + import-resolution clean (no local Postgres this session, test not run against a real DB); `bun run build` clean, zero new TypeScript errors.
+
 ## Fable review 2026-07-12 (01-bugs #11) — nav gaps: Settings/Reports/Subscriptions (desktop), Splits/Disputes (mobile) (2026-07-31)
 
 - `SideNav.tsx`: added Subscriptions, Reports, Settings entries (Bin kept last, Settings now last) — previously unreachable from desktop nav without typing the URL, despite being fully built pages (Reports M11, Subscriptions M6, Settings/data-portability pages).
