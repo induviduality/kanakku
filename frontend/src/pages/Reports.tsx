@@ -2,8 +2,10 @@ import { useState } from 'react'
 import { Link } from '@tanstack/react-router'
 import { useGetDashboards, useCreateDashboard, useDeleteDashboard } from '../api/reports'
 import type { Dashboard } from '../api/reports'
+import ConfirmDialog from '../components/ConfirmDialog'
+import { useToast } from '../lib/toast'
 
-function DashboardCard({ dashboard, onDelete }: { dashboard: Dashboard; onDelete: (id: string) => void }) {
+function DashboardCard({ dashboard, onDelete }: { dashboard: Dashboard; onDelete: () => void }) {
   return (
     <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5 flex flex-col gap-3">
       <div className="flex items-start justify-between">
@@ -14,7 +16,7 @@ function DashboardCard({ dashboard, onDelete }: { dashboard: Dashboard; onDelete
           )}
         </div>
         <button
-          onClick={() => onDelete(dashboard.id)}
+          onClick={onDelete}
           className="text-gray-400 hover:text-red-500 text-sm ml-2"
           aria-label={`Delete dashboard ${dashboard.name}`}
         >
@@ -36,16 +38,23 @@ export default function Reports() {
   const { data: dashboards, isLoading } = useGetDashboards()
   const createDashboard = useCreateDashboard()
   const deleteDashboard = useDeleteDashboard()
+  const { toast } = useToast()
   const [showCreate, setShowCreate] = useState(false)
   const [newName, setNewName] = useState('')
   const [newDesc, setNewDesc] = useState('')
+  const [deleteTarget, setDeleteTarget] = useState<Dashboard | null>(null)
 
   async function handleCreate() {
     if (!newName.trim()) return
-    await createDashboard.mutateAsync({ name: newName.trim(), description: newDesc.trim() || undefined })
-    setNewName('')
-    setNewDesc('')
-    setShowCreate(false)
+    try {
+      await createDashboard.mutateAsync({ name: newName.trim(), description: newDesc.trim() || undefined })
+      setNewName('')
+      setNewDesc('')
+      setShowCreate(false)
+      toast('Dashboard created.')
+    } catch {
+      toast('Failed to create dashboard. Please try again.', 'error')
+    }
   }
 
   return (
@@ -116,10 +125,26 @@ export default function Reports() {
       {dashboards && dashboards.length > 0 && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {dashboards.map((d) => (
-            <DashboardCard key={d.id} dashboard={d} onDelete={(id) => deleteDashboard.mutate(id)} />
+            <DashboardCard key={d.id} dashboard={d} onDelete={() => setDeleteTarget(d)} />
           ))}
         </div>
       )}
+
+      <ConfirmDialog
+        open={!!deleteTarget}
+        title="Delete dashboard"
+        description={`Delete "${deleteTarget?.name}"? This cannot be undone.`}
+        confirmLabel="Delete"
+        isDestructive
+        onConfirm={() => {
+          if (!deleteTarget) return
+          deleteDashboard.mutate(deleteTarget.id, {
+            onSuccess: () => { setDeleteTarget(null); toast('Dashboard deleted.') },
+            onError: () => toast('Failed to delete dashboard. Please try again.', 'error'),
+          })
+        }}
+        onCancel={() => setDeleteTarget(null)}
+      />
     </div>
   )
 }

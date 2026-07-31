@@ -1,5 +1,12 @@
 # Completed Milestones
 
+## UI-wide sweep: confirm-before-delete + toast-on-mutation (2026-07-31)
+
+- Audited the whole `frontend/src` tree (delete actions + create/update/delete mutations) via an Explore agent, then closed every gap found: missing success/error toasts on Accounts, Payees, Budgets, AccountDrawer, all PiggyBank surfaces, Transactions, Subscriptions, the full Splits surface (list/drawer/detail/form), Reports/ReportDashboard, and ImportReview.
+- Added missing confirm-before-delete dialogs for actions that previously fired immediately: SplitDrawer/SplitDetail "unlink settlement", ReportDashboard widget delete, Reports dashboard delete, ImportReview bulk Reject and duplicate-resolution "Replace existing", and Disputes' duplicate-resolution "keep this one" card.
+- No new abstraction added — extended the existing `try/catch` + `toast()` / `{ onSuccess, onError }` per-mutation pattern already used by Tags/Categories/Disputes/ImportReview into every other page and drawer.
+- Verification: `bun run build` clean, zero new TypeScript errors. Not browser-verified end-to-end given the breadth of the sweep.
+
 ## Credit cards §5 — seed existing card debt (opening_balance on liabilities, approach a) (2026-07-24)
 
 - Code-only (no migration — verified the ban was an app guard, not a DB constraint). Removed the guard blocking `opening_balance` on credit_card/loan in `create_transaction`/`patch_transaction`. `compute_balances` now counts an opening_balance on a liability account as a debit (−amount) via an Account-type join; asset accounts unchanged; opening_balance still excluded from flow reports.

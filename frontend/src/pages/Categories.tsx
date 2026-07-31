@@ -24,6 +24,13 @@ export default function Categories() {
   const seedDefaults = useSeedDefaultCategories()
   const { toast } = useToast()
 
+  function handleSeedDefaults() {
+    seedDefaults.mutate(undefined, {
+      onSuccess: () => toast('Default categories added.'),
+      onError: () => toast('Failed to seed default categories. Please try again.', 'error'),
+    })
+  }
+
   const [createOpen, setCreateOpen] = useState(false)
   const [editTarget, setEditTarget] = useState<Category | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<Category | null>(null)
@@ -64,6 +71,7 @@ export default function Categories() {
         applicability: applicability ?? undefined,
       })
       closeCreate()
+      toast('Category created.')
     } catch {
       toast('Failed to create category. Please try again.', 'error')
     }
@@ -83,6 +91,7 @@ export default function Categories() {
         },
       })
       setEditTarget(null)
+      toast('Category updated.')
     } catch {
       toast('Failed to update category. Please try again.', 'error')
     }
@@ -97,7 +106,7 @@ export default function Categories() {
         <div className="flex gap-2">
           {active.length === 0 && (
             <button
-              onClick={() => seedDefaults.mutate()}
+              onClick={handleSeedDefaults}
               disabled={seedDefaults.isPending}
               className="kk-btn-ghost disabled:opacity-50 text-sm"
             >
@@ -244,6 +253,7 @@ export default function Categories() {
           if (deleteTarget) {
             try {
               await deleteCategory.mutateAsync(deleteTarget.id)
+              toast('Category deleted.')
             } catch {
               toast('Failed to delete category. Please try again.', 'error')
             }

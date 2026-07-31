@@ -6,6 +6,7 @@ import {
   usePatchPiggyBank,
   type PiggyBankCreate,
 } from '../api/piggy_banks'
+import { useToast } from '../lib/toast'
 
 export default function PiggyBankFormPage() {
   const { piggyId } = useParams({ strict: false }) as { piggyId?: string }
@@ -15,6 +16,7 @@ export default function PiggyBankFormPage() {
   const { data: existing } = useGetPiggyBank(piggyId ?? null)
   const createMutation = useCreatePiggyBank()
   const patchMutation = usePatchPiggyBank()
+  const { toast } = useToast()
 
   const [name, setName] = useState('')
   const [targetAmount, setTargetAmount] = useState('')
@@ -49,11 +51,15 @@ export default function PiggyBankFormPage() {
     if (isEdit && piggyId) {
       patchMutation.mutate(
         { id: piggyId, patch: data },
-        { onSuccess: () => void navigate({ to: `/piggy-banks/${piggyId}` }) },
+        {
+          onSuccess: () => { toast('Savings goal updated.'); void navigate({ to: `/piggy-banks/${piggyId}` }) },
+          onError: () => toast('Failed to update savings goal. Please try again.', 'error'),
+        },
       )
     } else {
       createMutation.mutate(data, {
-        onSuccess: (pig) => void navigate({ to: `/piggy-banks/${pig.id}` }),
+        onSuccess: (pig) => { toast('Savings goal created.'); void navigate({ to: `/piggy-banks/${pig.id}` }) },
+        onError: () => toast('Failed to create savings goal. Please try again.', 'error'),
       })
     }
   }

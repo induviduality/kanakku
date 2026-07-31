@@ -17,6 +17,8 @@ import { apiPatch } from '../lib/api-client'
 import type { Widget } from '../api/reports'
 import WidgetRenderer from '../components/reports/WidgetRenderer'
 import WidgetEditor from '../components/reports/WidgetEditor'
+import ConfirmDialog from '../components/ConfirmDialog'
+import { useToast } from '../lib/toast'
 
 interface WidgetWithData extends Widget {
   queryData?: { columns: string[]; rows: Record<string, unknown>[] }
@@ -80,9 +82,11 @@ export default function ReportDashboard() {
   const createWidget = useCreateWidget(dashboardId)
   const deleteWidget = useDeleteWidget(dashboardId)
   const runQuery = useRunQuery()
+  const { toast } = useToast()
 
   const [editingWidget, setEditingWidget] = useState<Widget | null>(null)
   const [showCreate, setShowCreate] = useState(false)
+  const [deleteTarget, setDeleteTarget] = useState<Widget | null>(null)
   const [widgetData, setWidgetData] = useState<Record<string, { columns: string[]; rows: Record<string, unknown>[] } | { error: string }>>({})
   const loadingRef = useRef(new Set<string>())
 
@@ -114,13 +118,19 @@ export default function ReportDashboard() {
   const updateWidget = useUpdateWidget(dashboardId, editingWidget?.id ?? 'noop')
 
   async function handleSaveWidget(data: Omit<Widget, 'id' | 'dashboard_id' | 'created_at' | 'updated_at'>) {
-    if (editingWidget) {
-      await updateWidget.mutateAsync(data)
-    } else {
-      await createWidget.mutateAsync(data)
+    try {
+      if (editingWidget) {
+        await updateWidget.mutateAsync(data)
+        toast('Widget updated.')
+      } else {
+        await createWidget.mutateAsync(data)
+        toast('Widget created.')
+      }
+      setEditingWidget(null)
+      setShowCreate(false)
+    } catch {
+      toast(editingWidget ? 'Failed to update widget. Please try again.' : 'Failed to create widget. Please try again.', 'error')
     }
-    setEditingWidget(null)
-    setShowCreate(false)
   }
 
   const layout = (widgets ?? []).map((w) => ({
@@ -175,7 +185,7 @@ export default function ReportDashboard() {
                 apiPatch(
                   `/reports/dashboards/${dashboardId}/widgets/${item.i}`,
                   { position: { x: item.x, y: item.y, w: item.w, h: item.h } },
-                ).catch(() => {})
+                ).catch(() => toast('Failed to save widget layout. Please try again.', 'error'))
               })
             }}
           >
@@ -191,7 +201,7 @@ export default function ReportDashboard() {
                   <WidgetCard
                     widget={withData}
                     onEdit={() => { setEditingWidget(widget); setShowCreate(true) }}
-                    onDelete={() => deleteWidget.mutate(widget.id)}
+                    onDelete={() => setDeleteTarget(widget)}
                   />
                 </div>
               )
@@ -207,6 +217,22 @@ export default function ReportDashboard() {
           onCancel={() => { setShowCreate(false); setEditingWidget(null) }}
         />
       )}
+
+      <ConfirmDialog
+        open={!!deleteTarget}
+        title="Delete widget"
+        description={`Delete "${deleteTarget?.title}"? This cannot be undone.`}
+        confirmLabel="Delete"
+        isDestructive
+        onConfirm={() => {
+          if (!deleteTarget) return
+          deleteWidget.mutate(deleteTarget.id, {
+            onSuccess: () => { setDeleteTarget(null); toast('Widget deleted.') },
+            onError: () => toast('Failed to delete widget. Please try again.', 'error'),
+          })
+        }}
+        onCancel={() => setDeleteTarget(null)}
+      />
     </div>
   )
 }

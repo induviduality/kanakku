@@ -16,6 +16,7 @@ import {
 import { useTransaction } from '../api/transactions'
 import { useAccounts, type Account } from '../api/accounts'
 import { useToast } from '../lib/toast'
+import ConfirmDialog from '../components/ConfirmDialog'
 
 const TABS: { status: RecordStatus; label: string }[] = [
   { status: 'pending',   label: 'Pending' },
@@ -76,12 +77,13 @@ function DuplicateResolveModal({
   const replaceMutation = useReplaceExisting(batchId)
   const duplicateIds = getDuplicateIds(record)
   const { toast } = useToast()
+  const [replaceConfirmOpen, setReplaceConfirmOpen] = useState(false)
 
   function handleKeepExisting() {
     patchMutation.mutate(
       { recordId: record.id, patch: { status: 'rejected' } },
       {
-        onSuccess: onClose,
+        onSuccess: () => { toast('Import record rejected.'); onClose() },
         onError: () => toast('Failed to reject record. Please try again.', 'error'),
       },
     )
@@ -91,7 +93,7 @@ function DuplicateResolveModal({
     confirmMutation.mutate(
       { record_ids: [record.id], force: true },
       {
-        onSuccess: onClose,
+        onSuccess: () => { toast('Transaction imported.'); onClose() },
         onError: () => toast('Failed to confirm transaction. Please try again.', 'error'),
       },
     )
@@ -101,7 +103,7 @@ function DuplicateResolveModal({
     replaceMutation.mutate(
       { recordId: record.id, body: { transaction_ids: duplicateIds } },
       {
-        onSuccess: onClose,
+        onSuccess: () => { setReplaceConfirmOpen(false); toast('Transaction replaced.'); onClose() },
         onError: () => toast('Failed to replace transaction. Please try again.', 'error'),
       },
     )
@@ -184,7 +186,7 @@ function DuplicateResolveModal({
 
             {duplicateIds.length > 0 && (
               <button
-                onClick={handleReplace}
+                onClick={() => setReplaceConfirmOpen(true)}
                 disabled={isBusy || noAccount}
                 title={noAccount ? 'Select an account first' : undefined}
                 className="w-full text-left rounded-lg border border-negative/30 bg-negative/5 px-4 py-3 text-sm hover:bg-negative/10 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
@@ -202,6 +204,16 @@ function DuplicateResolveModal({
           <button onClick={onClose} className="kk-btn-ghost text-sm">Cancel</button>
         </div>
       </div>
+
+      <ConfirmDialog
+        open={replaceConfirmOpen}
+        title="Replace existing transaction"
+        description={`This will soft-delete the matched ${duplicateIds.length === 1 ? 'transaction' : 'transactions'} and import this one in its place. This can be undone within 30 days.`}
+        confirmLabel="Replace"
+        isDestructive
+        onConfirm={handleReplace}
+        onCancel={() => setReplaceConfirmOpen(false)}
+      />
     </div>
   )
 }
@@ -263,7 +275,7 @@ function RecordRow({
         },
       },
       {
-        onSuccess: () => setEditing(false),
+        onSuccess: () => { setEditing(false); toast('Changes saved.') },
         onError: () => toast('Failed to save changes. Please try again.', 'error'),
       },
     )
@@ -282,7 +294,10 @@ function RecordRow({
           parsed_json: { ...rest, type: 'transfer', to_account_id: suggestion.to_account_id },
         },
       },
-      { onError: () => toast('Failed to link as transfer. Please try again.', 'error') },
+      {
+        onSuccess: () => toast('Linked as transfer.'),
+        onError: () => toast('Failed to link as transfer. Please try again.', 'error'),
+      },
     )
   }
 
@@ -292,7 +307,7 @@ function RecordRow({
     patchMutation.mutate(
       { recordId: record.id, patch: { parsed_json: { ...record.parsed_json, description } } },
       {
-        onSuccess: () => setEditingName(false),
+        onSuccess: () => { setEditingName(false); toast('Changes saved.') },
         onError: () => { toast('Failed to save name. Please try again.', 'error'); setEditingName(false) },
       },
     )
@@ -475,6 +490,7 @@ export default function ImportReview() {
   const [activeTab, setActiveTab] = useState<RecordStatus>('pending')
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [resolveRecord, setResolveRecord] = useState<RawImportRecord | null>(null)
+  const [rejectConfirmOpen, setRejectConfirmOpen] = useState(false)
   const { toast } = useToast()
 
   const { data: batch, isLoading: batchLoading } = useGetImportBatch(batchId)
@@ -508,7 +524,7 @@ export default function ImportReview() {
     confirmMutation.mutate(
       { record_ids: ids, force },
       {
-        onSuccess: () => setSelectedIds(new Set()),
+        onSuccess: () => { setSelectedIds(new Set()); toast('Transactions confirmed.') },
         onError: () => toast('Failed to confirm transactions. Please try again.', 'error'),
       },
     )
@@ -518,7 +534,10 @@ export default function ImportReview() {
     const ids = selectedIds.size > 0 ? Array.from(selectedIds) : undefined
     rejectMutation.mutate(
       { record_ids: ids },
-      { onError: () => toast('Failed to reject transactions. Please try again.', 'error') },
+      {
+        onSuccess: () => { setRejectConfirmOpen(false); setSelectedIds(new Set()); toast('Records rejected.') },
+        onError: () => toast('Failed to reject transactions. Please try again.', 'error'),
+      },
     )
   }
 
@@ -574,7 +593,10 @@ export default function ImportReview() {
             value={batch.account_id ?? ''}
             onChange={e => patchBatchMutation.mutate(
               { account_id: e.target.value || null },
-              { onError: () => toast('Failed to update account. Please try again.', 'error') },
+              {
+                onSuccess: () => toast('Account updated.'),
+                onError: () => toast('Failed to update account. Please try again.', 'error'),
+              },
             )}
             disabled={patchBatchMutation.isPending}
             className="kk-input h-7 text-xs max-w-xs"
@@ -634,7 +656,7 @@ export default function ImportReview() {
             </button>
           )}
           <button
-            onClick={rejectSelected}
+            onClick={() => setRejectConfirmOpen(true)}
             disabled={rejectMutation.isPending}
             className="kk-btn-danger disabled:opacity-50"
           >
@@ -726,6 +748,16 @@ export default function ImportReview() {
           onClose={() => setResolveRecord(null)}
         />
       )}
+
+      <ConfirmDialog
+        open={rejectConfirmOpen}
+        title="Reject records"
+        description={`Reject ${selectedIds.size > 0 ? selectedIds.size : records.length} record${(selectedIds.size > 0 ? selectedIds.size : records.length) === 1 ? '' : 's'}? Rejected records will not be imported as transactions.`}
+        confirmLabel="Reject"
+        isDestructive
+        onConfirm={rejectSelected}
+        onCancel={() => setRejectConfirmOpen(false)}
+      />
     </div>
   )
 }

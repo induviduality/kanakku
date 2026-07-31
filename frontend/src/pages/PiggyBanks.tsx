@@ -11,6 +11,7 @@ import {
 import ConfirmDialog from '../components/ConfirmDialog'
 import { EmptyState } from '../components/EmptyState'
 import { PiggyBankDrawer } from '../components/drawers/PiggyBankDrawer'
+import { useToast } from '../lib/toast'
 
 function ProgressRing({ pct }: { pct: number }) {
   const r = 36
@@ -172,6 +173,7 @@ export default function PiggyBanks() {
   const { data: piggyBanks, isLoading } = useGetPiggyBanks()
   const createMutation = useCreatePiggyBank()
   const deleteMutation = useDeletePiggyBank()
+  const { toast } = useToast()
   const [showForm, setShowForm] = useState(false)
   const [deleteTarget, setDeleteTarget] = useState<PiggyBank | null>(null)
   const [drawerPiggyId, setDrawerPiggyId] = useState<string | null>(null)
@@ -196,7 +198,10 @@ export default function PiggyBanks() {
             <h2 className="text-lg font-semibold mb-4">New piggy bank</h2>
             <PiggyBankForm
               onSubmit={(data) => {
-                createMutation.mutate(data, { onSuccess: () => setShowForm(false) })
+                createMutation.mutate(data, {
+                  onSuccess: () => { setShowForm(false); toast('Piggy bank created.') },
+                  onError: () => toast('Failed to create piggy bank. Please try again.', 'error'),
+                })
               }}
               onCancel={() => setShowForm(false)}
               isLoading={createMutation.isPending}
@@ -265,7 +270,10 @@ export default function PiggyBanks() {
           confirmLabel="Delete"
           isDestructive
           onConfirm={() => {
-            deleteMutation.mutate(deleteTarget.id, { onSuccess: () => setDeleteTarget(null) })
+            deleteMutation.mutate(deleteTarget.id, {
+              onSuccess: () => { setDeleteTarget(null); toast('Piggy bank deleted.') },
+              onError: () => toast('Failed to delete piggy bank. Please try again.', 'error'),
+            })
           }}
           onCancel={() => setDeleteTarget(null)}
         />

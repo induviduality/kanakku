@@ -16,6 +16,7 @@ import ConfirmDialog from '../components/ConfirmDialog'
 import EntityModal from '../components/EntityModal'
 import { EmptyState } from '../components/EmptyState'
 import { BudgetDrawer } from '../components/drawers/BudgetDrawer'
+import { useToast } from '../lib/toast'
 
 // ── Rrule helpers ─────────────────────────────────────────────────────────────
 
@@ -172,6 +173,7 @@ export default function Budgets() {
   const { data: budgets = [], isLoading } = useGetBudgets(true, fromDate, rangeStart, rangeEndExclusive)
   const createBudget  = useCreateBudget()
   const deleteBudget  = useDeleteBudget()
+  const { toast } = useToast()
 
   // ── UI state ─────────────────────────────────────────────────────────────
   const [createOpen,     setCreateOpen]     = useState(false)
@@ -228,14 +230,21 @@ export default function Budgets() {
           (old: Budget[] | undefined) => (old ? [...old, newBudget] : [newBudget]),
         )
       }
+      toast('Budget created.')
     } catch {
       setCreateError('Failed to create budget.')
+      toast('Failed to create budget. Please try again.', 'error')
     }
   }
 
   async function handleDelete(scope: DeleteScope) {
     if (!deleteTarget) return
-    await deleteBudget.mutateAsync({ id: deleteTarget.id, scope })
+    try {
+      await deleteBudget.mutateAsync({ id: deleteTarget.id, scope })
+      toast('Budget deleted.')
+    } catch {
+      toast('Failed to delete budget. Please try again.', 'error')
+    }
     setDeleteTarget(null)
   }
 

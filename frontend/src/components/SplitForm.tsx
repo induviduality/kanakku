@@ -14,6 +14,7 @@ import { type Transaction } from '../api/transactions'
 import { apiGet } from '../lib/api-client'
 import { usePayees, useCreatePayee } from '../api/payees'
 import { TransactionPicker } from './TransactionPicker'
+import { useToast } from '../lib/toast'
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -74,6 +75,7 @@ export function SplitForm({ initialSplit, onClose, onSuccess }: Props) {
   const createPayee = useCreatePayee()
   const createSplit = useCreateSplit()
   const updateSplit = useUpdateSplit()
+  const { toast } = useToast()
 
   // Picker opens by default when creating (nothing selected yet), collapsed when editing.
   const [pickerOpen, setPickerOpen] = useState(() => !initialSplit)
@@ -234,8 +236,14 @@ export function SplitForm({ initialSplit, onClose, onSuccess }: Props) {
   }
 
   async function handleInlineCreatePayee(name: string) {
-    const created = await createPayee.mutateAsync({ name, type: 'person' })
-    return { id: created.id, label: created.name }
+    try {
+      const created = await createPayee.mutateAsync({ name, type: 'person' })
+      toast('Payee created.')
+      return { id: created.id, label: created.name }
+    } catch (err) {
+      toast('Failed to create payee. Please try again.', 'error')
+      throw err
+    }
   }
 
   async function handleSubmit() {
@@ -258,17 +266,19 @@ export function SplitForm({ initialSplit, onClose, onSuccess }: Props) {
       if (initialSplit) {
         const updated = await updateSplit.mutateAsync({ splitId: initialSplit.id, body })
         onSuccess?.(updated.id)
+        toast('Split updated.')
       } else {
         const created = await createSplit.mutateAsync(body)
         onSuccess?.(created.id)
+        toast('Split created.')
       }
       onClose()
     } catch {
-      setSubmitError(
-        initialSplit
-          ? 'Failed to update split. Please check the details and try again.'
-          : 'Failed to create split. Please check the details and try again.'
-      )
+      const msg = initialSplit
+        ? 'Failed to update split. Please check the details and try again.'
+        : 'Failed to create split. Please check the details and try again.'
+      setSubmitError(msg)
+      toast(msg, 'error')
     }
   }
 

@@ -11,6 +11,7 @@ import {
   type ContributionCreate,
 } from '../api/piggy_banks'
 import ConfirmDialog from '../components/ConfirmDialog'
+import { useToast } from '../lib/toast'
 
 function ProgressRing({ pct }: { pct: number }) {
   const r = 36
@@ -62,6 +63,7 @@ function AddContributionForm({
   onDone: () => void
 }) {
   const addMutation = useAddContribution()
+  const { toast } = useToast()
   const [txnId, setTxnId] = useState('')
   const [type, setType] = useState<ContributionType>('expense')
   const [amount, setAmount] = useState('')
@@ -75,7 +77,10 @@ function AddContributionForm({
       amount,
       date,
     }
-    addMutation.mutate({ piggyId, body }, { onSuccess: () => { onDone(); setTxnId('') } })
+    addMutation.mutate({ piggyId, body }, {
+      onSuccess: () => { onDone(); setTxnId(''); toast('Contribution added.') },
+      onError: () => toast('Failed to add contribution. Please try again.', 'error'),
+    })
   }
 
   return (
@@ -156,6 +161,7 @@ export default function PiggyBankDetail() {
   const { data: contributions = [], isLoading: contribLoading } = useGetContributions(piggyId)
   const removeMutation = useRemoveContribution()
   const deleteMutation = useDeletePiggyBank()
+  const { toast } = useToast()
   const [showForm, setShowForm] = useState(false)
   const [removeTarget, setRemoveTarget] = useState<string | null>(null)
   const [deleteOpen, setDeleteOpen] = useState(false)
@@ -265,7 +271,10 @@ export default function PiggyBankDetail() {
           onConfirm={() => {
             removeMutation.mutate(
               { piggyId: pig.id, contribId: removeTarget },
-              { onSuccess: () => setRemoveTarget(null) },
+              {
+                onSuccess: () => { setRemoveTarget(null); toast('Contribution removed.') },
+                onError: () => toast('Failed to remove contribution. Please try again.', 'error'),
+              },
             )
           }}
           onCancel={() => setRemoveTarget(null)}
@@ -280,7 +289,8 @@ export default function PiggyBankDetail() {
         isDestructive
         onConfirm={() => {
           deleteMutation.mutate(pig.id, {
-            onSuccess: () => navigate({ to: '/piggy-banks' }),
+            onSuccess: () => { toast('Piggy bank deleted.'); navigate({ to: '/piggy-banks' }) },
+            onError: () => toast('Failed to delete piggy bank. Please try again.', 'error'),
           })
         }}
         onCancel={() => setDeleteOpen(false)}

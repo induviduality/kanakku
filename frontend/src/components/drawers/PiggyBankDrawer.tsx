@@ -3,6 +3,7 @@ import { Trash2 } from 'lucide-react'
 import { Drawer, DrawerSection, DrawerRow } from '../Drawer'
 import { useGetPiggyBank, useGetContributions, useRemoveContribution, useDeletePiggyBank } from '../../api/piggy_banks'
 import ConfirmDialog from '../ConfirmDialog'
+import { useToast } from '../../lib/toast'
 
 function ProgressRing({ pct }: { pct: number }) {
   const r = 36
@@ -44,6 +45,7 @@ export function PiggyBankDrawer({ piggyId, onClose }: Props) {
   const { data: contributions = [], isLoading: contribLoading } = useGetContributions(piggyId)
   const remove = useRemoveContribution()
   const deletePiggy = useDeletePiggyBank()
+  const { toast } = useToast()
   const [removeTarget, setRemoveTarget] = useState<string | null>(null)
   const [deleteOpen, setDeleteOpen] = useState(false)
 
@@ -143,7 +145,10 @@ export function PiggyBankDrawer({ piggyId, onClose }: Props) {
           onConfirm={() => {
             remove.mutate(
               { piggyId: pig.id, contribId: removeTarget },
-              { onSuccess: () => setRemoveTarget(null) },
+              {
+                onSuccess: () => { setRemoveTarget(null); toast('Contribution removed.') },
+                onError: () => toast('Failed to remove contribution. Please try again.', 'error'),
+              },
             )
           }}
           onCancel={() => setRemoveTarget(null)}
@@ -158,7 +163,10 @@ export function PiggyBankDrawer({ piggyId, onClose }: Props) {
           confirmLabel="Delete"
           isDestructive
           onConfirm={() => {
-            deletePiggy.mutate(pig.id, { onSuccess: () => { setDeleteOpen(false); onClose() } })
+            deletePiggy.mutate(pig.id, {
+              onSuccess: () => { setDeleteOpen(false); onClose(); toast('Piggy bank deleted.') },
+              onError: () => toast('Failed to delete piggy bank. Please try again.', 'error'),
+            })
           }}
           onCancel={() => setDeleteOpen(false)}
         />

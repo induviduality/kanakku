@@ -1,6 +1,7 @@
 import { Drawer, DrawerSection, DrawerRow } from '../Drawer'
 import { usePaymentMethods, usePatchAccount, type Account } from '../../api/accounts'
 import { formatAccountBalance, isLiability, TONE_CLASS } from '../../lib/balance'
+import { useToast } from '../../lib/toast'
 
 const TYPE_LABEL: Record<Account['type'], string> = {
   bank:        'Bank',
@@ -43,6 +44,7 @@ interface Props {
 
 export function AccountDrawer({ account, onClose }: Props) {
   const patch    = usePatchAccount()
+  const { toast } = useToast()
   const balance  = account ? parseFloat(account.current_balance) : 0
   const opening  = account ? parseFloat(account.opening_balance) : 0
   const liability = account ? isLiability(account.type) : false
@@ -50,7 +52,13 @@ export function AccountDrawer({ account, onClose }: Props) {
 
   function toggleActive() {
     if (!account) return
-    patch.mutate({ id: account.id, patch: { is_active: !account.is_active } })
+    patch.mutate(
+      { id: account.id, patch: { is_active: !account.is_active } },
+      {
+        onSuccess: () => toast('Account updated.'),
+        onError: () => toast('Failed to update account. Please try again.', 'error'),
+      },
+    )
   }
 
   return (

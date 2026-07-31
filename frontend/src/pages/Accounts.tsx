@@ -17,6 +17,7 @@ import ConfirmDialog from '../components/ConfirmDialog'
 import { EmptyState } from '../components/EmptyState'
 import { AccountDrawer } from '../components/drawers/AccountDrawer'
 import { formatAccountBalance, TONE_CLASS } from '../lib/balance'
+import { useToast } from '../lib/toast'
 
 // ── Payment methods sub-panel ────────────────────────────────────────────────
 
@@ -24,6 +25,7 @@ function PaymentMethodsPanel({ account }: { account: Account }) {
   const { data: methods = [], isLoading } = usePaymentMethods(account.id)
   const createPm = useCreatePaymentMethod(account.id)
   const deletePm = useDeletePaymentMethod(account.id)
+  const { toast } = useToast()
 
   const [addOpen, setAddOpen] = useState(false)
   const [pmName, setPmName] = useState('')
@@ -33,15 +35,20 @@ function PaymentMethodsPanel({ account }: { account: Account }) {
 
   async function handleAddPm(e: React.FormEvent) {
     e.preventDefault()
-    await createPm.mutateAsync({
-      name: pmName,
-      type: pmType,
-      upi_app: pmType === 'upi' && pmUpiApp ? pmUpiApp : undefined,
-    })
-    setPmName('')
-    setPmType('debit_card')
-    setPmUpiApp('')
-    setAddOpen(false)
+    try {
+      await createPm.mutateAsync({
+        name: pmName,
+        type: pmType,
+        upi_app: pmType === 'upi' && pmUpiApp ? pmUpiApp : undefined,
+      })
+      setPmName('')
+      setPmType('debit_card')
+      setPmUpiApp('')
+      setAddOpen(false)
+      toast('Payment method added.')
+    } catch {
+      toast('Failed to add payment method. Please try again.', 'error')
+    }
   }
 
   const cols: Column<PaymentMethod>[] = [
@@ -152,7 +159,14 @@ function PaymentMethodsPanel({ account }: { account: Account }) {
         confirmLabel="Delete"
         isDestructive
         onConfirm={async () => {
-          if (deleteTarget) await deletePm.mutateAsync(deleteTarget.id)
+          if (deleteTarget) {
+            try {
+              await deletePm.mutateAsync(deleteTarget.id)
+              toast('Payment method deleted.')
+            } catch {
+              toast('Failed to delete payment method. Please try again.', 'error')
+            }
+          }
           setDeleteTarget(null)
         }}
         onCancel={() => setDeleteTarget(null)}
@@ -168,6 +182,7 @@ export default function Accounts() {
   const createAccount = useCreateAccount()
   const patchAccount = usePatchAccount()
   const deleteAccount = useDeleteAccount()
+  const { toast } = useToast()
 
   const [createOpen, setCreateOpen] = useState(false)
   const [editTarget, setEditTarget] = useState<Account | null>(null)
@@ -193,19 +208,29 @@ export default function Accounts() {
 
   async function handleCreate(e: React.FormEvent) {
     e.preventDefault()
-    await createAccount.mutateAsync({ name, type, currency, opening_balance: parseFloat(openingBalance) || 0 })
-    setName('')
-    setType('bank')
-    setCurrency('INR')
-    setOpeningBalance('0')
-    setCreateOpen(false)
+    try {
+      await createAccount.mutateAsync({ name, type, currency, opening_balance: parseFloat(openingBalance) || 0 })
+      setName('')
+      setType('bank')
+      setCurrency('INR')
+      setOpeningBalance('0')
+      setCreateOpen(false)
+      toast('Account created.')
+    } catch {
+      toast('Failed to create account. Please try again.', 'error')
+    }
   }
 
   async function handleEdit(e: React.FormEvent) {
     e.preventDefault()
     if (!editTarget) return
-    await patchAccount.mutateAsync({ id: editTarget.id, patch: { name: editName, is_active: editActive } })
-    setEditTarget(null)
+    try {
+      await patchAccount.mutateAsync({ id: editTarget.id, patch: { name: editName, is_active: editActive } })
+      setEditTarget(null)
+      toast('Account updated.')
+    } catch {
+      toast('Failed to update account. Please try again.', 'error')
+    }
   }
 
   return (
@@ -402,7 +427,14 @@ export default function Accounts() {
         confirmLabel="Delete"
         isDestructive
         onConfirm={async () => {
-          if (deleteTarget) await deleteAccount.mutateAsync(deleteTarget.id)
+          if (deleteTarget) {
+            try {
+              await deleteAccount.mutateAsync(deleteTarget.id)
+              toast('Account deleted.')
+            } catch {
+              toast('Failed to delete account. Please try again.', 'error')
+            }
+          }
           setDeleteTarget(null)
         }}
         onCancel={() => setDeleteTarget(null)}

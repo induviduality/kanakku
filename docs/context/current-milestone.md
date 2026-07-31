@@ -1,3 +1,16 @@
+# Ad-hoc Fix Sprint (2026-07-31) — UI-wide Confirm-Delete + Toast Sweep — COMPLETE
+
+User's ask: skim the whole frontend and enforce (1) every delete has an "are you sure?" confirmation, (2) every create/update/delete surfaces a toast on both success and failure, no silent-swallowed errors — everywhere on the UI.
+
+## Completed Tasks
+- Explore-agent audit of `frontend/src` for delete actions lacking confirmation and mutations lacking toast coverage — DONE
+- Closed every gap found: Accounts (account + payment method CRUD), Payees, Budgets, `AccountDrawer`'s active-status toggle, all PiggyBank surfaces (list/detail/drawer/create-edit form), Transactions (delete + inline description patch), Subscriptions (+ its form), the full Splits surface (Splits/SplitsAll list, SplitDrawer, SplitDetail, SplitForm), Reports/ReportDashboard (dashboard + widget CRUD, widget drag-layout save errors), remaining ImportReview gaps — DONE
+- Added confirm-before-delete dialogs where actions previously fired immediately: SplitDrawer/SplitDetail "unlink settlement", ReportDashboard widget delete, Reports dashboard delete, ImportReview bulk Reject + duplicate "Replace existing", Disputes' "keep this one" duplicate-resolution card — DONE
+- `bun run build` clean, zero new TypeScript errors — DONE
+
+## Pending
+- Not browser-verified end-to-end given the sweep's breadth (~20 files touched) — worth spot-checking a few flows (delete an account, reject import records, unlink a split settlement) before considering fully verified.
+
 # Credit Cards Sprint (2026-07-24) — Fable Review 2026-07-12 (05-credit-cards) — COMPLETE
 
 User scope (via clarifying Q&A): implement §4 (readable liability balances), §3.3 (bill-payment import fix, minimum + matching hint), and §5 (seed existing card debt, approach (a) — allow opening_balance on liability as a debit, scoped to credit_card/loan). Enforcement-hole cleanup (#5/#14) intentionally NOT taken — approach (a) legitimizes opening_balance on cards instead of banning it. §6.1 statement-cycle metadata skipped.

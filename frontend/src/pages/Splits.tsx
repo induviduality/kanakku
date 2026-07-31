@@ -8,6 +8,7 @@ import { toIsoDate } from '../lib/period'
 import { EmptyState } from '../components/EmptyState'
 import { SplitDrawer } from '../components/drawers/SplitDrawer'
 import { CreateSplitDrawer } from '../components/drawers/CreateSplitDrawer'
+import { useToast } from '../lib/toast'
 
 function StatusBadge({ status }: { status: SplitShareStatus }) {
   const styles: Record<SplitShareStatus, string> = {
@@ -97,6 +98,7 @@ export default function Splits() {
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null)
   const [createOpen, setCreateOpen] = useState(false)
   const deleteSplit = useDeleteSplit()
+  const { toast } = useToast()
 
   if (isLoading) {
     return (
@@ -216,7 +218,10 @@ export default function Splits() {
       isDestructive
       onConfirm={() => {
         if (!deleteTarget) return
-        deleteSplit.mutate(deleteTarget, { onSuccess: () => setDeleteTarget(null) })
+        deleteSplit.mutate(deleteTarget, {
+          onSuccess: () => { setDeleteTarget(null); toast('Split deleted.') },
+          onError: () => toast('Failed to delete split. Please try again.', 'error'),
+        })
       }}
       onCancel={() => setDeleteTarget(null)}
     />

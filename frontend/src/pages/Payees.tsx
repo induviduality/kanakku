@@ -5,6 +5,7 @@ import DataTable, { type Column } from '../components/DataTable'
 import EntityModal from '../components/EntityModal'
 import ConfirmDialog from '../components/ConfirmDialog'
 import { PayeeDrawer } from '../components/drawers/PayeeDrawer'
+import { useToast } from '../lib/toast'
 
 export default function Payees() {
   const [search, setSearch] = useState('')
@@ -12,6 +13,7 @@ export default function Payees() {
   const createPayee = useCreatePayee()
   const patchPayee = usePatchPayee()
   const deletePayee = useDeletePayee()
+  const { toast } = useToast()
 
   const [createOpen, setCreateOpen] = useState(false)
   const [editTarget, setEditTarget] = useState<Payee | null>(null)
@@ -35,18 +37,28 @@ export default function Payees() {
 
   async function handleCreate(e: React.FormEvent) {
     e.preventDefault()
-    await createPayee.mutateAsync({ name, type, notes: notes || undefined })
-    setName('')
-    setType('merchant')
-    setNotes('')
-    setCreateOpen(false)
+    try {
+      await createPayee.mutateAsync({ name, type, notes: notes || undefined })
+      setName('')
+      setType('merchant')
+      setNotes('')
+      setCreateOpen(false)
+      toast('Payee created.')
+    } catch {
+      toast('Failed to create payee. Please try again.', 'error')
+    }
   }
 
   async function handleEdit(e: React.FormEvent) {
     e.preventDefault()
     if (!editTarget) return
-    await patchPayee.mutateAsync({ id: editTarget.id, patch: { name: editName, type: editType, notes: editNotes || undefined } })
-    setEditTarget(null)
+    try {
+      await patchPayee.mutateAsync({ id: editTarget.id, patch: { name: editName, type: editType, notes: editNotes || undefined } })
+      setEditTarget(null)
+      toast('Payee updated.')
+    } catch {
+      toast('Failed to update payee. Please try again.', 'error')
+    }
   }
 
   const columns: Column<Payee>[] = [
@@ -206,7 +218,14 @@ export default function Payees() {
         confirmLabel="Delete"
         isDestructive
         onConfirm={async () => {
-          if (deleteTarget) await deletePayee.mutateAsync(deleteTarget.id)
+          if (deleteTarget) {
+            try {
+              await deletePayee.mutateAsync(deleteTarget.id)
+              toast('Payee deleted.')
+            } catch {
+              toast('Failed to delete payee. Please try again.', 'error')
+            }
+          }
           setDeleteTarget(null)
         }}
         onCancel={() => setDeleteTarget(null)}

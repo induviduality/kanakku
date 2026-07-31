@@ -4,6 +4,7 @@ import { usePotentialDuplicates, type PotentialDuplicateGroup, type DuplicateTxn
 import { useDeleteTransaction } from '../api/transactions'
 import { usePeriod } from '../lib/period-context'
 import { useToast } from '../lib/toast'
+import ConfirmDialog from '../components/ConfirmDialog'
 
 const TYPE_CHIP: Record<string, string> = {
   income:          'kk-chip-positive',
@@ -26,6 +27,7 @@ function DisputeResolveModal({
   const deleteTxn = useDeleteTransaction()
   const { toast } = useToast()
   const [busy, setBusy] = useState(false)
+  const [confirmKeepId, setConfirmKeepId] = useState<string | null>(null)
 
   async function handleKeep(keepId: string) {
     setBusy(true)
@@ -59,7 +61,7 @@ function DisputeResolveModal({
 
         <div className="px-5 py-4 space-y-2">
           {group.transactions.map((txn) => (
-            <TxnKeepCard key={txn.id} txn={txn} busy={busy} onKeep={() => handleKeep(txn.id)} />
+            <TxnKeepCard key={txn.id} txn={txn} busy={busy} onKeep={() => setConfirmKeepId(txn.id)} />
           ))}
         </div>
 
@@ -76,6 +78,19 @@ function DisputeResolveModal({
           </button>
         </div>
       </div>
+
+      <ConfirmDialog
+        open={!!confirmKeepId}
+        title="Keep this transaction"
+        description={`The other ${group.transactions.length - 1} transaction${group.transactions.length - 1 === 1 ? '' : 's'} in this group will be soft-deleted. This can be undone within 30 days.`}
+        confirmLabel="Keep & delete others"
+        isDestructive
+        onConfirm={() => {
+          if (confirmKeepId) handleKeep(confirmKeepId)
+          setConfirmKeepId(null)
+        }}
+        onCancel={() => setConfirmKeepId(null)}
+      />
     </div>
   )
 }

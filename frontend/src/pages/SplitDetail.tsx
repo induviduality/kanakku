@@ -18,6 +18,7 @@ import { usePayees, useCreatePayee } from '../api/payees'
 import { apiGet } from '../lib/api-client'
 import Autocomplete from '../components/Autocomplete'
 import ConfirmDialog from '../components/ConfirmDialog'
+import { useToast } from '../lib/toast'
 
 const STATUS_BADGES: Record<SplitShareStatus, string> = {
   pending: 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400',
@@ -38,6 +39,8 @@ function SettlementItem({
   shareId: string
 }) {
   const unlink = useUnlinkSettlement(splitId)
+  const { toast } = useToast()
+  const [confirmOpen, setConfirmOpen] = useState(false)
   const txn = txnMap[s.transaction_id]
   const label = txn?.description ?? `Payment ${s.transaction_id.slice(0, 8)}…`
   const date = new Date(txn?.transacted_at ?? s.created_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })
@@ -49,10 +52,28 @@ function SettlementItem({
         <span className="text-fg-faint kk-mono">₹{fmt(s.amount)} · {date}</span>
       </div>
       <button
-        onClick={() => unlink.mutate({ shareId, settlementId: s.id })}
+        onClick={() => setConfirmOpen(true)}
         disabled={unlink.isPending}
         className="text-negative-dim hover:underline disabled:opacity-40"
       >×</button>
+
+      <ConfirmDialog
+        open={confirmOpen}
+        title="Unlink payment"
+        description="Remove this linked payment from the share? The transaction itself will not be deleted."
+        confirmLabel="Unlink"
+        isDestructive
+        onConfirm={() => {
+          unlink.mutate(
+            { shareId, settlementId: s.id },
+            {
+              onSuccess: () => { setConfirmOpen(false); toast('Payment unlinked.') },
+              onError: () => toast('Failed to unlink payment. Please try again.', 'error'),
+            },
+          )
+        }}
+        onCancel={() => setConfirmOpen(false)}
+      />
     </li>
   )
 }
@@ -71,6 +92,7 @@ function EditShareForm({
   onDone: () => void
 }) {
   const patch = usePatchShare(splitId)
+  const { toast } = useToast()
   const [payeeId, setPayeeId] = useState<string | null>(share.payee_id ?? null)
   const [amount, setAmount] = useState(share.amount)
   const [error, setError] = useState('')
@@ -81,8 +103,10 @@ function EditShareForm({
     try {
       await patch.mutateAsync({ shareId: share.id, patch: { amount, payee_id: payeeId ?? null } })
       onDone()
+      toast('Share updated.')
     } catch {
       setError('Save failed. Check that payee is not already on another share.')
+      toast('Failed to update share. Please try again.', 'error')
     }
   }
 
@@ -147,6 +171,7 @@ function ShareRow({
   const settle   = useSettleShare(splitId)
   const forgive  = useForgiveShare(splitId)
   const unsettle = useUnsettleShare(splitId)
+  const { toast } = useToast()
 
   const paid      = parseFloat(share.paid_amount)
   const forgiven  = parseFloat(share.forgiven_amount)
@@ -166,13 +191,23 @@ function ShareRow({
     const body: { transaction_id: string; amount?: string } = { transaction_id: settleTxnId }
     if (settleAmount && settleAmount !== incomeTransactions.find(t => t.id === settleTxnId)?.amount)
       body.amount = settleAmount
-    await settle.mutateAsync({ shareId: share.id, body })
-    setSettleOpen(false); setSettleTxnId(''); setSettleAmount('')
+    try {
+      await settle.mutateAsync({ shareId: share.id, body })
+      setSettleOpen(false); setSettleTxnId(''); setSettleAmount('')
+      toast('Payment recorded.')
+    } catch {
+      toast('Failed to record settlement. Please try again.', 'error')
+    }
   }
 
   async function handleForgive() {
-    await forgive.mutateAsync({ shareId: share.id, amount: forgiveAmount })
-    setForgiveOpen(false); setForgiveAmount('')
+    try {
+      await forgive.mutateAsync({ shareId: share.id, amount: forgiveAmount })
+      setForgiveOpen(false); setForgiveAmount('')
+      toast('Forgiven amount updated.')
+    } catch {
+      toast('Failed to set forgiven amount. Please try again.', 'error')
+    }
   }
 
   return (
@@ -320,7 +355,12 @@ function ShareRow({
             open={unsettleOpen}
             title="Reset share"
             description="Remove all linked payments and forgiveness for this share."
-            onConfirm={() => { unsettle.mutate(share.id); setUnsettleOpen(false) }}
+            onConfirm={() => {
+              unsettle.mutate(share.id, {
+                onSuccess: () => { setUnsettleOpen(false); toast('Share reset.') },
+                onError: () => toast('Failed to reset share. Please try again.', 'error'),
+              })
+            }}
             onCancel={() => setUnsettleOpen(false)}
           />
         </td>
@@ -335,6 +375,7 @@ export default function SplitDetail() {
   const { data: payeesRaw = [] } = usePayees()
   const { data: txnData } = useTransactions({ type: 'income' })
   const createPayeeMutation = useCreatePayee()
+  const { toast } = useToast()
 
   // Collect settlement transaction IDs so we can fetch each individually
   const settlementTxnIds = useMemo(() => {
@@ -369,8 +410,14 @@ export default function SplitDetail() {
   }
 
   async function handleCreatePayee(name: string) {
-    const p = await createPayeeMutation.mutateAsync({ name, type: 'merchant' })
-    return { id: p.id, label: p.name }
+    try {
+      const p = await createPayeeMutation.mutateAsync({ name, type: 'merchant' })
+      toast('Payee created.')
+      return { id: p.id, label: p.name }
+    } catch (err) {
+      toast('Failed to create payee. Please try again.', 'error')
+      throw err
+    }
   }
 
   if (isLoading) return <div className="p-8 text-fg-muted">Loading…</div>

@@ -22,6 +22,7 @@ import ConfirmDialog from '../ConfirmDialog'
 import { TransactionPicker } from '../TransactionPicker'
 import { SplitForm } from '../SplitForm'
 import { TransactionDrawer } from './TransactionDrawer'
+import { useToast } from '../../lib/toast'
 
 const STATUS_CLS: Record<SplitShareStatus, string> = {
   pending:  'kk-chip kk-chip-warning',
@@ -48,6 +49,8 @@ function SettlementRow({
   onViewTxn: (txn: Transaction) => void
 }) {
   const unlink = useUnlinkSettlement(splitId)
+  const { toast } = useToast()
+  const [confirmOpen, setConfirmOpen] = useState(false)
   const txn    = txnMap[s.transaction_id]
   const label  = txn?.description ?? `Payment ${s.transaction_id.slice(0, 8)}…`
   const date   = new Date(txn?.transacted_at ?? s.created_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })
@@ -64,13 +67,31 @@ function SettlementRow({
         <p className="text-xs text-fg-faint kk-mono">₹{fmt(s.amount)} · {date}</p>
       </button>
       <button
-        onClick={() => unlink.mutate({ shareId, settlementId: s.id })}
+        onClick={() => setConfirmOpen(true)}
         disabled={unlink.isPending}
         title="Unlink this payment"
         className="text-xs text-negative-dim hover:underline disabled:opacity-40 shrink-0"
       >
         ×
       </button>
+
+      <ConfirmDialog
+        open={confirmOpen}
+        title="Unlink payment"
+        description="Remove this linked payment from the share? The transaction itself will not be deleted."
+        confirmLabel="Unlink"
+        isDestructive
+        onConfirm={() => {
+          unlink.mutate(
+            { shareId, settlementId: s.id },
+            {
+              onSuccess: () => { setConfirmOpen(false); toast('Payment unlinked.') },
+              onError: () => toast('Failed to unlink payment. Please try again.', 'error'),
+            },
+          )
+        }}
+        onCancel={() => setConfirmOpen(false)}
+      />
     </div>
   )
 }
@@ -113,6 +134,7 @@ function ShareRow({
   const forgive  = useForgiveShare(splitId)
   const unsettle = useUnsettleShare(splitId)
   const patch    = usePatchShare(splitId)
+  const { toast } = useToast()
 
   const { data: selectedTxn } = useTransaction(settleTxnId || undefined)
 
@@ -175,8 +197,10 @@ function ShareRow({
       if (settleAmount && settleAmount !== selectedTxn?.amount) body.amount = settleAmount
       await settle.mutateAsync({ shareId: share.id, body })
       setActiveAction(null); setSettleTxnId(''); setSettleAmount('')
+      toast('Payment recorded.')
     } catch {
       setSettleError('Failed to record settlement. Please try again.')
+      toast('Failed to record settlement. Please try again.', 'error')
     }
   }
 
@@ -195,8 +219,10 @@ function ShareRow({
     try {
       await forgive.mutateAsync({ shareId: share.id, amount: forgiveAmount })
       setActiveAction(null); setForgiveAmount('')
+      toast('Forgiven amount updated.')
     } catch {
       setForgiveError('Failed to set forgiven amount. Please try again.')
+      toast('Failed to set forgiven amount. Please try again.', 'error')
     }
   }
 
@@ -206,8 +232,10 @@ function ShareRow({
     try {
       await patch.mutateAsync({ shareId: share.id, patch: { amount: editAmount, payee_id: editPayeeId ?? null } })
       setActiveAction(null)
+      toast('Share updated.')
     } catch {
       setEditError('Save failed. Check that payee is not already on another share.')
+      toast('Failed to update share. Please try again.', 'error')
     }
   }
 
@@ -402,7 +430,12 @@ function ShareRow({
         open={unsettleOpen}
         title="Reset share"
         description="This will remove all linked payments and forgiveness for this share."
-        onConfirm={() => { unsettle.mutate(share.id); setUnsettleOpen(false) }}
+        onConfirm={() => {
+          unsettle.mutate(share.id, {
+            onSuccess: () => { setUnsettleOpen(false); toast('Share reset.') },
+            onError: () => toast('Failed to reset share. Please try again.', 'error'),
+          })
+        }}
         onCancel={() => setUnsettleOpen(false)}
       />
     </div>
@@ -427,6 +460,7 @@ export function SplitDrawer({ splitId, onClose }: Props) {
   const { data: payeesRaw = [] }   = usePayees()
   const deleteSplit                = useDeleteSplit()
   const createPayeeMutation        = useCreatePayee()
+  const { toast } = useToast()
 
   // Reset drawer state when splitId changes
   useEffect(() => {
@@ -488,8 +522,14 @@ export function SplitDrawer({ splitId, onClose }: Props) {
   }
 
   async function handleCreatePayee(name: string) {
-    const p = await createPayeeMutation.mutateAsync({ name, type: 'merchant' })
-    return { id: p.id, label: p.name }
+    try {
+      const p = await createPayeeMutation.mutateAsync({ name, type: 'merchant' })
+      toast('Payee created.')
+      return { id: p.id, label: p.name }
+    } catch (err) {
+      toast('Failed to create payee. Please try again.', 'error')
+      throw err
+    }
   }
 
   return (
@@ -608,7 +648,10 @@ export function SplitDrawer({ splitId, onClose }: Props) {
         isDestructive
         onConfirm={() => {
           if (!splitId) return
-          deleteSplit.mutate(splitId, { onSuccess: () => { setDeleteOpen(false); onClose() } })
+          deleteSplit.mutate(splitId, {
+            onSuccess: () => { setDeleteOpen(false); onClose(); toast('Split deleted.') },
+            onError: () => toast('Failed to delete split. Please try again.', 'error'),
+          })
         }}
         onCancel={() => setDeleteOpen(false)}
       />

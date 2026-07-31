@@ -36,6 +36,7 @@ export default function Tags() {
     try {
       await createTag.mutateAsync({ name, color: color || undefined })
       closeCreate()
+      toast('Tag created.')
     } catch {
       toast('Failed to create tag. Please try again.', 'error')
     }
@@ -47,6 +48,7 @@ export default function Tags() {
     try {
       await patchTag.mutateAsync({ id: editTarget.id, patch: { name: editName, color: editColor || undefined } })
       setEditTarget(null)
+      toast('Tag updated.')
     } catch {
       toast('Failed to update tag. Please try again.', 'error')
     }
@@ -167,8 +169,10 @@ export default function Tags() {
         isDestructive
         onConfirm={async () => {
           if (deleteTarget) {
-            try { await deleteTag.mutateAsync(deleteTarget.id) }
-            catch { toast('Failed to delete tag. Please try again.', 'error') }
+            try {
+              await deleteTag.mutateAsync(deleteTarget.id)
+              toast('Tag deleted.')
+            } catch { toast('Failed to delete tag. Please try again.', 'error') }
           }
           setDeleteTarget(null)
         }}

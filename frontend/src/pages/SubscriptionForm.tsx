@@ -8,6 +8,7 @@ import {
   type SubscriptionCreate,
 } from '../api/subscriptions'
 import { useAccounts } from '../api/accounts'
+import { useToast } from '../lib/toast'
 
 export default function SubscriptionFormPage() {
   const { subId } = useParams({ strict: false }) as { subId?: string }
@@ -18,6 +19,7 @@ export default function SubscriptionFormPage() {
   const { data: accounts = [] } = useAccounts()
   const createMutation = useCreateSubscription()
   const patchMutation = usePatchSubscription()
+  const { toast } = useToast()
 
   const [name, setName] = useState('')
   const [amount, setAmount] = useState('')
@@ -58,11 +60,15 @@ export default function SubscriptionFormPage() {
     if (isEdit && subId) {
       patchMutation.mutate(
         { id: subId, patch: data },
-        { onSuccess: () => void navigate({ to: `/subscriptions/${subId}` }) },
+        {
+          onSuccess: () => { toast('Subscription updated.'); void navigate({ to: `/subscriptions/${subId}` }) },
+          onError: () => toast('Failed to update subscription. Please try again.', 'error'),
+        },
       )
     } else {
       createMutation.mutate(data, {
-        onSuccess: (sub) => void navigate({ to: `/subscriptions/${sub.id}` }),
+        onSuccess: (sub) => { toast('Subscription created.'); void navigate({ to: `/subscriptions/${sub.id}` }) },
+        onError: () => toast('Failed to create subscription. Please try again.', 'error'),
       })
     }
   }

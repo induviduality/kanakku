@@ -12,6 +12,7 @@ import {
 import { useAccounts } from '../api/accounts'
 import ConfirmDialog from '../components/ConfirmDialog'
 import { EmptyState } from '../components/EmptyState'
+import { useToast } from '../lib/toast'
 
 const STATUS_STYLES: Record<SubscriptionStatus, string> = {
   upcoming: 'bg-green-100 text-green-800',
@@ -175,6 +176,7 @@ export default function Subscriptions() {
   const { data: subscriptions, isLoading } = useGetSubscriptions()
   const createMutation = useCreateSubscription()
   const deleteMutation = useDeleteSubscription()
+  const { toast } = useToast()
   const [showForm, setShowForm] = useState(false)
   const [deleteTarget, setDeleteTarget] = useState<Subscription | null>(null)
 
@@ -198,7 +200,10 @@ export default function Subscriptions() {
             <h2 className="text-lg font-semibold mb-4">New subscription</h2>
             <SubscriptionForm
               onSubmit={(data) => {
-                createMutation.mutate(data, { onSuccess: () => setShowForm(false) })
+                createMutation.mutate(data, {
+                  onSuccess: () => { setShowForm(false); toast('Subscription created.') },
+                  onError: () => toast('Failed to create subscription. Please try again.', 'error'),
+                })
               }}
               onCancel={() => setShowForm(false)}
               isLoading={createMutation.isPending}
@@ -258,7 +263,10 @@ export default function Subscriptions() {
           confirmLabel="Delete"
           isDestructive
           onConfirm={() => {
-            deleteMutation.mutate(deleteTarget.id, { onSuccess: () => setDeleteTarget(null) })
+            deleteMutation.mutate(deleteTarget.id, {
+              onSuccess: () => { setDeleteTarget(null); toast('Subscription deleted.') },
+              onError: () => toast('Failed to delete subscription. Please try again.', 'error'),
+            })
           }}
           onCancel={() => setDeleteTarget(null)}
         />

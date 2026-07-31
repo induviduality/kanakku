@@ -19,6 +19,7 @@ import ConfirmDialog from '../components/ConfirmDialog'
 
 import { EmptyState } from '../components/EmptyState'
 import { TransactionDrawer } from '../components/drawers/TransactionDrawer'
+import { useToast } from '../lib/toast'
 
 function formatAmount(t: Transaction): string {
   const sign = t.type === 'expense' ? '-' : t.type === 'transfer' ? '⇄' : '+'
@@ -198,6 +199,7 @@ export default function Transactions() {
   const { data: splitsData } = useListSplits()
   const deleteTxn = useDeleteTransaction()
   const patchTxn = usePatchTransaction()
+  const { toast } = useToast()
   const { data: txnData, isLoading } = useTransactions(activeFilters, urlPageSize, fetchCursor)
 
   function startEditDesc(t: Transaction, e: React.MouseEvent) {
@@ -209,7 +211,12 @@ export default function Transactions() {
   async function saveEditDesc(t: Transaction) {
     const trimmed = editingDescValue.trim()
     if (trimmed !== (t.description ?? '')) {
-      await patchTxn.mutateAsync({ id: t.id, patch: { description: trimmed } })
+      try {
+        await patchTxn.mutateAsync({ id: t.id, patch: { description: trimmed } })
+        toast('Transaction updated.')
+      } catch {
+        toast('Failed to update transaction. Please try again.', 'error')
+      }
     }
     setEditingDescId(null)
   }
@@ -719,12 +726,18 @@ export default function Transactions() {
         confirmLabel="Delete"
         isDestructive
         onConfirm={async () => {
-          if (deleteTarget) await deleteTxn.mutateAsync(deleteTarget.id)
+          if (deleteTarget) {
+            try {
+              await deleteTxn.mutateAsync(deleteTarget.id)
+              toast('Transaction deleted.')
+            } catch {
+              toast('Failed to delete transaction. Please try again.', 'error')
+            }
+          }
           setDeleteTarget(null)
         }}
         onCancel={() => setDeleteTarget(null)}
       />
-
 
 
       <TransactionDrawer
