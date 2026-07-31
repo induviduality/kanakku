@@ -1,3 +1,12 @@
+# Ad-hoc Fix Sprint (2026-07-31, cont. 2) — Fable Review 2026-07-12 (01-bugs), bug #11 — COMPLETE
+
+## Completed Tasks
+- #11 Nav gaps: SideNav gained Subscriptions/Reports/Settings; MobileNav's More sheet gained Splits/Disputes — DONE
+- `bun run build` clean — DONE
+
+## Pending
+- (none — bug #11 fixed; not browser-verified, but link additions only, no logic change)
+
 # Ad-hoc Fix Sprint (2026-07-31, cont.) — Fable Review 2026-07-12 (04-nfr-performance), item §1 — COMPLETE
 
 User is working through the performance review one item at a time, calibrated to their real scale (~300 tx/month, Pi 5 prod target).

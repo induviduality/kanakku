@@ -16,6 +16,8 @@ const MORE_LINKS = [
   { to: '/tags', label: 'Tags' },
   { to: '/subscriptions', label: 'Subscriptions' },
   { to: '/piggy-banks', label: 'Piggy Banks' },
+  { to: '/splits', label: 'Splits' },
+  { to: '/disputes', label: 'Disputes' },
   { to: '/imports', label: 'Imports' },
   { to: '/reports', label: 'Reports' },
   { to: '/recently-deleted', label: 'Bin' },

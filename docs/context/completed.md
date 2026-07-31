@@ -1,5 +1,11 @@
 # Completed Milestones
 
+## Fable review 2026-07-12 (01-bugs #11) — nav gaps: Settings/Reports/Subscriptions (desktop), Splits/Disputes (mobile) (2026-07-31)
+
+- `SideNav.tsx`: added Subscriptions, Reports, Settings entries (Bin kept last, Settings now last) — previously unreachable from desktop nav without typing the URL, despite being fully built pages (Reports M11, Subscriptions M6, Settings/data-portability pages).
+- `MobileNav.tsx`'s `MORE_LINKS`: added Splits, Disputes.
+- No behavior change beyond link additions; `bun run build` clean.
+
 ## Fable review 2026-07-12 (04-nfr-performance §1) — batch `GET /transactions` per-row queries (2026-07-31)
 
 - `_to_response`'s 6 sequential per-row queries (category/tag/budget ids, piggy-bank contribution, payment-method name, split id) replaced with a single `_to_responses_batch(items, session)` that issues 6 `IN (:page_ids)` queries total per page and assembles responses from in-memory dicts. Cuts a 100-row page from ~600 query round trips to ~7.
