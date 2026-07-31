@@ -54,93 +54,105 @@ async def _get_txn_or_404(
     return txn
 
 
-async def _fetch_category_ids(txn_id: uuid.UUID, session: AsyncSession) -> list[uuid.UUID]:
-    rows = (
+async def _to_responses_batch(
+    items: list[Transaction], session: AsyncSession
+) -> list[TransactionResponse]:
+    """Build responses for a page of transactions with one query per join
+    type instead of one per (transaction × join type) — see fable-reviews
+    2026-07-12 §1. `_to_response` is a one-item call to this."""
+    if not items:
+        return []
+
+    txn_ids = [t.id for t in items]
+
+    category_ids_by_txn: dict[uuid.UUID, list[uuid.UUID]] = {tid: [] for tid in txn_ids}
+    for row in (
         await session.execute(
-            select(transaction_categories.c.category_id).where(
-                transaction_categories.c.transaction_id == txn_id
-            )
+            select(
+                transaction_categories.c.transaction_id,
+                transaction_categories.c.category_id,
+            ).where(transaction_categories.c.transaction_id.in_(txn_ids))
         )
-    ).fetchall()
-    return [r.category_id for r in rows]
+    ).fetchall():
+        category_ids_by_txn[row.transaction_id].append(row.category_id)
 
-
-async def _fetch_tag_ids(txn_id: uuid.UUID, session: AsyncSession) -> list[uuid.UUID]:
-    rows = (
+    tag_ids_by_txn: dict[uuid.UUID, list[uuid.UUID]] = {tid: [] for tid in txn_ids}
+    for row in (
         await session.execute(
-            select(transaction_tags.c.tag_id).where(
-                transaction_tags.c.transaction_id == txn_id
-            )
+            select(
+                transaction_tags.c.transaction_id, transaction_tags.c.tag_id
+            ).where(transaction_tags.c.transaction_id.in_(txn_ids))
         )
-    ).fetchall()
-    return [r.tag_id for r in rows]
+    ).fetchall():
+        tag_ids_by_txn[row.transaction_id].append(row.tag_id)
 
-
-async def _fetch_budget_ids(txn_id: uuid.UUID, session: AsyncSession) -> list[uuid.UUID]:
-    rows = (
+    budget_ids_by_txn: dict[uuid.UUID, list[uuid.UUID]] = {tid: [] for tid in txn_ids}
+    for row in (
         await session.execute(
-            select(transaction_budgets.c.budget_id).where(
-                transaction_budgets.c.transaction_id == txn_id
-            )
+            select(
+                transaction_budgets.c.transaction_id, transaction_budgets.c.budget_id
+            ).where(transaction_budgets.c.transaction_id.in_(txn_ids))
         )
-    ).fetchall()
-    return [r.budget_id for r in rows]
+    ).fetchall():
+        budget_ids_by_txn[row.transaction_id].append(row.budget_id)
 
-
-async def _fetch_piggy_bank_id(txn_id: uuid.UUID, session: AsyncSession) -> uuid.UUID | None:
-    row = (
+    piggy_bank_id_by_txn: dict[uuid.UUID, uuid.UUID] = {}
+    for row in (
         await session.execute(
-            select(PiggyBankContribution.piggy_bank_id).where(
-                PiggyBankContribution.transaction_id == txn_id
-            )
+            select(
+                PiggyBankContribution.transaction_id,
+                PiggyBankContribution.piggy_bank_id,
+            ).where(PiggyBankContribution.transaction_id.in_(txn_ids))
         )
-    ).scalar_one_or_none()
-    return row
+    ).fetchall():
+        piggy_bank_id_by_txn[row.transaction_id] = row.piggy_bank_id
 
-
-async def _fetch_payment_method_name(
-    pm_id: uuid.UUID | None, session: AsyncSession
-) -> str | None:
-    if pm_id is None:
-        return None
-    row = (
+    split_id_by_txn: dict[uuid.UUID, uuid.UUID] = {}
+    for row in (
         await session.execute(
-            select(PaymentMethod.name).where(PaymentMethod.id == pm_id)
-        )
-    ).scalar_one_or_none()
-    return row
-
-
-async def _fetch_split_id(txn_id: uuid.UUID, session: AsyncSession) -> uuid.UUID | None:
-    row = (
-        await session.execute(
-            select(Split.id)
-            .join(SplitExpense, SplitExpense.split_id == Split.id)
+            select(SplitExpense.transaction_id, Split.id)
+            .join(Split, Split.id == SplitExpense.split_id)
             .where(
-                SplitExpense.transaction_id == txn_id,
+                SplitExpense.transaction_id.in_(txn_ids),
                 Split.deleted_at.is_(None),
             )
         )
-    ).scalar_one_or_none()
-    return row
+    ).fetchall():
+        split_id_by_txn[row.transaction_id] = row.id
+
+    pm_ids = {t.payment_method_id for t in items if t.payment_method_id is not None}
+    pm_name_by_id: dict[uuid.UUID, str] = {}
+    if pm_ids:
+        for row in (
+            await session.execute(
+                select(PaymentMethod.id, PaymentMethod.name).where(
+                    PaymentMethod.id.in_(pm_ids)
+                )
+            )
+        ).fetchall():
+            pm_name_by_id[row.id] = row.name
+
+    responses = []
+    for txn in items:
+        split_id = split_id_by_txn.get(txn.id)
+        data = {c.key: getattr(txn, c.key) for c in txn.__table__.columns}
+        data["category_ids"] = category_ids_by_txn[txn.id]
+        data["tag_ids"] = tag_ids_by_txn[txn.id]
+        data["budget_ids"] = budget_ids_by_txn[txn.id]
+        data["piggy_bank_id"] = piggy_bank_id_by_txn.get(txn.id)
+        data["payment_method_name"] = (
+            pm_name_by_id.get(txn.payment_method_id)
+            if txn.payment_method_id is not None
+            else None
+        )
+        data["split_id"] = split_id
+        data["is_split"] = split_id is not None
+        responses.append(TransactionResponse.model_validate(data))
+    return responses
 
 
 async def _to_response(txn: Transaction, session: AsyncSession) -> TransactionResponse:
-    category_ids = await _fetch_category_ids(txn.id, session)
-    tag_ids = await _fetch_tag_ids(txn.id, session)
-    budget_ids = await _fetch_budget_ids(txn.id, session)
-    piggy_bank_id = await _fetch_piggy_bank_id(txn.id, session)
-    payment_method_name = await _fetch_payment_method_name(txn.payment_method_id, session)
-    split_id = await _fetch_split_id(txn.id, session)
-    data = {c.key: getattr(txn, c.key) for c in txn.__table__.columns}
-    data["category_ids"] = category_ids
-    data["tag_ids"] = tag_ids
-    data["budget_ids"] = budget_ids
-    data["piggy_bank_id"] = piggy_bank_id
-    data["payment_method_name"] = payment_method_name
-    data["split_id"] = split_id
-    data["is_split"] = split_id is not None
-    return TransactionResponse.model_validate(data)
+    return (await _to_responses_batch([txn], session))[0]
 
 
 async def _set_joins(
@@ -603,7 +615,7 @@ async def list_transactions(
         else:
             next_cursor = _encode_cursor(last.transacted_at, last.id)
 
-    responses = [await _to_response(t, session) for t in items]
+    responses = await _to_responses_batch(items, session)
     return TransactionListResponse(
         items=responses,
         next_cursor=next_cursor,
@@ -669,9 +681,27 @@ async def patch_transaction(
 
     # Update joins if provided. For each list, None = leave alone, [] = clear.
     if body.category_ids is not None or body.tag_ids is not None or body.budget_ids is not None:
-        existing_cats = await _fetch_category_ids(txn.id, session)
-        existing_tags = await _fetch_tag_ids(txn.id, session)
-        existing_budgets = await _fetch_budget_ids(txn.id, session)
+        existing_cats = (
+            await session.execute(
+                select(transaction_categories.c.category_id).where(
+                    transaction_categories.c.transaction_id == txn.id
+                )
+            )
+        ).scalars().all()
+        existing_tags = (
+            await session.execute(
+                select(transaction_tags.c.tag_id).where(
+                    transaction_tags.c.transaction_id == txn.id
+                )
+            )
+        ).scalars().all()
+        existing_budgets = (
+            await session.execute(
+                select(transaction_budgets.c.budget_id).where(
+                    transaction_budgets.c.transaction_id == txn.id
+                )
+            )
+        ).scalars().all()
         await _set_joins(
             txn.id,
             body.category_ids if body.category_ids is not None else existing_cats,

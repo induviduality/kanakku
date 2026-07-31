@@ -1,5 +1,15 @@
 # Decision Log
 
+## 2026-07-31 — Perf review §1: batch `GET /transactions` per-row queries, not one aggregated join
+
+**Context:** Fable review 2026-07-12 (04-nfr-performance §1) flagged `_to_response` (transactions.py) issuing 6 sequential queries per listed transaction — a 100-row page costs ~610 round trips (~300-600ms on the Pi 5 target). User confirmed working through the review's items one at a time, starting here since it's the highest-impact item at their real scale (~300 tx/month).
+
+**Decision:** Replaced the 6 per-row helper functions with one `_to_responses_batch(items, session)` that runs 6 `IN (:page_ids)` queries per *page* (one per join table/relation) and assembles each response from in-memory dicts — matches the review's own suggested fix shape. `_to_response`, used by the 3 single-item endpoints (get/create/patch), is now a 1-item call into the same batch function rather than a separate implementation, so single-item and list responses are guaranteed to compute identically (no drift between the two paths) — this was an explicit ask from the user before proceeding.
+
+**Alternative considered — one aggregated query via `LEFT JOIN` + `array_agg`:** rejected. Joining transactions to 4 junction tables (categories/tags/budgets/piggy contributions) simultaneously fans out rows before aggregation (2 categories × 3 tags = 6 joined rows per transaction), forcing `DISTINCT` aggregates or per-relation lateral subqueries to avoid double-counting — same number of logical scans as the batched-queries approach, but harder to read and easy to get subtly wrong. The round-trip saving (6→1 per page) is ~3-5ms on a Pi, not worth trading for that complexity risk at this scale.
+
+**Affects:** `backend/app/routers/transactions.py` (`_to_responses_batch`, `_to_response`, `list_transactions`, `patch_transaction`'s inline existing-join fetches). No schema change, no migration. `py_compile` + import-resolution clean; not run against a real DB this session (no local Postgres). `list_splits`' identical N+1 shape (review's own note, splits.py:693-714) deliberately left for a follow-up task.
+
 ## 2026-07-31 — UI-wide sweep: confirm-before-delete + toast-on-mutation everywhere
 
 **Context:** User asked for a full skim of the frontend to enforce two rules everywhere: (1) every delete action shows an "are you sure?" confirmation first, and (2) every create/update/delete surfaces a toast on both success and failure — no action fires silently, no error is swallowed. An Explore-agent audit of the whole `frontend/src` tree found the toast system (`lib/toast.tsx`, Radix-based, `default`/`error` variants only) and `ConfirmDialog` component already existed and were used consistently in some pages (Tags, Categories, Disputes, ImportReview's core mutations) but were inconsistently applied elsewhere.

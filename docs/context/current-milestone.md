@@ -1,3 +1,17 @@
+# Ad-hoc Fix Sprint (2026-07-31, cont.) — Fable Review 2026-07-12 (04-nfr-performance), item §1 — COMPLETE
+
+User is working through the performance review one item at a time, calibrated to their real scale (~300 tx/month, Pi 5 prod target).
+
+## Completed Tasks
+- §1 `GET /transactions` N+1: `_to_responses_batch` replaces 6 per-row queries with 6 per-page `IN` queries; `_to_response` (single-item endpoints) now delegates to it (1-item call) so single vs. paginated responses can't diverge — user explicitly asked for this guarantee — DONE
+- Considered and rejected a single aggregated join/array_agg query in favor of the multiple-batched-queries shape (see decisions log) — DONE
+- Validation: `py_compile` + import-resolution clean; no local Postgres this session, so `test_transactions.py` wasn't run against a real DB — DONE (syntax-only)
+
+## Pending
+- Same N+1 shape in `list_splits` (splits.py:693-714, review's own note) — separate follow-up task, not done yet
+- Real pytest run against a DB, once available
+- Remaining review items (§2 dashboard N+1, §3 budgets N+1, §4 unbounded lists, §8 code splitting, §9 query-cache staleTime, etc.) — not started
+
 # Ad-hoc Fix Sprint (2026-07-31) — UI-wide Confirm-Delete + Toast Sweep — COMPLETE
 
 User's ask: skim the whole frontend and enforce (1) every delete has an "are you sure?" confirmation, (2) every create/update/delete surfaces a toast on both success and failure, no silent-swallowed errors — everywhere on the UI.

@@ -1,5 +1,13 @@
 # Completed Milestones
 
+## Fable review 2026-07-12 (04-nfr-performance §1) — batch `GET /transactions` per-row queries (2026-07-31)
+
+- `_to_response`'s 6 sequential per-row queries (category/tag/budget ids, piggy-bank contribution, payment-method name, split id) replaced with a single `_to_responses_batch(items, session)` that issues 6 `IN (:page_ids)` queries total per page and assembles responses from in-memory dicts. Cuts a 100-row page from ~600 query round trips to ~7.
+- `_to_response` (used by the 3 single-item endpoints: get/create/patch) is now a 1-item call into the same batch function — single code path, so single-item and paginated responses can't drift apart.
+- Kept it as multiple simple batched queries, not one aggregated join/array_agg query — a single query joining all 4 junction tables would fan out rows (2 categories × 3 tags = 6 rows) requiring `DISTINCT` aggregates or lateral subqueries, trading real complexity for a ~3-5ms round-trip saving not worth it at this scale.
+- Validation: `py_compile` + import-resolution clean; no local Postgres available, so the real `test_transactions.py` suite wasn't run this session — worth a real run before considering fully verified.
+- `list_splits`' identical N+1 shape (splits.py:693-714, review's own note) intentionally left for a separate follow-up task/commit.
+
 ## UI-wide sweep: confirm-before-delete + toast-on-mutation (2026-07-31)
 
 - Audited the whole `frontend/src` tree (delete actions + create/update/delete mutations) via an Explore agent, then closed every gap found: missing success/error toasts on Accounts, Payees, Budgets, AccountDrawer, all PiggyBank surfaces, Transactions, Subscriptions, the full Splits surface (list/drawer/detail/form), Reports/ReportDashboard, and ImportReview.
