@@ -22,13 +22,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.piggy_bank import PiggyBankContribution
 from app.models.transaction import Transaction
+from app.services.earmark_balance import sum_by_piggy_bank
 
 
-async def compute_amounts(
+async def compute_breakdowns(
     session: AsyncSession,
     piggy_bank_ids: list[uuid.UUID],
-) -> dict[uuid.UUID, Decimal]:
-    """Sum contributions for each piggy_bank_id, batched to avoid N+1 queries."""
+) -> dict[uuid.UUID, dict[str, Decimal]]:
+    """Compute contributions and earmarks for each piggy_bank_id."""
     if not piggy_bank_ids:
         return {}
 
@@ -47,10 +48,40 @@ async def compute_amounts(
         )
     ).all()
 
-    totals = {r.piggy_bank_id: r.total or Decimal("0.00") for r in rows}
-    return {pid: totals.get(pid, Decimal("0.00")) for pid in piggy_bank_ids}
+    txn_totals = {r.piggy_bank_id: r.total or Decimal("0.00") for r in rows}
+    earmark_totals = await sum_by_piggy_bank(session, piggy_bank_ids)
+
+    return {
+        pid: {
+            "from_transactions": txn_totals.get(pid, Decimal("0.00")),
+            "from_earmarks": earmark_totals.get(pid, Decimal("0.00")),
+            "total": txn_totals.get(pid, Decimal("0.00")) + earmark_totals.get(pid, Decimal("0.00")),
+        }
+        for pid in piggy_bank_ids
+    }
+
+
+async def compute_amounts(
+    session: AsyncSession,
+    piggy_bank_ids: list[uuid.UUID],
+) -> dict[uuid.UUID, Decimal]:
+    """Sum contributions and earmarks for each piggy_bank_id, batched to avoid N+1 queries."""
+    breakdowns = await compute_breakdowns(session, piggy_bank_ids)
+    return {pid: b["total"] for pid, b in breakdowns.items()}
 
 
 async def compute_amount(session: AsyncSession, piggy_bank_id: uuid.UUID) -> Decimal:
     result = await compute_amounts(session, [piggy_bank_id])
     return result.get(piggy_bank_id, Decimal("0.00"))
+
+
+async def compute_breakdown(session: AsyncSession, piggy_bank_id: uuid.UUID) -> dict[str, Decimal]:
+    result = await compute_breakdowns(session, [piggy_bank_id])
+    return result.get(
+        piggy_bank_id,
+        {
+            "from_transactions": Decimal("0.00"),
+            "from_earmarks": Decimal("0.00"),
+            "total": Decimal("0.00"),
+        },
+    )

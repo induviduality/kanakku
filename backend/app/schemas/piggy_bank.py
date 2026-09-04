@@ -46,6 +46,8 @@ class PiggyBankResponse(BaseModel):
     target_amount: Decimal
     currency: str
     current_amount: Decimal
+    amount_from_transactions: Decimal = Decimal("0")
+    amount_from_earmarks: Decimal = Decimal("0")
     date_started: date | None
     target_date: date | None
     notes: str | None

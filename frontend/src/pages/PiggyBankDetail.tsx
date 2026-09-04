@@ -188,10 +188,25 @@ export default function PiggyBankDetail() {
               </span>
             )}
             <p className="mt-1 text-gray-600">
-              {pig.currency} {pig.current_amount} / {pig.target_amount}
+              {pig.currency} {parseFloat(pig.current_amount).toLocaleString('en-IN')} / {parseFloat(pig.target_amount).toLocaleString('en-IN')}
             </p>
+            {(parseFloat(pig.amount_from_earmarks || '0') > 0 || parseFloat(pig.amount_from_transactions || '0') > 0) && (
+              <div className="flex flex-wrap items-center gap-2 mt-2 text-xs">
+                <span className="px-2 py-0.5 rounded bg-surface-2 text-fg-dim">
+                  ₹{parseFloat(pig.amount_from_transactions || '0').toLocaleString('en-IN')} from transactions
+                </span>
+                {parseFloat(pig.amount_from_earmarks || '0') > 0 && (
+                  <Link
+                    to="/earmarks"
+                    className="px-2 py-0.5 rounded bg-accent/10 text-accent font-medium hover:bg-accent/20 transition-colors"
+                  >
+                    ₹{parseFloat(pig.amount_from_earmarks || '0').toLocaleString('en-IN')} earmarked 🏷️
+                  </Link>
+                )}
+              </div>
+            )}
             {pig.date_started && (
-              <p className="text-sm text-gray-400">Started: {pig.date_started}</p>
+              <p className="text-sm text-gray-400 mt-1">Started: {pig.date_started}</p>
             )}
             {pig.target_date && (
               <p className="text-sm text-gray-400">Target date: {pig.target_date}</p>

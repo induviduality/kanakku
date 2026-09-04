@@ -1,3 +1,20 @@
+# Earmarks Feature Sprint (2026-09-04) — COMPLETE
+
+## Completed Tasks
+- Backend Data Model: `Earmark` entity (`backend/app/models/earmark.py`) with soft-delete, active state toggle, optional account link (`account_id`), and optional piggy bank link (`piggy_bank_id`) — DONE
+- Migration: `backend/alembic/versions/0031_earmarks.py` with indexes on user, account, and piggy bank — DONE
+- Earmark Service: `backend/app/services/earmark_balance.py` compute-on-read service for summing active earmarks and finding tagged account names — DONE
+- Piggy Bank Integration: `backend/app/services/piggy_bank_balance.py` and `backend/app/routers/piggy_banks.py` updated to include both transaction contributions and earmarks in `current_amount` and breakdown — DONE
+- Dashboard Integration: `backend/app/routers/dashboard.py` computes `total_earmarked`, `available_cash`, `is_overcommitted`, and per-account `earmark_names` — DONE
+- Earmarks Router: `backend/app/routers/earmarks.py` with CRUD, toggle, restore, global constraint enforcement (total earmarked ≤ total cash in hand) — DONE
+- Dev seed fixtures: `backend/app/dev_seed.py` with fixed UUIDs and scenario earmarks — DONE
+- Backend Tests: `backend/tests/test_earmarks.py` — DONE (syntax-checked, py_compile clean)
+- Frontend API & Types: `frontend/src/api/earmarks.ts`, updated `dashboard.ts` and `piggy_banks.ts` — DONE
+- Frontend Drawer & Page: `frontend/src/components/earmarks/EarmarkDrawer.tsx` and `frontend/src/pages/Earmarks.tsx` — DONE
+- Dashboard & Drawer UI updates: `frontend/src/pages/Dashboard.tsx` hero `BalanceCard` earmarks subtitle line & account indicators, `frontend/src/pages/PiggyBankDetail.tsx`, `AccountDrawer.tsx`, `PiggyBankDrawer.tsx` — DONE
+- Navigation & Routing: `frontend/src/router.tsx`, `SideNav.tsx`, and `MobileNav.tsx` — DONE
+- Validation: `bun run build` clean (0 TS errors), python syntax checks clean — DONE
+
 # Ad-hoc Fix Sprint (2026-07-31, cont. 3) — Fable Review 2026-07-12 (01-bugs), bug #17 — COMPLETE
 
 User explicitly asked for the blocked-delete reason to surface as a modal, not a toast.

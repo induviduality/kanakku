@@ -10,6 +10,8 @@ export interface PiggyBank {
   target_amount: string
   currency: string
   current_amount: string
+  amount_from_transactions?: string
+  amount_from_earmarks?: string
   date_started: string | null
   target_date: string | null
   notes: string | null

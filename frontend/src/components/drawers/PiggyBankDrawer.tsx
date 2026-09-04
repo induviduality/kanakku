@@ -88,6 +88,18 @@ export function PiggyBankDrawer({ piggyId, onClose }: Props) {
                 label="Progress"
                 value={<span className="kk-mono">{pig.progress_pct.toFixed(1)}%</span>}
               />
+              {parseFloat(pig.amount_from_transactions || '0') > 0 && (
+                <DrawerRow
+                  label="From transactions"
+                  value={<span className="kk-mono">₹{parseFloat(pig.amount_from_transactions || '0').toLocaleString('en-IN')}</span>}
+                />
+              )}
+              {parseFloat(pig.amount_from_earmarks || '0') > 0 && (
+                <DrawerRow
+                  label="From earmarks"
+                  value={<span className="kk-mono text-accent">₹{parseFloat(pig.amount_from_earmarks || '0').toLocaleString('en-IN')} 🏷️</span>}
+                />
+              )}
               {pig.target_date && <DrawerRow label="Target date" value={pig.target_date} />}
               {pig.notes && <DrawerRow label="Notes" value={pig.notes} />}
             </div>

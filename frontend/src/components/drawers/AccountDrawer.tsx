@@ -1,5 +1,6 @@
 import { Drawer, DrawerSection, DrawerRow } from '../Drawer'
 import { usePaymentMethods, usePatchAccount, type Account } from '../../api/accounts'
+import { useGetEarmarks } from '../../api/earmarks'
 import { formatAccountBalance, isLiability, TONE_CLASS } from '../../lib/balance'
 import { useToast } from '../../lib/toast'
 
@@ -45,10 +46,14 @@ interface Props {
 export function AccountDrawer({ account, onClose }: Props) {
   const patch    = usePatchAccount()
   const { toast } = useToast()
+  const { data: earmarks = [] } = useGetEarmarks()
   const balance  = account ? parseFloat(account.current_balance) : 0
   const opening  = account ? parseFloat(account.opening_balance) : 0
   const liability = account ? isLiability(account.type) : false
   const disp     = account ? formatAccountBalance(balance, account.type) : null
+  const accountEarmarks = account
+    ? earmarks.filter((e) => e.is_active && e.account_id === account.id)
+    : []
 
   function toggleActive() {
     if (!account) return
@@ -116,6 +121,25 @@ export function AccountDrawer({ account, onClose }: Props) {
           {account.type !== 'credit_card' && (
             <DrawerSection label="Payment methods">
               <PaymentMethodsList accountId={account.id} />
+            </DrawerSection>
+          )}
+
+          {/* Tagged earmarks */}
+          {accountEarmarks.length > 0 && (
+            <DrawerSection label={`Tagged Earmarks (${accountEarmarks.length})`}>
+              <div className="kk-panel divide-y divide-border p-0 overflow-hidden">
+                {accountEarmarks.map((e) => (
+                  <div key={e.id} className="flex items-center justify-between px-4 py-3">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <span>{e.icon || '🏷️'}</span>
+                      <span className="text-sm font-medium text-fg truncate">{e.name}</span>
+                    </div>
+                    <span className="text-sm font-bold text-fg kk-mono shrink-0 ml-2">
+                      ₹{parseFloat(e.amount).toLocaleString('en-IN')}
+                    </span>
+                  </div>
+                ))}
+              </div>
             </DrawerSection>
           )}
         </div>

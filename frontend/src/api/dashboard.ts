@@ -42,6 +42,14 @@ export interface PiggyBankSummaryItem {
   is_completed: boolean
 }
 
+export interface EarmarkSummaryItem {
+  id: string
+  name: string
+  amount: string
+  account_name: string | null
+  piggy_bank_name: string | null
+}
+
 export interface AccountBalanceItem {
   id: string
   name: string
@@ -49,6 +57,7 @@ export interface AccountBalanceItem {
   currency: string
   /** Balance as of the end of the selected period (or "now" if still in progress) — not the account's live balance. */
   balance: string
+  earmark_names?: string[]
 }
 
 export interface ActiveSubscriptionItem {
@@ -102,6 +111,11 @@ export interface DashboardData {
   prev_inflow: string
   prev_outflow: string
   prev_savings_rate: number | null
+  // earmarks
+  total_earmarked: string
+  available_cash: string
+  is_overcommitted: boolean
+  earmarks_summary: EarmarkSummaryItem[]
   // collections
   budgets_summary: BudgetSummaryItem[]
   category_breakdown: CategoryBreakdownItem[]

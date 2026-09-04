@@ -20,6 +20,7 @@ import BudgetFormPage from './pages/BudgetForm'
 import Subscriptions from './pages/Subscriptions'
 import SubscriptionDetail from './pages/SubscriptionDetail'
 import SubscriptionFormPage from './pages/SubscriptionForm'
+import Earmarks from './pages/Earmarks'
 import PiggyBanks from './pages/PiggyBanks'
 import PiggyBankDetail from './pages/PiggyBankDetail'
 import PiggyBankFormPage from './pages/PiggyBankForm'
@@ -279,6 +280,12 @@ const recentlyDeletedRoute = createRoute({
   component: RecentlyDeleted,
 })
 
+const earmarksRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/earmarks',
+  component: Earmarks,
+})
+
 const disputesRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/disputes',
@@ -309,6 +316,7 @@ const routeTree = rootRoute.addChildren([
   subscriptionNewRoute,
   subscriptionDetailRoute,
   subscriptionEditRoute,
+  earmarksRoute,
   piggyBanksRoute,
   piggyBankNewRoute,
   piggyBankDetailRoute,

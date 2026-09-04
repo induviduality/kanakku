@@ -1,3 +1,23 @@
+## 2026-09-04 — Earmarks: declarative soft cash reservations, dashboard available cash, and piggy bank direct funding
+
+**Context:** User requested an "Earmarks" feature allowing specific amounts of money to be earmarked for purposes (e.g. emergency fund, vacation, savings goals) without moving money or recording transactions. Key constraints and rules agreed:
+1. Total earmarked must be ≤ total cash in hand (sum of all non-liability account balances). Enforced globally on create/update (422 if exceeded).
+2. Earmarks do NOT reduce displayed account balances (to prevent confusion with real bank statements); instead, full balance is shown, with earmarked and available cash amounts displayed as additional subtitle information on the dashboard hero and tagged accounts.
+3. Earmarks do NOT couple with or block budgets or transactions; overcommit due to post-earmark spending is detected on read as a warning banner, never blocking transactions.
+4. Account linking is optional and single-account (0 or 1), acting as an informational tag without per-account hard caps.
+5. Piggy bank integration: an earmark can optionally link to a piggy bank, directly contributing to its progress (`current_amount = from_transactions + from_earmarks`) without needing transfer transactions.
+6. All balances and totals are computed on read without cached counters to eliminate drift.
+
+**Decision:**
+- Model: `Earmark` table (`id`, `user_id`, `name`, `amount`, `currency`, `account_id` nullable FK, `piggy_bank_id` nullable FK, `icon`, `color`, `notes`, `is_active`, timestamps, `deleted_at`).
+- Alembic Migration `0031_earmarks.py`.
+- Services: `earmark_balance.py` (`sum_all`, `sum_by_piggy_bank`, `earmark_names_by_account`) and updated `piggy_bank_balance.py` (`compute_breakdowns`, `compute_breakdown`).
+- Routers: `earmarks.py` (CRUD, `toggle`, `restore`), updated `dashboard.py` (`total_earmarked`, `available_cash`, `is_overcommitted`, `earmarks_summary`, and `earmark_names` per account), updated `piggy_banks.py` (includes breakdown from transactions vs earmarks).
+- Frontend: `api/earmarks.ts`, `components/earmarks/EarmarkDrawer.tsx`, `pages/Earmarks.tsx`, `pages/Dashboard.tsx`, `pages/PiggyBankDetail.tsx`, `components/drawers/PiggyBankDrawer.tsx`, `components/drawers/AccountDrawer.tsx`, routes & navigation updated.
+- Tests: `backend/tests/test_earmarks.py` covering CRUD, constraints, currency validation, liability account rejection, toggle, restore, and piggy bank/dashboard integration.
+
+**Affects:** `backend/app/models/earmark.py`, `backend/alembic/versions/0031_earmarks.py`, `backend/app/services/earmark_balance.py`, `backend/app/services/piggy_bank_balance.py`, `backend/app/routers/earmarks.py`, `backend/app/routers/dashboard.py`, `backend/app/routers/piggy_banks.py`, `backend/app/dev_seed.py`, `backend/tests/test_earmarks.py`, `frontend/src/api/earmarks.ts`, `frontend/src/pages/Earmarks.tsx`, `frontend/src/components/earmarks/EarmarkDrawer.tsx`, `frontend/src/pages/Dashboard.tsx`, `frontend/src/pages/PiggyBankDetail.tsx`, `frontend/src/components/drawers/AccountDrawer.tsx`, `frontend/src/components/drawers/PiggyBankDrawer.tsx`, `frontend/src/router.tsx`, `frontend/src/components/nav/SideNav.tsx`, `frontend/src/components/MobileNav.tsx`.
+
 ## 2026-07-31 — Bug #17: block split-linked transaction deletes with a modal, not a toast
 
 **Context:** Fable review 2026-07-12 (01-bugs #17) — deleting an expense or settlement transaction that's linked into a split silently corrupted the split (total no longer matches shares, `paid_amount` counts a gone transaction). The review's own account-deletion precedent (`accounts.py:148-179`) blocks with a 409 + specific message. User explicitly asked that this be surfaced as a modal.

@@ -113,7 +113,21 @@ function StatCard({
 // debt), shown large; "Cash" (bank + cash accounts) and "Owed" (liability
 // magnitudes) break it apart below so card debt no longer silently nets away
 // against cash in a single number.
-function BalanceCard({ netWorth, cash, owed }: { netWorth: number; cash: number; owed: number }) {
+function BalanceCard({
+  netWorth,
+  cash,
+  owed,
+  totalEarmarked = 0,
+  availableCash = 0,
+  isOvercommitted = false,
+}: {
+  netWorth: number
+  cash: number
+  owed: number
+  totalEarmarked?: number
+  availableCash?: number
+  isOvercommitted?: boolean
+}) {
   const [hidden, setHidden] = useState(false)
   const [displayed, setDisplayed] = useState(0)
   useEffect(() => { setDisplayed(netWorth) }, [netWorth])
@@ -153,10 +167,22 @@ function BalanceCard({ netWorth, cash, owed }: { netWorth: number; cash: number;
       {hidden ? (
         <p className="text-xs text-fg-faint mt-1 min-h-[1.25rem]">cash & debt hidden</p>
       ) : (
-        <div className="flex items-center gap-3 mt-1 min-h-[1.25rem] text-xs">
-          <span className="text-fg-faint">Cash <span className="text-fg-dim kk-mono">{money(cash)}</span></span>
-          {owed !== 0 && (
-            <span className="text-fg-faint">Owed <span className="text-negative-dim kk-mono">{money(owed)}</span></span>
+        <div className="space-y-1 mt-1 min-h-[1.25rem] text-xs">
+          <div className="flex items-center gap-3">
+            <span className="text-fg-faint">Cash <span className="text-fg-dim kk-mono">{money(cash)}</span></span>
+            {owed !== 0 && (
+              <span className="text-fg-faint">Owed <span className="text-negative-dim kk-mono">{money(owed)}</span></span>
+            )}
+          </div>
+          {totalEarmarked > 0 && (
+            <div className="flex items-center gap-1.5 text-[11px] text-fg-faint pt-1 border-t border-border/40">
+              {isOvercommitted && <span title="Earmarks exceed cash in hand" className="text-negative">⚠️</span>}
+              <Link to="/earmarks" className="hover:text-accent transition-colors flex items-center gap-1">
+                <span><span className="kk-mono text-fg-muted">{money(totalEarmarked)}</span> earmarked</span>
+                <span>·</span>
+                <span><span className={`kk-mono ${isOvercommitted ? 'text-negative' : 'text-positive-dim'}`}>{money(availableCash)}</span> available</span>
+              </Link>
+            </div>
           )}
         </div>
       )}
@@ -213,12 +239,23 @@ export default function Dashboard() {
       ? data.savings_rate - data.prev_savings_rate
       : null
 
+  const totalEarmarked = parseFloat(data.total_earmarked || '0')
+  const availableCash = parseFloat(data.available_cash || '0')
+  const isOvercommitted = !!data.is_overcommitted
+
   return (
     <div className={`p-4 md:p-6 space-y-6 max-w-5xl mx-auto transition-opacity duration-200 ${isFetching ? 'opacity-50' : 'opacity-100'}`}>
 
       {/* Row 1 — summary stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
-        <BalanceCard netWorth={netWorth} cash={cash} owed={owed} />
+        <BalanceCard
+          netWorth={netWorth}
+          cash={cash}
+          owed={owed}
+          totalEarmarked={totalEarmarked}
+          availableCash={availableCash}
+          isOvercommitted={isOvercommitted}
+        />
         <StatCard label="Inflow"   amount={inflow}  format={INR_FORMAT} sub={label} />
         <StatCard label="Outflow"  amount={outflow} format={INR_FORMAT} sub={label} />
         <StatCard
@@ -337,11 +374,29 @@ export default function Dashboard() {
             {data.account_balances.map(a => {
               const disp = formatAccountBalance(parseFloat(a.balance), a.type)
               return (
-              <div key={a.id} className="kk-card py-3 px-4">
-                <p className="text-xs text-fg-faint truncate">{a.name}</p>
-                <p className={`text-base font-bold kk-mono mt-1 ${TONE_CLASS[disp.tone]}`}>
-                  ₹{disp.label}
-                </p>
+              <div key={a.id} className="kk-card py-3 px-4 flex flex-col justify-between">
+                <div>
+                  <div className="flex items-center justify-between gap-1">
+                    <p className="text-xs text-fg-faint truncate">{a.name}</p>
+                    {a.earmark_names && a.earmark_names.length > 0 && (
+                      <Link
+                        to="/earmarks"
+                        className="text-[10px] px-1.5 py-0.5 rounded bg-surface-2 text-accent hover:bg-accent/10 transition-colors flex items-center gap-1 shrink-0"
+                        title={`Tagged in: ${a.earmark_names.join(', ')}`}
+                      >
+                        🏷️ {a.earmark_names.length}
+                      </Link>
+                    )}
+                  </div>
+                  <p className={`text-base font-bold kk-mono mt-1 ${TONE_CLASS[disp.tone]}`}>
+                    ₹{disp.label}
+                  </p>
+                </div>
+                {a.earmark_names && a.earmark_names.length > 0 && (
+                  <p className="text-[11px] text-fg-faint truncate mt-1.5 pt-1 border-t border-border/40">
+                    {a.earmark_names.join(', ')}
+                  </p>
+                )}
               </div>
             )})}
           </div>

@@ -11,9 +11,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.session import get_session
 from app.dependencies import get_current_user
-from app.models.account import Account, AccountType
+from app.models.account import LIABILITY_ACCOUNT_TYPES, Account, AccountType
 from app.models.budget import Budget, budget_categories
 from app.models.category import Category
+from app.models.earmark import Earmark
 from app.models.payee import Payee
 from app.models.piggy_bank import PiggyBank
 from app.models.split import Split, SplitExpense, SplitShare, SplitShareSettlement, SplitShareStatus
@@ -38,7 +39,9 @@ from app.schemas.dashboard import (
     PiggyBankSummaryItem,
     RecentTransaction,
 )
+from app.schemas.earmark import EarmarkSummaryItem
 from app.services.account_balance import compute_balances
+from app.services.earmark_balance import earmark_names_by_account, sum_all
 from app.services.piggy_bank_balance import compute_amounts as compute_piggy_bank_amounts
 from app.services.subscription_dates import compute_next_billing_date, subscription_status
 
@@ -520,6 +523,7 @@ async def _account_balances(
 
     acc_ids = [a.id for a in accounts]
     balances = await compute_balances(session, acc_ids, user_id, as_of=as_of)
+    earmark_names_map = await earmark_names_by_account(session, acc_ids)
 
     return [
         AccountBalanceItem(
@@ -528,6 +532,7 @@ async def _account_balances(
             type=a.type,
             currency=a.currency,
             balance=balances.get(a.id, Decimal("0.00")),
+            earmark_names=earmark_names_map.get(a.id, []),
         )
         for a in accounts
     ]
@@ -754,6 +759,38 @@ async def _cashflow_by_account(
     return sorted(result, key=lambda x: (x.date, str(x.account_id)))
 
 
+async def _earmarks_summary(
+    session: AsyncSession,
+    user_id: uuid.UUID,
+) -> tuple[Decimal, list[EarmarkSummaryItem]]:
+    result = await session.execute(
+        sa.select(Earmark, Account.name, PiggyBank.name)
+        .outerjoin(Account, Account.id == Earmark.account_id)
+        .outerjoin(PiggyBank, PiggyBank.id == Earmark.piggy_bank_id)
+        .where(
+            Earmark.user_id == user_id,
+            Earmark.deleted_at.is_(None),
+            Earmark.is_active.is_(True),
+        )
+        .order_by(Earmark.name)
+    )
+    rows = result.all()
+    items: list[EarmarkSummaryItem] = []
+    total = Decimal("0.00")
+    for earmark, acc_name, pb_name in rows:
+        total += earmark.amount
+        items.append(
+            EarmarkSummaryItem(
+                id=earmark.id,
+                name=earmark.name,
+                amount=earmark.amount,
+                account_name=acc_name,
+                piggy_bank_name=pb_name,
+            )
+        )
+    return total, items
+
+
 def _savings_rate(inflow: Decimal, outflow: Decimal) -> float | None:
     if inflow <= 0:
         return None
@@ -786,8 +823,15 @@ async def home_dashboard(
     subs = await _active_subscriptions(session, user.id)
     cashflow = await _cashflow_buckets(session, user.id, period_start, period_end, period)
     cashflow_by_account = await _cashflow_by_account(session, user.id, period_start, period_end, period)
+    total_earmarked, earmarks_summary = await _earmarks_summary(session, user.id)
 
     total_balance = sum((Decimal(a.balance) for a in accounts), Decimal("0"))
+    cash_in_hand = sum(
+        (Decimal(a.balance) for a in accounts if a.type not in LIABILITY_ACCOUNT_TYPES),
+        Decimal("0"),
+    )
+    available_cash = cash_in_hand - total_earmarked
+    is_overcommitted = total_earmarked > cash_in_hand
 
     return DashboardResponse(
         month=today.strftime("%Y-%m"),
@@ -804,6 +848,10 @@ async def home_dashboard(
         prev_outflow=prev_spent,
         prev_savings_rate=_savings_rate(prev_income, prev_spent),
         pending_splits_from_others=pending_from_others,
+        total_earmarked=total_earmarked,
+        available_cash=available_cash,
+        is_overcommitted=is_overcommitted,
+        earmarks_summary=earmarks_summary,
         budgets_summary=budgets,
         category_breakdown=cats,
         recent_transactions=recent,

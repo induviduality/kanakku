@@ -8,6 +8,7 @@ from pydantic import BaseModel
 
 from app.models.account import AccountType
 from app.models.transaction import TransactionType
+from app.schemas.earmark import EarmarkSummaryItem
 
 
 class BudgetSummaryItem(BaseModel):
@@ -57,6 +58,7 @@ class AccountBalanceItem(BaseModel):
     # Balance as of the end of the selected dashboard period (or "now" for a
     # period still in progress) — not the account's live current_balance.
     balance: Decimal
+    earmark_names: list[str] = []
 
 
 class ActiveSubscriptionItem(BaseModel):
@@ -115,6 +117,12 @@ class DashboardResponse(BaseModel):
     # Amount others owe the user for pending split shares in the period.
     # Shown as context alongside outflow: "of which ₹Z pending from others".
     pending_splits_from_others: Decimal
+
+    # Earmark fields
+    total_earmarked: Decimal = Decimal("0")
+    available_cash: Decimal = Decimal("0")
+    is_overcommitted: bool = False
+    earmarks_summary: list[EarmarkSummaryItem] = []
 
     budgets_summary: list[BudgetSummaryItem]
     category_breakdown: list[CategoryBreakdownItem]

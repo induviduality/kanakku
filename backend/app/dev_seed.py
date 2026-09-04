@@ -17,6 +17,7 @@ from app.db.session import async_session_factory
 from app.models.account import Account, AccountType
 from app.models.budget import Budget, BudgetPeriod, BudgetType, budget_categories
 from app.models.category import Category, CategoryApplicability, payee_default_categories
+from app.models.earmark import Earmark
 from app.models.payee import Payee, PayeeType
 from app.models.payment_method import PaymentMethod, PaymentMethodType
 from app.models.piggy_bank import ContributionType, PiggyBank, PiggyBankContribution
@@ -198,6 +199,11 @@ CONTRIB_LAPTOP_1  = uuid.UUID("c0000001-0000-0000-0000-000000000001")
 CONTRIB_TRIP_1    = uuid.UUID("c0000001-0000-0000-0000-000000000002")
 CONTRIB_TRIP_2    = uuid.UUID("c0000001-0000-0000-0000-000000000003")
 CONTRIB_PHONE_1   = uuid.UUID("c0000001-0000-0000-0000-000000000004")
+
+# Earmarks
+EARMARK_EMERGENCY = uuid.UUID("d5000001-0000-0000-0000-000000000001")
+EARMARK_LAPTOP    = uuid.UUID("d5000001-0000-0000-0000-000000000002")
+EARMARK_TRAVEL    = uuid.UUID("d5000001-0000-0000-0000-000000000003")
 
 
 def _dt(year: int, month: int, day: int, hour: int = 10) -> datetime:
@@ -785,6 +791,47 @@ async def seed_dev_data() -> None:
                                   amount=Decimal("45000"), date=date(2026, 3, 15)),
         ]:
             session.add(contrib)
+        await session.flush()
+
+        # ── Earmarks ──────────────────────────────────────────────────────────
+        # Scenario: General emergency fund earmark (₹50,000 against HDFC)
+        session.add(Earmark(
+            id=EARMARK_EMERGENCY,
+            user_id=USER_ID,
+            name="Emergency Fund",
+            amount=Decimal("50000"),
+            currency="INR",
+            account_id=ACC_HDFC,
+            icon="🛡️",
+            color="#3B82F6",
+            notes="6 months buffer",
+            is_active=True,
+        ))
+        # Scenario: Earmark linked to Piggy Bank (₹10,000 for New Laptop goal)
+        session.add(Earmark(
+            id=EARMARK_LAPTOP,
+            user_id=USER_ID,
+            name="Laptop Savings Earmark",
+            amount=Decimal("10000"),
+            currency="INR",
+            account_id=ACC_HDFC,
+            piggy_bank_id=PIG_LAPTOP,
+            icon="💻",
+            color="#10B981",
+            notes="Direct reserve for laptop without transaction",
+            is_active=True,
+        ))
+        # Scenario: General unscoped travel reserve (₹15,000)
+        session.add(Earmark(
+            id=EARMARK_TRAVEL,
+            user_id=USER_ID,
+            name="Travel Buffer",
+            amount=Decimal("15000"),
+            currency="INR",
+            icon="✈️",
+            color="#F59E0B",
+            is_active=True,
+        ))
 
         await session.commit()
         print("✓ Dev seed data loaded")

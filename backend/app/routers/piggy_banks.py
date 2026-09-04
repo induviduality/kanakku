@@ -18,7 +18,12 @@ from app.schemas.piggy_bank import (
     PiggyBankPatch,
     PiggyBankResponse,
 )
-from app.services.piggy_bank_balance import compute_amount, compute_amounts
+from app.services.piggy_bank_balance import (
+    compute_amount,
+    compute_amounts,
+    compute_breakdown,
+    compute_breakdowns,
+)
 
 router = APIRouter(prefix="/piggy-banks", tags=["piggy-banks"])
 
@@ -41,10 +46,13 @@ async def _get_piggy_or_404(
     return pig
 
 
-def _to_response(pig: PiggyBank, current: Decimal) -> PiggyBankResponse:
+def _to_response(pig: PiggyBank, breakdown: dict[str, Decimal]) -> PiggyBankResponse:
     data = {c.key: getattr(pig, c.key) for c in pig.__table__.columns}
     target = pig.target_amount
+    current = breakdown["total"]
     data["current_amount"] = current
+    data["amount_from_transactions"] = breakdown["from_transactions"]
+    data["amount_from_earmarks"] = breakdown["from_earmarks"]
     data["progress_pct"] = (
         float(current / target * 100) if target > 0 else 0.0
     )
@@ -77,7 +85,14 @@ async def create_piggy_bank(
     session.add(pig)
     await session.commit()
     await session.refresh(pig)
-    return _to_response(pig, Decimal("0"))
+    return _to_response(
+        pig,
+        {
+            "total": Decimal("0.00"),
+            "from_transactions": Decimal("0.00"),
+            "from_earmarks": Decimal("0.00"),
+        },
+    )
 
 
 @router.get("", response_model=list[PiggyBankResponse])
@@ -92,8 +107,8 @@ async def list_piggy_banks(
         ).order_by(PiggyBank.name)
     )
     pigs = result.scalars().all()
-    amounts = await compute_amounts(session, [p.id for p in pigs])
-    return [_to_response(p, amounts[p.id]) for p in pigs]
+    breakdowns = await compute_breakdowns(session, [p.id for p in pigs])
+    return [_to_response(p, breakdowns[p.id]) for p in pigs]
 
 
 @router.get("/{piggy_id}", response_model=PiggyBankResponse)
@@ -103,8 +118,8 @@ async def get_piggy_bank(
     session: AsyncSession = Depends(get_session),
 ) -> PiggyBankResponse:
     pig = await _get_piggy_or_404(piggy_id, current_user, session)
-    current = await compute_amount(session, pig.id)
-    return _to_response(pig, current)
+    breakdown = await compute_breakdown(session, pig.id)
+    return _to_response(pig, breakdown)
 
 
 @router.patch("/{piggy_id}", response_model=PiggyBankResponse)
@@ -117,11 +132,11 @@ async def patch_piggy_bank(
     pig = await _get_piggy_or_404(piggy_id, current_user, session)
     for field, value in body.model_dump(exclude_unset=True).items():
         setattr(pig, field, value)
-    current = await compute_amount(session, pig.id)
-    _update_completion(pig, current)
+    breakdown = await compute_breakdown(session, pig.id)
+    _update_completion(pig, breakdown["total"])
     await session.commit()
     await session.refresh(pig)
-    return _to_response(pig, current)
+    return _to_response(pig, breakdown)
 
 
 @router.delete("/{piggy_id}", status_code=204)
@@ -171,8 +186,8 @@ async def restore_piggy_bank(
     pig.deleted_at = None
     await session.commit()
     await session.refresh(pig)
-    current = await compute_amount(session, pig.id)
-    return _to_response(pig, current)
+    breakdown = await compute_breakdown(session, pig.id)
+    return _to_response(pig, breakdown)
 
 
 # ── Contributions ─────────────────────────────────────────────────────────────

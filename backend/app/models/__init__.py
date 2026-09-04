@@ -1,6 +1,7 @@
 from app.models.account import Account
 from app.models.budget import Budget, BudgetPeriod, BudgetType, budget_categories
 from app.models.category import Category, payee_default_categories
+from app.models.earmark import Earmark
 from app.models.export_job import ExportJob, ExportJobStatus
 from app.models.import_batch import (
     ImportBatch,
@@ -40,6 +41,7 @@ __all__ = [
     "Budget", "BudgetType", "BudgetPeriod", "budget_categories",
     "Subscription", "BillingCycle",
     "PiggyBank", "PiggyBankContribution", "ContributionType",
+    "Earmark",
     "ImportBatch", "ImportBatchStatus", "ImportSource", "VerificationStatus",
     "RawImportRecord", "RecordStatus", "RecordConfidence", "RecordMatchType",
     "LLMActivityLog",
